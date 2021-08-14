@@ -10,12 +10,6 @@ import { Skybox } from './components/Skybox'
 import { Loading } from './components/Loading'
 import { Terrain } from 'three-landscape'
 
-/*
-diffuse, splat channel 
-normal, splat channel
-saturation
-*/
-
 export default function App() {
   const root = '/maps/CustomTerrainShape'
   return (
