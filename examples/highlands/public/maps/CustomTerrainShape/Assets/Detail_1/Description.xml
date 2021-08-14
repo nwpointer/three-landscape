@@ -1,0 +1,6 @@
+<WorldCreator Version="2.0">
+  <Detail Preview="preview.png" Tags="grass" Description="" Publisher="" Website="" Guid="52511243-4088-4eb3-bfc1-8cd87f54cdf0">
+    <Diffuse File="GrassFrond01AlbedoAlpha.png" Time="208678456360000000" />
+    <Normal File="" Time="132711316150000000" />
+  </Detail>
+</WorldCreator>

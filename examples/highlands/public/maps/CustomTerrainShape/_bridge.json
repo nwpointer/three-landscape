@@ -1,0 +1,148 @@
+{
+   "Version": 2,
+   "Project": {
+      "Name": "CustomTerrainShape"
+   },
+   "Surface": {
+      "HeightCenter": 167.8817,
+      "MinHeightScale": 0,
+      "MaxHeightScale": 500,
+      "MinHeight": 0.3634631,
+      "MaxHeight": 2.789362,
+      "Height": 106.496,
+      "Width": 2048,
+      "Length": 2048,
+      "ResolutionX": 1024,
+      "ResolutionY": 1024
+   },
+   "Texturing": {
+      "SplatTexture": [
+         {
+            "Name": "splatmap_00.tga",
+            "TextureInfo": [
+               {
+                  "Tag": "Default",
+                  "Name": "Cliffs_02",
+                  "FileName": "Cliffs_02",
+                  "TileSize": "43.52767,43.52767",
+                  "TileOffset": "0,0",
+                  "Metallic": 0,
+                  "Smoothness": 0,
+                  "Color": "RGBA(1.000, 1.000, 1.000, 1.000)",
+                  "Diffuse": "/maps/CustomTerrainShape/Assets/Cliffs_02/Rock_DarkCrackyCliffs_col.png",
+                  "Normal": "/maps/CustomTerrainShape/Assets/Cliffs_02/Rock_DarkCrackyCliffs_norm.png",
+                  "Displacement": "/maps/CustomTerrainShape/Assets/Cliffs_02/"
+               },
+               {
+                  "Tag": "Default",
+                  "Name": "Rock_04",
+                  "FileName": "Rock_04",
+                  "TileSize": "47.03012,47.03012",
+                  "TileOffset": "0,0",
+                  "Metallic": 0,
+                  "Smoothness": 0.3248774,
+                  "Color": "RGBA(1.000, 1.000, 1.000, 1.000)",
+                  "Diffuse": "/maps/CustomTerrainShape/Assets/Rock_04/Rock_sobermanRockWall_col.png",
+                  "Normal": "/maps/CustomTerrainShape/Assets/Rock_04/Rock_sobermanRockWall_norm.png",
+                  "Displacement": "/maps/CustomTerrainShape/Assets/Rock_04/"
+               },
+               {
+                  "Tag": "Default",
+                  "Name": "Mud_03",
+                  "FileName": "Mud_03",
+                  "TileSize": "4,4",
+                  "TileOffset": "0,0",
+                  "Metallic": 0,
+                  "Smoothness": 0,
+                  "Color": "RGBA(1.000, 1.000, 1.000, 1.000)",
+                  "Diffuse": "/maps/CustomTerrainShape/Assets/Mud_03/Ground_WetBumpyMud_col.png",
+                  "Normal": "/maps/CustomTerrainShape/Assets/Mud_03/Ground_WetBumpyMud_norm.png",
+                  "Displacement": "/maps/CustomTerrainShape/Assets/Mud_03/"
+               },
+               {
+                  "Tag": "Default",
+                  "Name": "Grass_020",
+                  "FileName": "Grass_020",
+                  "TileSize": "4,4",
+                  "TileOffset": "0,0",
+                  "Metallic": 0,
+                  "Smoothness": 0.2748424,
+                  "Color": "RGBA(1.000, 1.000, 1.000, 1.000)",
+                  "Diffuse": "/maps/CustomTerrainShape/Assets/Grass_020/ground_Grass1_col.png",
+                  "Normal": "/maps/CustomTerrainShape/Assets/Grass_020/ground_Grass1_norm.png",
+                  "Displacement": "/maps/CustomTerrainShape/Assets/Grass_020/"
+               }
+            ],
+            "File": "/maps/CustomTerrainShape/splatmap_00.png"
+         },
+         {
+            "Name": "splatmap_01.tga",
+            "TextureInfo": [
+               {
+                  "Tag": "Default",
+                  "Name": "Grass_021",
+                  "FileName": "Grass_021",
+                  "TileSize": "4,4",
+                  "TileOffset": "0,0",
+                  "Metallic": 0,
+                  "Smoothness": 0.2050458,
+                  "Color": "RGBA(1.000, 1.000, 1.000, 1.000)",
+                  "Diffuse": "/maps/CustomTerrainShape/Assets/Grass_021/ground_Grass1_col.png",
+                  "Normal": "/maps/CustomTerrainShape/Assets/Grass_021/ground_Grass1_norm.png",
+                  "Displacement": "/maps/CustomTerrainShape/Assets/Grass_021/"
+               },
+               {
+                  "Tag": "Default",
+                  "Name": "Mud_030",
+                  "FileName": "Mud_030",
+                  "TileSize": "4,4",
+                  "TileOffset": "0,0",
+                  "Metallic": 0,
+                  "Smoothness": 0,
+                  "Color": "RGBA(1.000, 1.000, 1.000, 1.000)",
+                  "Diffuse": "/maps/CustomTerrainShape/Assets/Mud_030/Ground_WetBumpyMud_col.png",
+                  "Normal": "/maps/CustomTerrainShape/Assets/Mud_030/Ground_WetBumpyMud_norm.png",
+                  "Displacement": "/maps/CustomTerrainShape/Assets/Mud_030/"
+               }
+            ],
+            "File": "/maps/CustomTerrainShape/splatmap_01.png"
+         }
+      ]
+   },
+   "Objects": {
+      "Layers": {}
+   },
+   "Details": {
+      "Layers": {
+         "Layer": {
+            "Name": "New Layer",
+            "Detail": [
+               {
+                  "Tag": "Default",
+                  "Name": "Detail_1",
+                  "AssetName": "Detail_1",
+                  "FileName": "detailmap_0.png",
+                  "Density": 1,
+                  "MinWidth": 0.1,
+                  "MaxWidth": 0.3,
+                  "MinHeight": 0.1,
+                  "MaxHeight": 0.3
+               },
+               {
+                  "Tag": "Default",
+                  "Name": "Detail_1",
+                  "AssetName": "Detail_10",
+                  "FileName": "detailmap_1.png",
+                  "Density": 1,
+                  "MinWidth": 0.1,
+                  "MaxWidth": 0.3,
+                  "MinHeight": 0.1,
+                  "MaxHeight": 0.3
+               }
+            ]
+         }
+      }
+   },
+   "heightMap": "/maps/CustomTerrainShape/heightmap.jpg",
+   "colorMap": "/maps/CustomTerrainShape/colormap.jpg"
+}

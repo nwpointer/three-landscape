@@ -1,0 +1,41 @@
+{
+  "name": "three-landscape",
+  "version": "0.1.0",
+  "description": "r3f custom terrain component for rendering high quality 3d landscapes",
+  "keywords": [
+    "r3f",
+    "react",
+    "three.js",
+    "landscape",
+    "terrain",
+    "material",
+    "shader"
+  ],
+  "main": "src/index.js",
+  "dependencies": {
+    "@react-three/fiber": "^7.0.6",
+    "react": "17.0.2",
+    "react-dom": "17.0.2",
+    "react-scripts": "4.0.3",
+    "react-three-fiber": "^6.0.13",
+    "three": "^0.131.3",
+    "three-stdlib": "^2.4.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/nwpointer/three-landscape"
+  },
+  "devDependencies": {},
+  "scripts": {
+    "start": "react-scripts start",
+    "build": "react-scripts build",
+    "test": "react-scripts test --env=jsdom",
+    "eject": "react-scripts eject"
+  },
+  "browserslist": [
+    ">0.2%",
+    "not dead",
+    "not ie <= 11",
+    "not op_mini all"
+  ]
+}
