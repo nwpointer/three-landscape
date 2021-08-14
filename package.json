@@ -1,6 +1,7 @@
 {
   "name": "three-landscape",
-  "version": "0.1.0",
+  "version": "0.2.0",
+  "license": "MIT",
   "description": "r3f custom terrain component for rendering high quality 3d landscapes",
   "keywords": [
     "r3f",

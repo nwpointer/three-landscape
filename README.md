@@ -2,6 +2,8 @@
 
 A react-three-fiber component for rendering high quality 3d landscapes. If you prefer to use vanilla three.js you can also just use the custom material on its own.
 
+<img src="/thumbnail.png">
+
 features include:
 
 - hightmap support
@@ -79,3 +81,7 @@ todo:
 ## Contributing
 
 In lieu of a formal style guide, take care to maintain the existing coding style. Please Lint and test your code before submitting.
+
+## License
+
+MIT License does not apply to any of the image files in the examples directory
