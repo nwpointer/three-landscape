@@ -16,6 +16,10 @@ todo:
 - tri-planar projection to lessen texture stretching on vertical surfaces
 - use higher quality terrain assets near camera.
 
+## Demo:
+
+https://three-landscape.vercel.app/
+
 ## Installation
 
 `npm install three-landscape`
