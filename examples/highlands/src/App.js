@@ -8,7 +8,7 @@ window.ResizeObserver = window.ResizeObserver || Polyfill
 import { Box } from './components/Box'
 import { Skybox } from './components/Skybox'
 import { Loading } from './components/Loading'
-import { Terrain } from '../../../src/index'
+import { Terrain } from 'three-landscape'
 
 /*
 diffuse, splat channel 
