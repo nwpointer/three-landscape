@@ -1,7 +1,7 @@
 {
   "name": "three-landscape",
   "description": "r3f custom terrain component for rendering high quality 3d landscapes",
-  "version": "0.2.4",
+  "version": "0.2.5",
   "license": "MIT",
   "bugs": {
     "url": "https://github.com/nwpointer/three-landscape/issues"

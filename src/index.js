@@ -53,7 +53,8 @@ export function terrainMaterial({ materialParameters, layers, splats, normals, d
 
   material.onBeforeCompile = (shader) => {
     shader.extensions = {
-      derivatives: true
+      derivatives: true,
+      shaderTextureLOD: true
     }
     shader.uniforms = {
       ...shader.uniforms,

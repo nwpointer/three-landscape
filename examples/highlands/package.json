@@ -20,7 +20,7 @@
     "react-scripts": "4.0.3",
     "react-three-fiber": "^6.0.13",
     "three": "^0.131.3",
-    "three-landscape": "^0.2.4",
+    "three-landscape": "^0.2.5",
     "three-stdlib": "^2.4.0"
   },
   "devDependencies": {},

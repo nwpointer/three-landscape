@@ -10467,10 +10467,10 @@ text-table@0.2.0, text-table@^0.2.0:
   resolved "https://registry.yarnpkg.com/text-table/-/text-table-0.2.0.tgz#7f5ee823ae805207c00af2df4a84ec3fcfa570b4"
   integrity sha1-f17oI66AUgfACvLfSoTsP8+lcLQ=
 
-three-landscape@^0.2.4:
-  version "0.2.4"
-  resolved "https://registry.yarnpkg.com/three-landscape/-/three-landscape-0.2.4.tgz#dabd4de6b394cb8c0b68a9a72337af3ca25b5bfb"
-  integrity sha512-xZzPuWKV5f0AXgappoQTofskp6XBIeibKO2yL9Ssp+RK1xDkYpxOu7A/HWOFToWVleHLm67JdX5xFIqWZHMHfw==
+three-landscape@^0.2.5:
+  version "0.2.5"
+  resolved "https://registry.yarnpkg.com/three-landscape/-/three-landscape-0.2.5.tgz#80033aa7b5d9b2f9b0378923ee8e243a5cb77efd"
+  integrity sha512-VM+AmfRKr4ZbQH69lFjKNUL54+6zBz5Lq0spSzHpQZJ9kM/tBJyvIwdAGobEN319+ZE2oz/t7WdknOpqHxoLPg==
   dependencies:
     "@babel/runtime" "^7.11.2"
     three-stdlib "^2.4.0"

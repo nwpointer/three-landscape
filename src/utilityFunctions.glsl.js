@@ -22,8 +22,8 @@ vec4 textureNoTile( sampler2D samp, vec2 uv )
   vec2 dx = dFdx(uv), dy = dFdy(uv);
 
   // sample the two closest virtual patterns
-  vec3 cola = textureGrad( samp, uv + v*offa, dx, dy ).xyz;
-  vec3 colb = textureGrad( samp, uv + v*offb, dx, dy ).xyz;
+  vec3 cola = texture2DGradEXT( samp, uv + v*offa, dx, dy ).xyz;
+  vec3 colb = texture2DGradEXT( samp, uv + v*offb, dx, dy ).xyz;
 
   // // interpolate between the two virtual patterns
   vec3 col = mix( cola, colb, smoothstep(0.2,0.8,f-0.1*sum(cola-colb)) );
