@@ -6,7 +6,7 @@ A react-three-fiber component for rendering high quality 3d landscapes. If you p
 
 features include:
 
-- hightmap support
+- basic hightmap support
 - splatmaps based texture blending
 - texture repetition hiding
 - multi level normal blending for increased detail
