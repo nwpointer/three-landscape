@@ -14,7 +14,10 @@ features include:
 todo:
 
 - tri-planar projection to lessen texture stretching on vertical surfaces
-- use higher quality terrain assets near camera.
+- quad tree lod system for rendering infinite terrains and or increased detail near camera
+- support for rendering / integrating both procedural and artist driven workflows
+- hight blending that reduces terracing on high detail steep terrains
+- support for highly compressed basis textures
 
 ## Demo:
 
