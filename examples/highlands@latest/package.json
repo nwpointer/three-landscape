@@ -2,6 +2,13 @@
   "name": "create-react-app",
   "version": "0.1.0",
   "private": true,
+  "scripts": {
+    "dev": "npm run watch & BROWSER=none node scripts/start.js",
+    "build": "npm run copy && node scripts/build.js",
+    "test": "node scripts/test.js",
+    "copy": "cp -r ../../src/ src/components/three-landscape",
+    "watch": "nodemon --watch ../../src/ --exec npm run copy"
+  },
   "dependencies": {
     "@babel/core": "7.12.3",
     "@pmmmwh/react-refresh-webpack-plugin": "0.4.3",
@@ -73,13 +80,6 @@
     "webpack-dev-server": "3.11.1",
     "webpack-manifest-plugin": "2.2.0",
     "workbox-webpack-plugin": "5.1.4"
-  },
-  "scripts": {
-    "dev": "BROWSER=none node scripts/start.js",
-    "build": "node scripts/build.js",
-    "test": "node scripts/test.js",
-    "copy": "cp -r ../../src/ src/components/three-landscape",
-    "watch": "nodemon --watch ../../src/ --exec npm run copy"
   },
   "browserslist": [
     ">0.2%",
