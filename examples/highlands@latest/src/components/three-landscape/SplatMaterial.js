@@ -1,7 +1,5 @@
 import React from "react";
-import { shaderMaterial } from "@react-three/drei";
-import { extend, useFrame } from "@react-three/fiber";
-import { MeshStandardMaterial, UniformsUtils, RepeatWrapping, NearestFilter, LinearMipMapNearestFilter, NearestMipMapNearestFilter } from "three";
+import { MeshStandardMaterial, RepeatWrapping } from "three";
 import utilityFunctions from "./utilityFunctions.glsl";
 
 class SplatStandardMaterialImpl extends MeshStandardMaterial {
@@ -50,7 +48,7 @@ class SplatStandardMaterialImpl extends MeshStandardMaterial {
     // make sure that these textures tile correctly
     [...(normalMaps || []), ...splats, ...diffuseMaps, normalMap, noise]
       .filter((d) => d != null && d != undefined)
-      .map((t) => {
+      .forEach((t) => {
         t.wrapS = RepeatWrapping;
         t.wrapT = RepeatWrapping;
       });
@@ -142,10 +140,8 @@ class SplatStandardMaterialImpl extends MeshStandardMaterial {
 
 const computeDiffuse = ({ diffuseMaps = [], splats, saturation = [], brightness = [] }) => {
   return diffuseMaps
-    .filter((d) => d != null && d != undefined)
+    .filter((d) => d !== null && d !== undefined)
     .map((diffuse, i) => {
-      const splat = splats[splatIndex(i)];
-
       // base rgba values
       let colorValue = `textureNoTile(diffuseMaps[${i}], noise, vUv * vec2(scale[${i}],scale[${i}]))`;
       let alphaValue = `texture2D(splats[${splatIndex(i)}], vUv).${splatChannel(i)}`;
@@ -161,10 +157,8 @@ const computeDiffuse = ({ diffuseMaps = [], splats, saturation = [], brightness 
 
 const computeNormal = ({ normalMaps = [], detailMaps = [], splats }) => {
   const norms = normalMaps
-    .filter((n) => n != null && n != undefined)
+    .filter((n) => n !== null && n !== undefined)
     .map((normal, i) => {
-      const splat = splats[splatIndex(i)];
-
       let colorValue = `textureNoTile(normalMaps[${i}], noise, vUv * vec2(scale[${i}],scale[${i}]))`;
       let alphaValue = `texture2D(splats[${splatIndex(i)}], vUv).${splatChannel(i)}`;
 
@@ -175,10 +169,8 @@ const computeNormal = ({ normalMaps = [], detailMaps = [], splats }) => {
     .join(`; \n`);
 
   const details = detailMaps
-    .filter((n) => n != null && n != undefined)
+    .filter((n) => n !== null && n !== undefined)
     .map((normal, i) => {
-      const splat = splats[splatIndex(i)];
-
       let colorValue = `textureNoTile(normalMaps[${i}], noise, vUv * vec2(detailScale[${i}],detailScale[${i}]))`;
       let alphaValue = `texture2D(splats[${splatIndex(i)}], vUv).${splatChannel(i)}`;
 
@@ -206,4 +198,3 @@ export const SplatStandardMaterial = React.forwardRef((props, ref) => {
   return <primitive dispose={undefined} object={material} ref={ref} attach="material" {...props} />;
 });
 
-// extend({ SplatStandardMaterial });
