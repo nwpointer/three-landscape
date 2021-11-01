@@ -1,18 +1,18 @@
 # Three landscape
 
-React-three-fiber compatible abstractions that make it easier to render high quality landscapes scenes!!!
+React-three-fiber compatible abstractions that make it easier to render high quality landscapes scenes
 
 [<img src="/thumbnail.png">](https://three-landscape.vercel.app/)
 
 This package is not capable of procedurally generating terrain. Height maps and other textures must be generated offline in programs such as [WorldCreator](https://www.world-creator.com/) or at run time with custom logic.
 
-## Demo:
+### Demo:
 
 https://three-landscape.vercel.app/
 
 source code for example is available in the /examples/highland@latest directory
 
-## Installation
+### Installation
 
 `npm install three-landscape`
 
