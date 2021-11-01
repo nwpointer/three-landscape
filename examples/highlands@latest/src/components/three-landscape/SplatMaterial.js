@@ -47,7 +47,7 @@ class SplatStandardMaterialImpl extends MeshStandardMaterial {
 
     // make sure that these textures tile correctly
     [...(normalMaps || []), ...splats, ...diffuseMaps, normalMap, noise]
-      .filter((d) => d != null && d != undefined)
+      .filter((d) => d !== null && d !== undefined)
       .forEach((t) => {
         t.wrapS = RepeatWrapping;
         t.wrapT = RepeatWrapping;
