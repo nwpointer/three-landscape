@@ -1,10 +1,10 @@
 const utilityFunctions = `
 float sum( vec3 v ) { return v.x+v.y+v.z; }
 
-vec4 textureNoTile( sampler2D samp, vec2 uv )
+vec4 textureNoTile( sampler2D samp, sampler2D noise, vec2 uv )
 {
   // sample variation pattern
-  float k = texture2D( uNoise, 0.005*uv ).x; // cheap (cache friendly) lookup
+  float k = texture2D( noise, 0.005*uv ).x; // cheap (cache friendly) lookup
 
   // compute index
   float l = k*8.0;
@@ -28,6 +28,7 @@ vec4 textureNoTile( sampler2D samp, vec2 uv )
   // // interpolate between the two virtual patterns
   vec3 col = mix( cola, colb, smoothstep(0.2,0.8,f-0.1*sum(cola-colb)) );
   return vec4(col,1.0);
+  // return vec4(0.0,0.0,0.0,0.0);
 }
 
 vec4 blend_rnm(vec4 n1, vec4 n2){
@@ -60,5 +61,5 @@ vec4 czm_saturation(vec4 rgba, float adjustment)
     vec3 intensity = vec3(dot(rgb, W));
     return vec4(mix(intensity, rgb, adjustment), rgba.a);
 }
-`
-export default utilityFunctions
+`;
+export default utilityFunctions;

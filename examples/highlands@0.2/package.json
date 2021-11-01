@@ -15,6 +15,7 @@
     "@juggle/resize-observer": "^3.3.1",
     "@react-three/drei": "^7.3.1",
     "@react-three/fiber": "^7.0.6",
+    "nodemon": "^2.0.14",
     "react": "17.0.2",
     "react-dom": "17.0.2",
     "react-scripts": "4.0.3",
@@ -28,7 +29,9 @@
     "start": "react-scripts start",
     "build": "react-scripts build",
     "test": "react-scripts test --env=jsdom",
-    "eject": "react-scripts eject"
+    "eject": "react-scripts eject",
+    "link": "npm link ../../../three-landscape",
+    "unlink": "npm unlink ../../../three-landscape"
   },
   "browserslist": [
     ">0.2%",
