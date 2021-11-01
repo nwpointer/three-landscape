@@ -18,7 +18,7 @@ source code for example is available in the /examples/highland@latest directory
 
 # Documentation
 
-## SplatStandardMaterial
+### SplatStandardMaterial
 
 custom material that extends the meshStandardMaterial with additional properties for splat mapping. Splat mapping makes it possible to render large high quality terrains with smaller smaller images.
 
@@ -88,7 +88,7 @@ function Terrain() {
 }
 ```
 
-<!-- ## useProgressiveTexture
+<!-- ### useProgressiveTexture
 
 similar to useTexture from drie but progressively loads higher quality textures over time. Supports basis textures.
 
@@ -102,11 +102,11 @@ function Terrain(){
 }
 ```
 
-## MaterialTransition
+### MaterialTransition
 
 Animates transitions between materials. This pairs well with useProgressiveTexture allowing you to fade in new textures quality levels as they are resolved.
 
-### props:
+#### props:
 
 - speed: float seconds
   duration in seconds taken to transition to the next highest quality level.
