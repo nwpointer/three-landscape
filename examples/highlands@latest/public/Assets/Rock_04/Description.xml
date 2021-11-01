@@ -1,0 +1,7 @@
+<WorldCreator Version="2.0">
+  <Textures Preview="preview.png" Tags="" Description="" Publisher="" Website="" Guid="01029142-eae9-4a18-b0d6-fa4f2edd0420">
+    <Diffuse File="Rock_sobermanRockWall_col.png" Time="208678456360000000" />
+    <Normal File="Rock_sobermanRockWall_norm.png" Time="208678456360000000" />
+    <Displacement File="" Time="132711316150000000" />
+  </Textures>
+</WorldCreator>
