@@ -1,14 +1,29 @@
-import React, { useEffect, useState } from 'react'
-import { Canvas, useFrame, useLoader, useThree } from '@react-three/fiber'
+import { Canvas } from '@react-three/fiber'
 import { OrbitControls, Stats, useTexture, Environment, useProgress, Html, useDetectGPU } from '@react-three/drei'
-import * as THREE from 'three'
-import { BasisTextureLoader } from 'three/examples/jsm/loaders/BasisTextureLoader.js'
 import { Suspense } from 'react'
-import { TGALoader } from 'three-stdlib'
 import { Vector2 } from 'three'
-import { Skybox } from '../components/Skybox'
-import { useProgressiveTexture } from '../components/three-landscape/useProgressiveTexture'
-import { SplatStandardMaterial } from '../components/three-landscape/SplatMaterial'
+import { Skybox } from './Skybox'
+
+import { SplatStandardMaterial } from './three-landscape/SplatMaterial'
+
+
+export function Scene() {
+  return (
+    <Canvas style={{ background: 'black' }}>
+      <OrbitControls />
+      <ambientLight intensity={0.1} />
+      <directionalLight intensity={0.05} />
+      <Stats />
+      <Suspense fallback={<Progress />}>
+        <Skybox fog={false} />
+        <Environment preset="park" rotation={[0, Math.PI / 2, 0]} />
+        <fog attach="fog" args={['#74bbd0', 0, 200]} />
+        <Terrain />
+      </Suspense>
+    </Canvas>
+  )
+}
+
 
 const Terrain = () => {
   const GPUTier = useDetectGPU()
@@ -66,22 +81,5 @@ const Progress = () => {
         <div style={{ background: 'white', height: '10px', width: `${state.progress}px` }} />
       </div>
     </Html>
-  )
-}
-
-export function Scene() {
-  return (
-    <Canvas style={{ background: 'black' }}>
-      <OrbitControls />
-      <ambientLight intensity={0.1} />
-      <directionalLight intensity={0.05} />
-      <Stats />
-      <Suspense fallback={<Progress />}>
-        <Skybox fog={false} />
-        <Environment preset="park" rotation={[0, Math.PI / 2, 0]} />
-        <fog attach="fog" args={['#74bbd0', 0, 200]} />
-        <Terrain />
-      </Suspense>
-    </Canvas>
   )
 }
