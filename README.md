@@ -10,6 +10,8 @@ This package is not capable of procedurally generating terrain. Height maps and 
 
 https://three-landscape.vercel.app/
 
+source code for example is available in the /examples/highland@latest directory
+
 ## Installation
 
 `npm install three-landscape`
