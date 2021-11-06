@@ -30,6 +30,8 @@ class SplatStandardMaterialImpl extends MeshStandardMaterial {
 
     const { normalMaps, normalMap, diffuseMaps, splats, noise } = this.parameters;
 
+    console.log('compile');
+
     if (!splats) {
       throw new Error("splats is a required properties of SplatStandardMaterial");
     }
@@ -87,23 +89,23 @@ class SplatStandardMaterialImpl extends MeshStandardMaterial {
         diffuseColor = vec4(color_override.rgb, 1.0);
       `
       )
-      .replace(
-        "#include <normal_fragment_maps>",
-        `
-        vec3 mapN = texture2D( normalMap, vUv ).xyz *1.25 -0.25;
-        vec4 _b = vec4(mapN.rgb, 1.0);
-        ${computeNormal({ normalMaps: this._normalMaps.value, detailMaps: this._detailMaps.value, splats, noise })};
+    // .replace(
+    //   "#include <normal_fragment_maps>",
+    //   `
+    //   vec3 mapN = texture2D( normalMap, vUv ).xyz *1.25 -0.25;
+    //   vec4 _b = vec4(mapN.rgb, 1.0);
+    //   ${computeNormal({ normalMaps: this._normalMaps.value, detailMaps: this._detailMaps.value, splats, noise })};
 
-        mapN = _b.rgb;
-        mapN.xy *= normalScale;
+    //   mapN = _b.rgb;
+    //   mapN.xy *= normalScale;
 
-        #ifdef USE_TANGENT
-          normal = normalize( vTBN * mapN );
-        #else
-          normal = perturbNormal2Arb( -vViewPosition, normal, mapN, faceDirection );
-        #endif
-      `
-      );
+    //   #ifdef USE_TANGENT
+    //     normal = normalize( vTBN * mapN );
+    //   #else
+    //     normal = perturbNormal2Arb( -vViewPosition, normal, mapN, faceDirection );
+    //   #endif
+    // `
+    // );
   }
 
   set splats(v) {
@@ -147,8 +149,8 @@ const computeDiffuse = ({ diffuseMaps = [], splats, saturation = [], brightness 
       let alphaValue = `texture2D(splats[${splatIndex(i)}], vUv).${splatChannel(i)}`;
 
       // optional modifiers
-      if (saturation && i < saturation.length) colorValue = `czm_saturation(${colorValue}, saturation[${i}])`;
-      if (brightness && i < brightness.length) colorValue = `(${colorValue} + vec4(brightness[${i}], brightness[${i}], brightness[${i}], 0.0))`;
+      // if (saturation && i < saturation.length) colorValue = `czm_saturation(${colorValue}, saturation[${i}])`;
+      // if (brightness && i < brightness.length) colorValue = `(${colorValue} + vec4(brightness[${i}], brightness[${i}], brightness[${i}], 0.0))`;
 
       return `${colorValue} * ${alphaValue}`;
     })
@@ -195,6 +197,8 @@ function splatChannel(i) {
 
 export const SplatStandardMaterial = React.forwardRef((props, ref) => {
   const [material] = React.useState(() => new SplatStandardMaterialImpl(props));
+  console.log(material);
+  material.needsUpdate = true;
   return <primitive dispose={undefined} object={material} ref={ref} attach="material" {...props} />;
 });
 
