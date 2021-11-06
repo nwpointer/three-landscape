@@ -7,7 +7,8 @@ import { Skybox } from './Skybox'
 import { SplatStandardMaterial } from './three-landscape/SplatMaterial'
 import { useProgressiveTextures, useProgressiveTexture } from './three-landscape/useProgressiveTexture'
 import { useRef } from 'react/cjs/react.development'
-
+import { RepeatWrapping, ClampToEdgeWrapping } from "three";
+import { useThree } from '@react-three/fiber'
 
 export function Scene() {
   return (
@@ -45,43 +46,27 @@ const TexturePreview = () => {
 
 
 const Terrain = () => {
+  const { gl } = useThree();
   const GPUTier = useDetectGPU()
   const lowPowerDevice = GPUTier.tier === '0' || GPUTier.isMobile
   const detail = lowPowerDevice ? 32 : 8
-  // const [highestQualityLoaded, textures] = useProgressiveTextures([
-  //   [
-  //     '/hd/heightmap.png',
-  //     '/hd/normalmap.png',
-  //     '/simplex-noise.png',
-  //     '/Assets/Cliffs_02/Rock_DarkCrackyCliffs_col.jpg',
-  //     '/Assets/Cliffs_02/Rock_DarkCrackyCliffs_norm.jpg',
-  //     '/Assets/Rock_04/Rock_sobermanRockWall_col.jpg',
-  //     '/Assets/Rock_04/Rock_sobermanRockWall_norm.jpg',
-  //     '/Assets/Mud_03/Ground_WetBumpyMud_col.jpg',
-  //     '/Assets/Mud_03/Ground_WetBumpyMud_norm.jpg',
-  //     '/Assets/Grass_020/ground_Grass1_col.jpg',
-  //     '/hd/splatmap_00.png',
-  //     '/hd/splatmap_01.png'
-  //   ],
-  //   [
-  //     '/hd/heightmap.png',
-  //     '/hd/normalmap.png',
-  //     '/simplex-noise.png',
-  //     '/Assets/Cliffs_02/Rock_DarkCrackyCliffs_col.jpg',
-  //     '/Assets/Cliffs_02/Rock_DarkCrackyCliffs_norm.jpg',
-  //     '/Assets/Rock_04/Rock_sobermanRockWall_col.jpg',
-  //     '/Assets/Rock_04/Rock_sobermanRockWall_norm.jpg',
-  //     '/Assets/Mud_03/Ground_WetBumpyMud_col.jpg',
-  //     '/Assets/Mud_03/Ground_WetBumpyMud_norm.jpg',
-  //     '/Assets/Grass_020/ground_Grass1_col.jpg',
-  //     '/hd/splatmap_00.png',
-  //     '/hd/splatmap_01.png'
-  //   ]
-  // ])
-
-  const textures1 = useTexture(
+  const [highestQualityLoaded, textures] = useProgressiveTextures([
     [
-      '/hd/heightmap@0.5.png',
+      '/hd/heightmap.png',
+      '/hd/normalmap@0.5.png',
+      '/simplex-noise.png',
+      '/Assets/Cliffs_02/Rock_DarkCrackyCliffs_col.jpg',
+      '/Assets/Cliffs_02/Rock_DarkCrackyCliffs_norm.jpg',
+      '/Assets/Rock_04/Rock_sobermanRockWall_col.jpg',
+      '/Assets/Rock_04/Rock_sobermanRockWall_norm.jpg',
+      '/Assets/Mud_03/Ground_WetBumpyMud_col.jpg',
+      '/Assets/Mud_03/Ground_WetBumpyMud_norm.jpg',
+      '/Assets/Grass_020/ground_Grass1_col.jpg',
+      '/hd/splatmap_00@0.5.png',
+      '/hd/splatmap_01@0.5.png'
+    ],
+    [
+      '/hd/heightmap.png',
       '/hd/normalmap.png',
       '/simplex-noise.png',
       '/Assets/Cliffs_02/Rock_DarkCrackyCliffs_col.jpg',
@@ -94,35 +79,24 @@ const Terrain = () => {
       '/hd/splatmap_00.png',
       '/hd/splatmap_01.png'
     ]
-  )
+  ])
 
-  // const textures2 = useTexture(
-  //   [
-  //     '/hd/heightmap.png',
-  //     '/hd/normalmap.png',
-  //     '/simplex-noise.png',
-  //     '/Assets/Cliffs_02/Rock_DarkCrackyCliffs_col.jpg',
-  //     '/Assets/Cliffs_02/Rock_DarkCrackyCliffs_norm.jpg',
-  //     '/Assets/Rock_04/Rock_sobermanRockWall_col.jpg',
-  //     '/Assets/Rock_04/Rock_sobermanRockWall_norm.jpg',
-  //     '/Assets/Mud_03/Ground_WetBumpyMud_col.jpg',
-  //     '/Assets/Mud_03/Ground_WetBumpyMud_norm.jpg',
-  //     '/Assets/Grass_020/ground_Grass1_col.jpg',
-  //     '/hd/splatmap_00.png',
-  //     '/hd/splatmap_01.png'
-  //   ]
-  // )
+  textures[highestQualityLoaded]
+    .forEach((t, i) => {
+      if (i > 0) {
+        t.wrapS = RepeatWrapping;
+        t.wrapT = RepeatWrapping;
+      }
+      gl.initTexture(t)
+    });
 
-  // const [displacement, normal, noise, d1, n1, d2, n2, d3, n3, d4, splat1, splat2] = textures[highestQualityLoaded]
-  const [displacement, normal, noise, d1, n1, d2, n2, d3, n3, d4, splat1, splat2] = textures1
+  const [displacement, normal, noise, d1, n1, d2, n2, d3, n3, d4, splat1, splat2] = textures[highestQualityLoaded]
 
   const { width, height } = displacement.image
 
   /* --------------------------------
   Todo:
   - fix flickering pixels near texture boundries
-  - fix 'play dough effect' when changing textures 
-    - confirmed any switching will doit, maybe I need to recalculate mips or uvs?
   -------------------------------- */
 
   return (

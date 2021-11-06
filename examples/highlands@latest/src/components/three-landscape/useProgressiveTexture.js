@@ -3,6 +3,7 @@ import { useLoader, useThree } from "@react-three/fiber";
 import { useEffect, useState, useRef, useMemo } from "react";
 import { TextureLoader, render } from "three";
 import { BasisTextureLoader, TGALoader } from "three-stdlib";
+import { RepeatWrapping } from "three";
 
 export function useProgressiveTextures(resources) {
   const { gl } = useThree();
@@ -80,7 +81,9 @@ class PolymorphicLoader extends TextureLoader {
   loadAsync(input, onload, ...rest) {
     return new Promise((resolve) => {
       this.load(input, (texture) => {
-        this.gl.initTexture(texture)
+        // texture.wrapS = RepeatWrapping;
+        // texture.wrapT = RepeatWrapping;
+        // this.gl.initTexture(texture)
         if (onload) onload(texture)
         resolve(texture)
       }, ...rest)
