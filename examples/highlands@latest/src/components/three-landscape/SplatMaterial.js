@@ -195,6 +195,14 @@ function splatChannel(i) {
 
 export const SplatStandardMaterial = React.forwardRef((props, ref) => {
   const [material] = React.useState(() => new SplatStandardMaterialImpl(props));
+
+  const { diffuseMaps, normalMaps } = props;
+
+  [...diffuseMaps, ...normalMaps].map(t => {
+    t.wrapS = RepeatWrapping;
+    t.wrapT = RepeatWrapping;
+  })
+
   return <primitive dispose={undefined} object={material} ref={ref} attach="material" {...props} />;
 });
 

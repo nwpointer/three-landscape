@@ -1,52 +1,34 @@
 import { Canvas, useFrame } from '@react-three/fiber'
 import { OrbitControls, Stats, useTexture, Environment, useProgress, Html, useDetectGPU } from '@react-three/drei'
 import { Suspense } from 'react'
-import { Vector2 } from 'three'
+import { DoubleSide, RGBFormat, Vector2 } from 'three'
 import { Skybox } from './Skybox'
 
 import { SplatStandardMaterial } from './three-landscape/SplatMaterial'
 import { useProgressiveTextures, useProgressiveTexture } from './three-landscape/useProgressiveTexture'
 import { useRef } from 'react/cjs/react.development'
-import { RepeatWrapping, ClampToEdgeWrapping } from "three";
+import { RepeatWrapping, ClampToEdgeWrapping, NearestMipMapNearestFilter, LinearMipMapLinearFilter, Geometry, Face3, Color } from "three";
 import { useThree } from '@react-three/fiber'
 
 export function Scene() {
   return (
-    <Canvas style={{ background: 'black' }}>
+    <Canvas linear style={{ background: 'black' }}>
       <OrbitControls />
       <ambientLight intensity={0.1} />
-      <directionalLight intensity={0.05} />
+      <directionalLight intensity={0.1} />
       <Stats />
       <Suspense fallback={<Progress />}>
         <Skybox fog={false} />
         <Environment preset="park" rotation={[0, Math.PI / 2, 0]} />
         <fog attach="fog" args={['#74bbd0', 0, 200]} />
         <Terrain />
-        {/* <TexturePreview /> */}
       </Suspense>
     </Canvas>
   )
 }
 
-const TexturePreview = () => {
-  const map = useProgressiveTexture([
-    '/80px-Bounan_moutain.jpg',
-    '/1920px-Bounan_moutain.jpg',
-    '/1920px-Bounan_moutain.basis',
-  ])
-
-  return (
-    <mesh>
-      <planeBufferGeometry args={[4, 4]} />
-      <meshStandardMaterial map={map} />
-    </mesh>
-  )
-}
-
-
 
 const Terrain = () => {
-  const { gl } = useThree();
   const GPUTier = useDetectGPU()
   const lowPowerDevice = GPUTier.tier === '0' || GPUTier.isMobile
   const detail = lowPowerDevice ? 32 : 8
@@ -81,23 +63,9 @@ const Terrain = () => {
     ]
   ])
 
-  textures[highestQualityLoaded]
-    .forEach((t, i) => {
-      if (i > 0) {
-        t.wrapS = RepeatWrapping;
-        t.wrapT = RepeatWrapping;
-      }
-      gl.initTexture(t)
-    });
-
   const [displacement, normal, noise, d1, n1, d2, n2, d3, n3, d4, splat1, splat2] = textures[highestQualityLoaded]
 
   const { width, height } = displacement.image
-
-  /* --------------------------------
-  Todo:
-  - fix flickering pixels near texture boundries
-  -------------------------------- */
 
   return (
     <mesh position={[0, 0, 0]} rotation={[-Math.PI / 2, 0, 0]}>
@@ -106,7 +74,7 @@ const Terrain = () => {
         normalMap={normal}
         splats={[splat1, splat2]}
         normalMaps={[n1, n2, n3]}
-        normalWeights={[1.0, 1.0, 1.0]}
+        normalWeights={[0.75, 0.75, 0.75]}
         diffuseMaps={[d1, d2, d3, d4, d4, d3]}
         scale={[128 / 4, 128 / 2, 128, 128 * 2, 128, 128, 10]}
         saturation={[1.1, 1.1, 1.1, 1.2, 1.1, 1.1]}
@@ -115,11 +83,7 @@ const Terrain = () => {
         displacementMap={displacement}
         displacementScale={10}
         displacementBias={-10}
-        envMapIntensity={0.25}
-        custom={1.5}
-        roughness={1}
-        metalness={0.25}
-        normalScale={new Vector2(1.5, 2)}
+        envMapIntensity={0.5}
       />
     </mesh>
   )
