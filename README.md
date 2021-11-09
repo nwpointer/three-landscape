@@ -32,12 +32,6 @@ unlike useProgressive Texture or MaterialTransition spatStandardMaterial can use
 - global & local normals
 - modify texture saturation and brightness
 
-#### todo:
-
-- tri-planar projection
-- noise based texture blending for sharper transitions
-- texture atlas support (sidesteps webgl 16 texture limit per shader & decreases number of files to download)
-
 #### new props:
 
 - splats: [Texture]
