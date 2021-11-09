@@ -1,6 +1,6 @@
 import React from 'react'
 
-import { Scene } from './components/SplatMaterial'
+import { Scene } from './components/Scene'
 
 function App() {
   return <Scene />
