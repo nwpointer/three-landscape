@@ -1,10 +1,15 @@
 {
   "name": "three-landscape",
   "description": "r3f custom terrain component for rendering high quality 3d landscapes",
-  "version": "0.3.2",
+  "version": "0.3.5",
   "license": "MIT",
   "bugs": {
     "url": "https://github.com/nwpointer/three-landscape/issues"
+  },
+  "scripts": {
+    "prebuild": "rimraf dist",
+    "build": "rollup -c && npm run copy",
+    "copy": "copyfiles package.json readme.md LICENSE dist && json -I -f dist/package.json -e \"this.private=false; this.devDependencies=undefined; this.optionalDependencies=undefined; this.scripts=undefined; this.husky=undefined; this.prettier=undefined; this.jest=undefined; this['lint-staged']=undefined;\""
   },
   "repository": {
     "type": "git",
@@ -75,11 +80,6 @@
     "react-dom": {
       "optional": true
     }
-  },
-  "scripts": {
-    "prebuild": "rimraf dist",
-    "build": "rollup -c && npm run copy",
-    "copy": "copyfiles package.json readme.md LICENSE dist && json -I -f dist/package.json -e \"this.private=false; this.devDependencies=undefined; this.optionalDependencies=undefined; this.scripts=undefined; this.husky=undefined; this.prettier=undefined; this.jest=undefined; this['lint-staged']=undefined;\""
   },
   "browserslist": [
     ">0.2%",
