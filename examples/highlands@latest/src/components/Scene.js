@@ -1,14 +1,10 @@
-import { Canvas, useFrame } from '@react-three/fiber'
-import { OrbitControls, Stats, useTexture, Environment, useProgress, Html, useDetectGPU } from '@react-three/drei'
+import { Canvas } from '@react-three/fiber'
+import { OrbitControls, Stats, Environment, useProgress, Html, useDetectGPU } from '@react-three/drei'
 import { Suspense } from 'react'
-import { DoubleSide, RGBFormat, Vector2 } from 'three'
 import { Skybox } from './Skybox'
 
 import { SplatStandardMaterial } from './three-landscape/SplatMaterial'
-import { useProgressiveTextures, useProgressiveTexture } from './three-landscape/useProgressiveTexture'
-import { useRef } from 'react/cjs/react.development'
-import { RepeatWrapping, ClampToEdgeWrapping, NearestMipMapNearestFilter, LinearMipMapLinearFilter, Geometry, Face3, Color } from "three";
-import { useThree } from '@react-three/fiber'
+import { useProgressiveTextures } from './three-landscape/useProgressiveTexture'
 
 export function Scene() {
   return (
