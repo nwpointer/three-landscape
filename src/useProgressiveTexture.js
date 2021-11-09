@@ -1,14 +1,12 @@
-import { useTexture } from "@react-three/drei";
 import { useLoader, useThree } from "@react-three/fiber";
 import { useEffect, useState, useRef, useMemo } from "react";
-import { TextureLoader, render } from "three";
+import { TextureLoader } from "three";
 import { BasisTextureLoader, TGALoader } from "three-stdlib";
-import { RepeatWrapping } from "three";
 
 export function useProgressiveTextures(resources) {
   const { gl } = useThree();
   const [batch, setBatch] = useState(0);
-  const loader = useMemo(() => new PolymorphicLoader(gl));
+  const loader = useMemo(() => new PolymorphicLoader(gl), [gl]);
   const initialTextures = useLoader(PolymorphicLoader, resources[0])
   const progressiveTextures = useRef([]);
 
@@ -34,7 +32,7 @@ export function useProgressiveTextures(resources) {
 export function useProgressiveTexture(resources) {
   const { gl } = useThree();
   const [batch, setBatch] = useState(0);
-  const loader = useMemo(() => new PolymorphicLoader(gl));
+  const loader = useMemo(() => new PolymorphicLoader(gl), [gl]);
   const initialTexture = useLoader(PolymorphicLoader, resources[0]);
   const [progressiveTexture, setProgressiveTexture] = useState(initialTexture);
 
@@ -43,9 +41,9 @@ export function useProgressiveTexture(resources) {
       setProgressiveTexture(texture);
       if (batch < resources.length - 1) setBatch(batch + 1);
     });
-  }, [batch]);
+  }, [batch, loader, resources]);
 
-  return batch == 0 ? initialTexture : progressiveTexture
+  return batch === 0 ? initialTexture : progressiveTexture
 }
 
 class PolymorphicLoader extends TextureLoader {
@@ -71,7 +69,7 @@ class PolymorphicLoader extends TextureLoader {
     const loader = new this.loaders[type]
 
     // note, basis textures requires gl and a transcoder to be setup beforehand
-    if (type == "basis") {
+    if (type === "basis") {
       loader.setTranscoderPath("/");
       loader.detectSupport(this.gl);
     }
