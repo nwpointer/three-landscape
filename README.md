@@ -88,19 +88,32 @@ function Terrain() {
 }
 ```
 
-<!-- ### useProgressiveTexture
+### useProgressiveTexture
 
-similar to useTexture from drie but progressively loads higher quality textures over time. Supports basis textures.
+Similar to useTexture from drie but progressively loads higher quality textures over time.
+
+
+It is a texture loader that accepts an array of url arrays and returns: an int holding the index of the highest available texture batch and an Array of texture batches.
+
+All textures in a batch (['/hd/heightmap.png','/hd/normalmap@0.5.png']) are resolved before moving on to the next highest quality level
+To get performance benifits, resource batches should be of assending quality.
+
+Note: as long as you serve a /basis_transcoder.js and /basis_transcoder.wasm useProgressiveTexture can also auto resolve highly compressed basis textures.
+See the BasisTextureLoader and Basisu project for more details: https://github.com/BinomialLLC/basis_universal
 
 ```js
 function Terrain(){
-    const [SD, HD] = useProgressiveTextures(
-        [t1, t1],
-        [t2,t3]
-    )
+    const [highestQualityLoaded, textures] = useProgressiveTextures([
+      ['/hd/heightmap.png','/hd/normalmap.png'],
+      ['/hd/heightmap_hd.png','/hd/normalmap_hd.png']
+    ])
+
+    const [displacement, normal] = textures[highestQualityLoaded]
     ...
 }
 ```
+
+<!--
 
 ### MaterialTransition
 
@@ -137,8 +150,6 @@ function Terrain(){
 
 ## Roadmap:
 
-- useProgressiveTexture:
-  similar to useTexture from drie but progressively loads higher quality textures over time. Supports basis textures.
 
 - MaterialTransition:
   Animates transitions between materials. This pairs well with useProgressiveTexture allowing you to fade in new textures quality levels as they are resolved.
