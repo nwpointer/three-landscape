@@ -25,13 +25,12 @@
   "dependencies": {
     "@babel/runtime": "^7.11.2",
     "@react-three/drei": "^7.19.4",
-    "react": "17.0.2",
-    "react-dom": "17.0.2",
-    "three": "0.132.2",
-    "three-stdlib": "^2.4.0"
+    "react": ">=17.0",
+    "react-dom": ">=17.0",
+    "three-stdlib": "^2.4.0",
+    "three": "^0.134.0"
   },
   "devDependencies": {
-    "nodemon": "^2.0.14",
     "@babel/core": "^7.14.3",
     "@babel/plugin-transform-modules-commonjs": "^7.14.0",
     "@babel/plugin-transform-runtime": "^7.14.3",
@@ -57,6 +56,7 @@
     "glslify-loader": "^2.0.0",
     "jest": "^26.4.1",
     "json": "^11.0.0",
+    "nodemon": "^2.0.14",
     "prettier": "^2.0.5",
     "pretty-quick": "^3.1.0",
     "rimraf": "^3.0.2",
@@ -69,7 +69,7 @@
     "@react-three/fiber": ">=6.0",
     "react": ">=17.0",
     "react-dom": ">=17.0",
-    "three": ">=0.128.0"
+    "three": "^0.134.0"
   },
   "peerDependenciesMeta": {
     "react-dom": {
@@ -79,8 +79,7 @@
   "scripts": {
     "prebuild": "rimraf dist",
     "build": "rollup -c && npm run copy",
-    "copy": "copyfiles package.json readme.md LICENSE dist && json -I -f dist/package.json -e \"this.private=false; this.devDependencies=undefined; this.optionalDependencies=undefined; this.scripts=undefined; this.husky=undefined; this.prettier=undefined; this.jest=undefined; this['lint-staged']=undefined;\"",
-    "watch": "nodemon -x \"echo hi\""
+    "copy": "copyfiles package.json readme.md LICENSE dist && json -I -f dist/package.json -e \"this.private=false; this.devDependencies=undefined; this.optionalDependencies=undefined; this.scripts=undefined; this.husky=undefined; this.prettier=undefined; this.jest=undefined; this['lint-staged']=undefined;\""
   },
   "browserslist": [
     ">0.2%",
