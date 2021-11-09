@@ -23,7 +23,7 @@ export function useProgressiveTextures(resources) {
       if (batch < resources.length - 1) setBatch(batch + 1);
 
     })()
-  }, [batch])
+  }, [batch, loader, resources])
 
   // return progressiveTextures.current[0]
   return [batch, [initialTextures, ...(progressiveTextures.current)]]
@@ -66,7 +66,7 @@ class PolymorphicLoader extends TextureLoader {
 
   load(input, ...rest) {
     const type = this.fileType(input)
-    const loader = new this.loaders[type]
+    const loader = new this.loaders[type]()
 
     // note, basis textures requires gl and a transcoder to be setup beforehand
     if (type === "basis") {

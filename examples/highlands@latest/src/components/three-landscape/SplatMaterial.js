@@ -198,7 +198,7 @@ export const SplatStandardMaterial = React.forwardRef((props, ref) => {
 
   const { diffuseMaps, normalMaps } = props;
 
-  [...diffuseMaps, ...normalMaps].map(t => {
+  [...diffuseMaps, ...normalMaps].forEach(t => {
     t.wrapS = RepeatWrapping;
     t.wrapT = RepeatWrapping;
   })
