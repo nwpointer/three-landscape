@@ -31,7 +31,7 @@ const Terrain = () => {
   const [highestQualityLoaded, textures] = useProgressiveTextures([
     [
       '/hd/heightmap.png',
-      '/hd/normalmap@0.5.png',
+      '/hd/normalmap_y@0.5.basis',
       '/simplex-noise.png',
       '/Assets/Cliffs_02/Rock_DarkCrackyCliffs_col.jpg',
       '/Assets/Cliffs_02/Rock_DarkCrackyCliffs_norm.jpg',
@@ -45,7 +45,7 @@ const Terrain = () => {
     ],
     [
       '/hd/heightmap.png',
-      '/hd/normalmap.png',
+      '/hd/normalmap_y.basis',
       '/simplex-noise.png',
       '/Assets/Cliffs_02/Rock_DarkCrackyCliffs_col.jpg',
       '/Assets/Cliffs_02/Rock_DarkCrackyCliffs_norm.jpg',
