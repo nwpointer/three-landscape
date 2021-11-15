@@ -1,16 +1,16 @@
 # Three landscape
 
-React-three-fiber compatible abstractions that make it easier to render high quality landscapes scenes
+A growing collection of React-three-fiber compatible abstractions for rendering high quality, large scale landscapes scenes. I've been researching how AAA games render terrain and am replicating any browser compatible techniques here.
 
 [<img src="/thumbnail.png">](https://three-landscape.vercel.app/)
 
-This package is not capable of procedurally generating terrain. Height maps and other textures must be generated offline in programs such as [WorldCreator](https://www.world-creator.com/) or at run time with custom logic.
+Note: this package is not capable of procedurally generating terrain. Height maps and other textures must be authored offline in programs such as [WorldCreator](https://www.world-creator.com/) or generated at run time with custom logic. This is something I'm interested in for its potential to reduce bundle sizes but is out of scope for this module.
 
 ### Demo:
 
 https://three-landscape.vercel.app/
 
-source code for example is available in the /examples/highland@latest directory
+Source code for example is available in the /examples/highland@latest directory
 
 ### Installation
 
@@ -20,28 +20,29 @@ source code for example is available in the /examples/highland@latest directory
 
 ### SplatStandardMaterial
 
-custom material that extends the meshStandardMaterial with additional properties for splat mapping. Splat mapping makes it possible to render large high quality terrains with smaller smaller images.
+Custom material that extends the meshStandardMaterial with additional properties for splat mapping. Splat mapping makes it possible to render terrains with much higher texture detail while reducing memory usage and bundle size: http://wiki.polycount.com/wiki/Splat
 
-unlike useProgressive Texture or MaterialTransition spatStandardMaterial can use used in vanilla (non react) Three.js projects.
+Can use used in vanilla (non react) Three.js projects by importing from the /three directory `import SplatStandardMaterial from three-lanscape/three`
 
 #### supports:
 
 - all the props & behaviors of meshStandardMaterial
-- basis textures (highly compressed gpu friendly image format)
 - seamless tile blending (aka texture bombing)
-- global & local normals
-- modify texture saturation and brightness
+- terrain and detail normal maps
+- texture saturation and brightness filters for additional creative control 
 
 #### new props:
 
-- splats: [Texture]
+- splats*: [Texture] (expects splat data in rgb and a channels)
 - normalMaps: [Texture]
 - normalWeights: [float]
-- diffuseMaps: [Texture]
-- scale: [float]
+- diffuseMaps*: [Texture]
+- scale*: [float] (size of terrain tiles)
 - saturation: [float]
 - brightness: [float]
-- noise: Texture
+- noise*: Texture 
+
+\* required prop
 
 ```js
 function Terrain() {
@@ -66,10 +67,9 @@ function Terrain() {
     <mesh position={[0, 0, 0]} rotation={[-Math.PI / 2, 0, 0]}>
       <planeBufferGeometry args={[100, 100, width, height]} />
       <SplatStandardMaterial
-        normalMap={normal}
         splats={[splat1, splat2]}
+        normalMap={normal}
         normalMaps={[n1, n2, n3]}
-        normalWeights={[1.0, 1.0, 1.0]}
         diffuseMaps={[d1, d2, d3, d4, d4, d3]}
         scale={[128 / 4, 128 / 2, 128, 128 * 2, 128, 128, 10]}
         noise={noise}
@@ -82,15 +82,21 @@ function Terrain() {
 }
 ```
 
+See example directory for advanced usage and example textures but 
+
+Note: The textures are not covered by the MIT license and should not be used with out first acquiring the rights to do so.
+
+---
+
 ### useProgressiveTexture
 
-Similar to useTexture from drie but progressively loads higher quality textures over time.
+Similar to useTexture from [drie](https://github.com/pmndrs/drei) but progressively loads higher quality textures over time.
 
 
-It is a texture loader that accepts an array of url arrays and returns: an int holding the index of the highest available texture batch and an Array of texture batches.
+It is a texture loader that accepts an array of url arrays and returns: Array of texture batches and an int holding the index of the highest quality texture batch that has been downloaded.
 
 All textures in a batch (['/hd/heightmap.png','/hd/normalmap@0.5.png']) are resolved before moving on to the next highest quality level
-To get performance benifits, resource batches should be of assending quality.
+To get performance benefits, resource batches should be of ordered by ascending quality.
 
 Note: as long as you serve a /basis_transcoder.js and /basis_transcoder.wasm useProgressiveTexture can also auto resolve highly compressed basis textures.
 See the BasisTextureLoader and Basisu project for more details: https://github.com/BinomialLLC/basis_universal
@@ -108,6 +114,29 @@ function Terrain(){
 ```
 
 <!--
+
+### Anti terracing hightlmaps
+when the mesh density of a terrain is high and height differece exceeds > 255 can look terraced.
+
+this shader averages the the contributions of connected vertex, reducing/removing the terracing effect
+
+###RayleighFog
+more realistic implementation of Rayleigh scattering, also known as atmostpheric scattering
+
+###Globe
+takes grid of children and wraps geometry arround a sphere of size R
+
+### Mirror grid
+creates a grid with repeating, mirrored instances of a child mesh. Usefull for artifitially creating the appearence of infinite terrain from certain viewpoints. Works best with self similar terrains like moutain ranges or sand dunes.
+
+<MirrorGrid>
+  <Terrain />
+</MirrorGrid>
+
+### vector field material
+Like height maps that displace allong the y but allow x,y and z vector values for displacement. Allows for things like overhangs ect.
+https://www.youtube.com/watch?v=In1wzUDopLM&t=2586s&ab_channel=GDC
+
 
 ### MaterialTransition
 
@@ -144,17 +173,29 @@ function Terrain(){
 
 ## Roadmap:
 
+- Optional tri-planar projection (helps reduce texture stretching on extreme hight differentials)
 
-- MaterialTransition:
-  Animates transitions between materials. This pairs well with useProgressiveTexture allowing you to fade in new textures quality levels as they are resolved.
+- Anti height terracing shader (height terracing affects dense meshes w high displacement scale)
 
-- Quadtree based terrain sectors that load based on proximity to the camera or a character controller
+- Optional noise / shader based texture blending for sharper splat transitions w/o crazy hd splatmaps
 
-- weighted grass / rock dispersal.
+- Texture atlas support (bundles multiple textures into a single file, sidestepping webgl's 16 texture per material limit)
 
-- volumetric fog
+- Infinite mirror grid for faking infinite terrain in self similar environments (mountains, sand dunes)
 
-- custom water and river shaders
+- Support for wrapping textures onto spheres / semi sphere
+
+- MaterialTransition (Animates transitions between materials. This pairs well with useProgressiveTexture allowing you to fade in new textures quality levels as they are resolved.)
+
+- Quad-tree based terrain sectors that load terrain based on proximity to the camera or a character controller
+
+- Arbitrary local mesh detail based on user supplied criteria or via BTree. Avoid's t-junction height gaps caused by adjacent meshes of different mesh density.
+
+- Utilities for weighted grass / rock dispersal.
+
+- Volumetric fog
+
+- Custom water shaders
 
 ## Contributing
 
