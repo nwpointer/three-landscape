@@ -93,7 +93,7 @@ Note: The textures are not covered by the MIT license and should not be used wit
 Similar to useTexture from [drie](https://github.com/pmndrs/drei) but progressively loads higher quality textures over time.
 
 ```js
-function Terrain(){
+function MySuperCoolTerrain(){
     const [quality, textures] = useProgressiveTextures([
       ['/heightmap.png','/normalmap.png'],
       ['/hd/heightmap.png','/hd/normalmap.png']
