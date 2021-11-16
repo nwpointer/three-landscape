@@ -103,7 +103,7 @@ function Terrain(){
     return(
       <mesh>
         <planeBufferGeometry/>
-        <meshStandardMaterial normalMap={normal} displacementMap={displacement} />
+        <meshStandardMaterial color="green" normalMap={normal} displacementMap={displacement} />
       </mesH>
     )
 }
