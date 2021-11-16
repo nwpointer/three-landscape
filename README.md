@@ -173,6 +173,11 @@ function Terrain(){
 
 ## Roadmap:
 
+Thought it might be fun to let people vote on new feature ideas, if you're interested in a particular feature, leave of thumbs up on the assosiated issue.
+
+issues sorted by most votes: https://github.com/nwpointer/three-landscape/issues?q=is%3Aissue+is%3Aopen+sort%3Areactions-%2B1-desc
+
+
 - Optional tri-planar projection (helps reduce texture stretching on extreme hight differentials)
 
 - Anti height terracing shader (height terracing affects dense meshes w high displacement scale)
