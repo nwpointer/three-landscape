@@ -103,13 +103,16 @@ See the BasisTextureLoader and Basisu project for more details: https://github.c
 
 ```js
 function Terrain(){
-    const [highestQualityLoaded, textures] = useProgressiveTextures([
-      ['/hd/heightmap.png','/hd/normalmap.png'],
-      ['/hd/heightmap_hd.png','/hd/normalmap_hd.png']
+    const [quality, textures] = useProgressiveTextures([
+      ['/heightmap.png','/normalmap.png'],
+      ['/hd/heightmap.png','/hd/normalmap.png']
     ])
 
-    const [displacement, normal] = textures[highestQualityLoaded]
-    ...
+    const [displacement, normal] = textures[quality]
+    <mesh>
+      <planeBufferGeometry/>
+      <meshStandardMaterial normal={normal} displacement={displacement} />
+    </mesH>
 }
 ```
 
