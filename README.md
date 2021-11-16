@@ -173,7 +173,7 @@ function Terrain(){
 
 ## Roadmap:
 
-Thought it might be fun to let people vote on new feature ideas, if you're interested in a particular feature, leave of thumbs up on the assosiated issue.
+Thought it might be fun to let people vote on new feature ideas! If you're interested in a particular feature leave a thumbs up on the assosiated issue:
 
 [view issues sorted by most votes](https://github.com/nwpointer/three-landscape/issues?q=is%3Aissue+is%3Aopen+sort%3Areactions-%2B1-desc)
 
