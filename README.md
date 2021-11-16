@@ -45,7 +45,7 @@ Can use used in vanilla (non react) Three.js projects by importing from the /thr
 \* required prop
 
 ```js
-function Terrain() {
+function MySuperCoolTerrain() {
   const [displacement, normal, noise, d1, n1, d2, n2, d3, n3, d4, splat1, splat2] = useTexture([
     '/hd/heightmap.png',
     '/hd/normalmap.png',
@@ -93,7 +93,7 @@ Note: The textures are not covered by the MIT license and should not be used wit
 Similar to useTexture from [drie](https://github.com/pmndrs/drei) but progressively loads higher quality textures over time.
 
 ```js
-function MySuperCoolTerrain(){
+function Terrain(){
     const [quality, textures] = useProgressiveTextures([
       ['/heightmap.png','/normalmap.png'],
       ['/hd/heightmap.png','/hd/normalmap.png']
