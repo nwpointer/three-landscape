@@ -111,7 +111,7 @@ function Terrain(){
     const [displacement, normal] = textures[quality]
     <mesh>
       <planeBufferGeometry/>
-      <meshStandardMaterial normal={normal} displacement={displacement} />
+      <meshStandardMaterial normalMap={normal} displacementMap={displacement} />
     </mesH>
 }
 ```
