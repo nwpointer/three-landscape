@@ -22,7 +22,7 @@ Source code for example is available in the /examples/highland@latest directory
 
 Custom material that extends the meshStandardMaterial with additional properties for splat mapping. Splat mapping makes it possible to render terrains with much higher texture detail while reducing memory usage and bundle size: http://wiki.polycount.com/wiki/Splat
 
-Can use used in vanilla (non react) Three.js projects by importing from the /three directory `import SplatStandardMaterial from three-lanscape/three`
+Can be used in vanilla (non react) Three.js projects by importing from the /three directory `import SplatStandardMaterial from three-lanscape/three`
 
 #### supports:
 
