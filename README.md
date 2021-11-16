@@ -92,15 +92,6 @@ Note: The textures are not covered by the MIT license and should not be used wit
 
 Similar to useTexture from [drie](https://github.com/pmndrs/drei) but progressively loads higher quality textures over time.
 
-
-It is a texture loader that accepts an array of url arrays and returns: Array of texture batches and an int holding the index of the highest quality texture batch that has been downloaded.
-
-All textures in a batch (['/hd/heightmap.png','/hd/normalmap@0.5.png']) are resolved before moving on to the next highest quality level
-To get performance benefits, resource batches should be of ordered by ascending quality.
-
-Note: as long as you serve a /basis_transcoder.js and /basis_transcoder.wasm useProgressiveTexture can also auto resolve highly compressed basis textures.
-See the BasisTextureLoader and Basisu project for more details: https://github.com/BinomialLLC/basis_universal
-
 ```js
 function Terrain(){
     const [quality, textures] = useProgressiveTextures([
@@ -117,6 +108,14 @@ function Terrain(){
     )
 }
 ```
+
+It is a texture loader that accepts an array of url arrays and returns: Array of texture batches and an int holding the index of the highest quality texture batch that has been downloaded.
+
+All textures in a batch (['/hd/heightmap.png','/hd/normalmap@0.5.png']) are resolved before moving on to the next highest quality level
+To get performance benefits, resource batches should be of ordered by ascending quality.
+
+Note: as long as you serve a /basis_transcoder.js and /basis_transcoder.wasm useProgressiveTexture can also auto resolve highly compressed basis textures.
+See the BasisTextureLoader and Basisu project for more details: https://github.com/BinomialLLC/basis_universal
 
 <!--
 
