@@ -69,7 +69,7 @@ function MySuperCoolTerrain() {
       <SplatStandardMaterial
         splats={[splat1, splat2]}
         normalMap={normal}
-        normalMaps={[n1, n2, n3]}
+        normalMaps={[n1, n2, n3]} // note there are less normals than diffuse maps - normals are not required for each tile type
         diffuseMaps={[d1, d2, d3, d4, d4, d3]}
         scale={[128 / 4, 128 / 2, 128, 128 * 2, 128, 128, 10]}
         noise={noise}
