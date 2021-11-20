@@ -182,30 +182,6 @@ Thought it might be fun to let people vote on new feature ideas! If you're inter
 [view issues sorted by most votes](https://github.com/nwpointer/three-landscape/issues?q=is%3Aissue+is%3Aopen+sort%3Areactions-%2B1-desc)
 
 
-- Optional tri-planar projection (helps reduce texture stretching on extreme hight differentials)
-
-- Anti height terracing shader (height terracing affects dense meshes w high displacement scale)
-
-- Optional noise / shader based texture blending for sharper splat transitions w/o crazy hd splatmaps
-
-- Texture atlas support (bundles multiple textures into a single file, sidestepping webgl's 16 texture per material limit)
-
-- Infinite mirror grid for faking infinite terrain in self similar environments (mountains, sand dunes)
-
-- Support for wrapping textures onto spheres / semi sphere
-
-- MaterialTransition (Animates transitions between materials. This pairs well with useProgressiveTexture allowing you to fade in new textures quality levels as they are resolved.)
-
-- Quad-tree based terrain sectors that load terrain based on proximity to the camera or a character controller
-
-- Arbitrary local mesh detail based on user supplied criteria or via BTree. Avoid's t-junction height gaps caused by adjacent meshes of different mesh density.
-
-- Utilities for weighted grass / rock dispersal.
-
-- Volumetric fog
-
-- Custom water shaders
-
 ## Contributing
 
 In lieu of a formal style guide, take care to maintain the existing coding style. Please Lint and test your code before submitting.
