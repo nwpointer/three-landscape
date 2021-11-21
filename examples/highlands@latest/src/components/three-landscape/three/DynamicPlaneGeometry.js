@@ -41,36 +41,17 @@ export default class DynamicPlaneGeometry extends BufferGeometry {
         ])
 
         root.conformingSplit()
-        // console.log(root.k);
-        // console.log(root.leaves().map(n => ({ p: n.path, k: n.k })));
         root.children[0].conformingSplit()
-        // console.log(root.leaves().map(n => ({ p: n.path, k: n.k })));
         root.children[0].children[0].conformingSplit()
         root.children[0].children[0].children[1].conformingSplit();
-        // console.log(root.leaves().map(n => ({ p: n.path, k: n.k })));
-        // console.log(root.children[1].children[0].);
-        // root.children[1].children[0].split()
-        // console.log(root.leaves().map(n => ({ p: n.path, k: n.k })));
 
-
-        // root.leaves().map(l => l.conformingSplit())
-        // root.leaves().map(l => l.conformingSplit())
-        // root.leaves().map(l => l.conformingSplit())
-        // root.leaves().map(l => l.conformingSplit())
-
-        root.find(21).conformingSplit();
-        root.find(42).conformingSplit();
-        root.find(84).conformingSplit();
-        // root.find(168).conformingSplit();
-        // root.find(168 * 2).conformingSplit();
-        // root.find(168 * 4).conformingSplit();
-        // root.find(20).conformingSplit();
-        // root.find(8).conformingSplit();
-
-        for (let index = 0; index < 20; index++) {
-            root.find(168 * (2 ** index)).conformingSplit();
+        for (let index = 0; index < 4; index++) {
+            root.find(21 * (2 ** index)).conformingSplit();
         }
 
+        for (let index = 0; index < 6; index++) {
+            root.leaves().map(l => { l.conformingSplit() });
+        }
 
         const vertices = root.leafData();
         // const vertices = [...v1, ...v2]

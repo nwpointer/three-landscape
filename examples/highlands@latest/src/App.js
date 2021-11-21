@@ -1,6 +1,6 @@
 import React from 'react'
 
-import { Scene } from './components/LEB'
+import { Scene } from './components/AdaptiveScene'
 
 function App() {
   return <Scene />

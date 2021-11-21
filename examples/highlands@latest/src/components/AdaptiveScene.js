@@ -3,6 +3,7 @@ import { OrbitControls, Stats, Environment, useProgress, Html, useTexture } from
 import { Suspense } from 'react'
 import DynamicBufferGeometry from './three-landscape/three/DynamicPlaneGeometry';
 import { DoubleSide } from 'three';
+import { BinaryHeap } from './three-landscape/three/BinaryHeap';
 
 extend({ DynamicBufferGeometry });
 
