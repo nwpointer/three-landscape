@@ -1,9 +1,9 @@
 import React from 'react'
 
-import { Scene } from './components/AdaptiveScene'
+import { Level } from './components/AdaptiveSceneGPU'
 
 function App() {
-  return <Scene />
+  return <Level />
 }
 
 export default App

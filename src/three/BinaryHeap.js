@@ -1,41 +1,41 @@
+// import { neighbors, findMSB, EDGE, computeVertices } from "./LEB";
+const { neighbors, findMSB, EDGE, computeVertices, computeVerticesSquare, neighborsSquare, xySquare, pointFormat } = require("./LEB");
+
+
+// NEXT
+/*
+need to get it working on squares...
+
+get merging working or just recompute?
+
+do a demo with animated vertices
+
+do a demo with shaped vertices
+
+get it running on the gpu?
+
+optimization and backface bug
+
+
+*/
+
 // uses a Binary Heap and a Longest edge subdivision to compute a adaptive mesh on the cpu
-
-
-
-
-//TODO: Test this?
-//TODO: Integrate with LEB
-//TODO: get working on squares
-//TODO: move to GPU?
-
-class BinaryHeap {
+export class BinaryHeap {
     heap;
-    bitField;
 
     constructor(d) {
-        // this.bitField = (1).toString(2).padEnd(d, "0");
-        this.bitField = new Array(2 ** d).fill(0);
-        this.bitField[0] = 1; // initialize root leaf
-
-        // initialize array of size 2^d-1 -1
-        this.heap = new Array((2 ** d - 1) - 1).fill(0);
+        this.heap = new Int32Array(2 ** (d + 1)).fill(0);
         this.heap[0] = d; // store depth at heap 0
-        this.heap[2 ** d] = 1 // initialize the root
-        this.init(d);
+        this.heap[2 ** d] = 1 // initialize the root in the bit field 
+        this.sumReduction();
     }
-
-    // heapIndex(b) {
-    //     // requires MSB
-    //     return h
-    // }
-
-    // bitIndex(h) {
-    //     // requires LSB  
-    //     return b
-    // }
 
     depth() {
         return this.heap[0];
+    }
+
+    count() {
+        return this.heap.length
     }
 
     leafCount() {
@@ -50,49 +50,95 @@ class BinaryHeap {
         this.heap[k] = value;
     }
 
-    setBit(b, value) {
-        this.bitField[b] = value;
+    invalidIndex(k) {
+        return k == 0 || !(k in this.heap)
     }
 
-    // Format independent functions:
+    bitIndex(h) {
+        const D = this.depth();
+        const d = findMSB(h);
+        return h * (2 ** (D - d))
+        // return D - findMSB(h);
+    }
+
+
+    // Heap Format independent functions:
     // ------------------------------
 
-    init(d) {
-        // for all in (2^d, 2^d+1)
-        for (let k = 2 ** d + 1; k < 2 ** (d + 1); k++) {
-            let heapId = k * (2 ** (this.depth() - d))
-            this.setHeap(heapId, 0)
-        }
-        this.sumReduction();
-    }
-
-    // O(D + 2^d/P) where p denotes the number of processors used
+    // uses bottom up sum reduction to compute the number of leaves under a given heap index.
+    // this is used latter to iterate though all the leaves efficiently
+    // and must be updated when the tree is modified
     sumReduction() {
-        let d = this.depth() - 1;
-        while (d >= 0) {
-            // for all in [2^d, 2^d+1)
-            // parallelize
+        // for all depth levels
+        for (var d = this.depth() - 1; d >= 0; d--) {
+            // for all nodes on a level ie [2^d, 2^d+1)
             for (let k = 2 ** d; k < 2 ** (d + 1); k++) {
                 const left = this.getHeap(2 * k)
                 const right = this.getHeap(2 * k + 1)
                 this.setHeap(k, left + right);
             }
-            d = d - 1
         }
     }
 
-    // leaf to heap index using binary search
-    // dependent on number of children leaves being stored in heap so init and sumReduction should occur first
-    leaf(leafId) {
-        let heapId = 1;
-        while (this.getHeap(heapId) > 1) {
-            if (leafId < this.getHeap(2 * heapId)) heapId = 2 * heapId;
-            else {
-                leafId = leafId - this.getHeap(heapId)
-                heapId = 2 * heapId + 1
+    lebSplit(k) {
+        this.split(k);
+        const n = neighbors(k);
+        let heapId = n[EDGE];
+
+        while (heapId > 1) {
+            this.split(heapId)
+            heapId = Math.floor(heapId / 2)
+            this.split(heapId)
+            heapId = neighbors(heapId)[EDGE];
+        }
+    }
+
+    lebSplitSquare(k) {
+        this.split(k);
+        const n = neighborsSquare(k);
+        let heapId = n[EDGE];
+
+        while (heapId > 1) {
+            this.split(heapId)
+            heapId = Math.floor(heapId / 2)
+            if (heapId > 1) {
+                this.split(heapId)
+                heapId = neighborsSquare(heapId)[EDGE];
             }
         }
-        return heapId;
+    }
+
+    split(k) {
+        const rightChild = 2 * k + 1;
+        // if (this.invalidIndex(rightChild)) return;
+        const bitIndex = this.bitIndex(rightChild);
+        this.setHeap(bitIndex, 1)
+    }
+
+    leaves() {
+        const leaves = []
+        for (let l = 0; l < this.leafCount(); l++) {
+            leaves.push(this.leaf(l))
+        }
+        return leaves
+    }
+
+    verticesOf(k) {
+        return computeVertices(k);
+    }
+
+    vertices() {
+        return this.leaves().flatMap(computeVertices)
+    }
+
+    verticesSquareOf(k) {
+        // return computeVerticesSquare(k);
+        return pointFormat(xySquare(k));
+    }
+
+    verticesSquare() {
+        // return this.leaves().flatMap(computeVerticesSquare)
+        return this.leaves().flatMap(k => pointFormat(xySquare(k)))
     }
 
     update(cb) {
@@ -104,22 +150,34 @@ class BinaryHeap {
         this.sumReduction(); // update sum reduction incase cb made updates to the tree
     }
 
-    split(k) {
-        if (k > (2 ** this.depth())) throw new Error('max depth exceeded');
-        // this.setBit(k->b, 1)
-        this.setHeap(2 * k + 1, 1);
-    }
-
-    merge(k) {
-        // assumes you are passing in the right child ie k st. 2^d+1
-        this.setBit(k, 0);
+    // leaf to heap index using binary search
+    // dependent on number of children leaves being stored in heap so init and sumReduction should occur first
+    leaf(leafId) {
+        let heapId = 1;
+        while (this.getHeap(heapId) > 1) {
+            if (leafId < this.getHeap(2 * heapId)) {
+                heapId = 2 * heapId;
+            }
+            else {
+                leafId = leafId - this.getHeap(heapId * 2)
+                heapId = 2 * heapId + 1
+            }
+        }
+        return heapId;
     }
 
 }
 
+// module.export = BinaryHeap
 
-const B = new BinaryHeap(3);
-console.log(B)
-B.split(4);
-B.sumReduction();
-console.log(B)
+
+// const heap = new BinaryHeap(10);
+// heap.split(1);
+// heap.split(2);
+// heap.sumReduction();
+// heap.lebSplit(4);
+// // heap.lebSplit(9);
+// heap.sumReduction();
+// const vertices = heap.vertices();
+
+// console.log(vertices)

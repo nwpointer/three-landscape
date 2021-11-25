@@ -35,7 +35,7 @@ function mLEB(points) {
 
 
 
-// BTree is a special binary tree that enforces Conforming-Adaptive Tessellations
+// ATree is a special binary tree that enforces Conforming-Adaptive Tessellations
 export class ATree {
     data = [];
     children = [];
@@ -106,7 +106,9 @@ export class ATree {
             ]
         ]
 
-        return this.path.reduce((v, x) => g[x](v), v)
+        const result = this.path.reduce((v, x) => g[x](v), v)
+        // console.log(this.k, result)
+        return result;
     }
 
     sibling() {

@@ -1,20 +1,71 @@
 import { BufferGeometry, Float32BufferAttribute } from "three";
-import { ATree } from "./ATree";
-import { Matrix3 } from "three";
+import { BinaryHeap } from './BinaryHeap';
+
+const distance = (x1, y1, x2, y2) => Math.hypot(x2 - x1, y2 - y1);
+
+
+// if I got merging working I could avoid creating a new array everytime
+// and just merge nodes that fail the test
+
+// would be really cool if I could actually run each leaf in its own thread
+// looks like sum reduction is taking a long time, would also be good to multi-thread
+
+// would be even cooler to get it running on the gpu
+
+
+
+export function update(px = 0.5, py = 1.25) {
+    const heap = new BinaryHeap(24);
+    heap.lebSplitSquare(1);
+    heap.lebSplitSquare(2);
+    heap.lebSplitSquare(3);
+    heap.sumReduction();
+
+    // 18 = ~1million triangles
+    for (var i in new Array(10).fill(0)) {
+        for (var k of heap.leaves()) {
+            heap.lebSplitSquare(k)
+        }
+        heap.sumReduction();
+    }
+
+    // with 10 & 8 and r of 0.05, we get ~ 14k
+    for (var i in new Array(8).fill(0)) {
+        for (var k of heap.leaves()) {
+            const [x, z, y] = heap.verticesSquareOf(k)
+            const d = distance(px, py, x, y)
+            if (d < 0.05 * i) heap.lebSplitSquare(k)
+        }
+        heap.sumReduction();
+    }
+
+    return heap;
+}
 
 export default class DynamicPlaneGeometry extends BufferGeometry {
 
-    constructor(width = 1, height = 1) {
+    constructor(width = 1, height = 1, px, py) {
 
         super();
         this.type = 'DynamicPlaneGeometry';
 
         this.parameters = {
             width: width,
-            height: height
+            height: height,
+            px, py
         };
 
-        const [w, h] = [width, height];
+        this.width = width;
+        this.height = height;
+        this.px = px;
+        this.py = py;
+
+        this.update(px, py);
+
+    }
+
+    update(px = 1, py = 1) {
+        const [w, h] = [this.width, this.height];
 
         const toUV = (verts) => {
             return verts.map((vert, i) => {
@@ -34,34 +85,15 @@ export default class DynamicPlaneGeometry extends BufferGeometry {
             })
         }
 
-        const root = new ATree([
-            2, 0, 2,
-            0, 0, 2,
-            0, 0, 0,
-        ])
+        const heap = update(px, py);
 
-        root.conformingSplit()
-        root.children[0].conformingSplit()
-        root.children[0].children[0].conformingSplit()
-        root.children[0].children[0].children[1].conformingSplit();
-
-        for (let index = 0; index < 4; index++) {
-            root.find(21 * (2 ** index)).conformingSplit();
-        }
-
-        for (let index = 0; index < 6; index++) {
-            root.leaves().map(l => { l.conformingSplit() });
-        }
-
-        const vertices = root.leafData();
-        // const vertices = [...v1, ...v2]
+        const vertices = heap.verticesSquare();
         const normals = toNormal(vertices)
         const uvs = toUV(vertices)
 
         this.setAttribute('position', new Float32BufferAttribute(vertices, 3));
         this.setAttribute('normal', new Float32BufferAttribute(normals, 3));
         this.setAttribute('uv', new Float32BufferAttribute(uvs, 2));
-
     }
 
     static fromJSON(data) {
