@@ -54,7 +54,7 @@ test("depth", () => {
 // })
 
 test('lebMatrixSquare', () => {
-    const k = 2;
+    const k = 7;
     // printArray(xySquare(k))
     printArray(pointFormat(xySquare(k)))
     // printMatrix(lebMatrixSquare(k))

@@ -24,7 +24,17 @@ export function Level() {
 
 // generates data
 const SourceMaterial = shaderMaterial(
-  {},
+  {
+    vertexId: new Array(18).fill(0).map((_, i) => i),
+    data: [
+      0, 0, 2,
+      0, 0, 0,
+      2, 0, 0,
+      2, 0, 0,
+      2, 0, 2,
+      0, 0, 2,
+    ]
+  },
   `
     varying vec3 v_position;
     void main() {
@@ -44,7 +54,7 @@ const SourceMaterial = shaderMaterial(
 )
 extend({ SourceMaterial })
 
-
+// uses textures to render data
 const MeshMaterial = shaderMaterial(
   { map: null },
   `
@@ -71,7 +81,7 @@ const MeshMaterial = shaderMaterial(
     uniform sampler2D map;
     void main() {
       // gl_FragColor = vec4(texture2D(map, vUv).rgb,1.0);
-      gl_FragColor = vec4(1.0, 0.0, 0.0 ,1.0);
+      gl_FragColor = vec4(1.0, 0.0, 0.0, 1.0);
     }
   `
 )
@@ -83,6 +93,31 @@ extend({ MeshMaterial })
 // 2, 0, 0, 
 // 2, 0, 2, 
 // 0, 0, 2,
+
+// 0, 0, 0, 
+// 1, 0, 1, 
+// 0, 0, 2,
+//
+// 2, 0, 0, 
+// 1, 0, 1, 
+// 0, 0, 0,
+//
+// 2, 0, 2, 
+// 1, 0, 1, 
+// 2, 0, 0,
+//
+// 0, 0, 2, 
+// 1, 0, 1, 
+// 2, 0, 2,
+
+
+// need to figure out how to encode a texture with the above data
+// need to figure out how to render the correct number of triangles (1 * leaf count)
+// need to figure out how to trigger a re-render when the data changes
+// split / merge
+// sum-reduction
+// debugging will be tricky
+
 
 function Terrain() {
   const { camera } = useThree()
@@ -117,7 +152,7 @@ function Terrain() {
         scene
       )}
       <mesh>
-        <planeBufferGeometry attach="geometry" args={[1, 1, 9, 9]} />
+        <planeBufferGeometry attach="geometry" drawRange={{ start: 0, count: 99 }} args={[1, 1, 9, 9]} />
         <meshMaterial ref={mesh} wireframe attach="material" map={target.texture} />
       </mesh>
     </>
