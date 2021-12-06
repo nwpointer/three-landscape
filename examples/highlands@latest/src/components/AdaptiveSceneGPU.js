@@ -110,9 +110,15 @@ const utils = glsl`
   }
 
   // returns a 32 bit integer value encoded in a vec4
-  int decode (vec4 col) {
-    ivec4 bytes = ivec4(col);
-    return (bytes.r << 24) | (bytes.g << 16) | (bytes.b << 8) | (bytes.a);
+  float decode (vec4 col) {
+    // ivec4 bytes = ivec4(col * 255.0);
+    return (
+      col.r * 255.0 * 255.0 * 255.0 * 255.0 +
+      col.g * 255.0 * 255.0 * 255.0 +
+      col.b * 255.0 * 255.0 +
+      col.a * 255.0
+    );
+    // return ((bytes.r << 24) | (bytes.g << 16) | (bytes.b << 8) | (bytes.a));
   }
 `;
 
@@ -130,8 +136,8 @@ const UpdateMaterial = shaderMaterial(
     }
   `,
   glsl`
-    ${utils}
     precision highp float;
+    ${utils}
     varying vec2 vUv;
     uniform float data[${data.length}];
     void main() {
@@ -163,6 +169,7 @@ extend({ UpdateMaterial })
 const RenderMaterial = shaderMaterial(
   { cbt: null, size: 3 },
   glsl`
+    precision highp float;
     ${utils}
     varying vec2 vUv;
     uniform sampler2D cbt;
@@ -176,7 +183,7 @@ const RenderMaterial = shaderMaterial(
 
     // return the kth integer from a cbt of the specified size
     int getHeap(int k){
-      return decode(sampleCBT(k));
+      return int(decode(sampleCBT(k)));
     }
 
     // get the heap index(ie k) of the lth leaf
@@ -220,10 +227,9 @@ const RenderMaterial = shaderMaterial(
       }
 
       Position.y += 0.5 * float(index);
-      vec4 color = texture2D(cbt, vec2(1/size,0.0));
-      float value = float(size);
-      vec4 bias = vec4(0, 0, 0, value);
-      Position.x += 0.5 * float(decode(bias));
+      vec4 color = sampleCBT(index);
+      float value = float(decode(color));
+      Position.x += 0.5 * value;
 
       // old code for sampling position from a texture
       // Position = texture2D(cbt, vec2(float(gl_VertexID)/6.0, 0.0 ));
@@ -277,7 +283,7 @@ function decode(rgba) {
 function Terrain({ d = 2 }) {
   const { camera, gl } = useThree()
   const size = 2 ** (d + 1); // size of cbt texture;
-  const [leafCount, setLeafCount] = useState(2);
+  const [leafCount, setLeafCount] = useState(4);
 
   // TODO: use d to initialize the CBT
   // length of a cbt is 2^(d+1)
@@ -309,17 +315,15 @@ function Terrain({ d = 2 }) {
     state.gl.render(sceneB, camera)
 
     // grab the number of leaves from the cbt texture
-    const rgba = sample(gl, BTree, 1);
-    const count = decode(rgba);
-    if (count !== leafCount) setLeafCount(count);
-
-    // console.log(sample(gl, BTree, 0));
+    // const rgba = sample(gl, BTree, 1);
+    // const count = decode(rgba);
+    // if (count !== leafCount) setLeafCount(count);
 
     state.gl.setRenderTarget(null)
   })
 
   // render the raw data
-  return <BTree.mesh />
+  // return <BTree.mesh />
 
 
   return (
@@ -328,7 +332,7 @@ function Terrain({ d = 2 }) {
       <mesh>
         {/* drawRange={{ start: 0, count: 12 }} */}
         <unindexedGeometry args={[leafCount]} />
-        <renderMaterial side={DoubleSide} wireframe attach="material" map={BTree.texture} size={size} />
+        <renderMaterial side={DoubleSide} wireframe attach="material" cbt={BTree.texture} size={size} />
       </mesh>
       <mesh position={[0, 0, 0]}>
         <sphereBufferGeometry args={[0.05]} />
