@@ -497,10 +497,11 @@ function Derrain({ d = 2 }) {
       <effectComposer ref={composer} args={[gl, renderTarget]} renderToScreen={false}>
         <shaderPass
           attachArray="passes"
+          needsSwap={true}
           ref={shaderPass}
           args={[init ? InitialShader : UpdateShader]}
           uniforms-data-value={init ? data : renderTarget.texture} />
-        <savePass attachArray="passes" renderTarget={renderTarget} />
+        <savePass attachArray="passes" needsSwap={true} renderTarget={renderTarget} />
       </effectComposer>
     </>
   );
