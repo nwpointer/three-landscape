@@ -444,7 +444,7 @@ const UpdateShader = {
     varying vec2 vUv;
     uniform sampler2D data;
     void main() {     
-      gl_FragColor = texture2D(data, vUv) + vec4(0.05, 0.0, 0.0, 0.0);
+      gl_FragColor = texture2D(data, vUv) + vec4(0.01, 0.0, 0.0, 0.0);
       // gl_FragColor = vec4(vUv, 1.0,1.0);
     }
   `
@@ -453,37 +453,30 @@ const UpdateShader = {
 
 
 function Derrain({ d = 2 }) {
-
   const { camera, gl } = useThree()
   const size = 2 ** (d + 1); // size of cbt texture;
   const [leafCount, setLeafCount] = useState(2);
-  const texture = useTexture('/80px-Bounan_moutain.jpg')
 
   const composer = useRef();
   const shaderPass = useRef();
   const [init, setInit] = useState(true);
 
   const renderTarget = useMemo(() => {
-    return new WebGLRenderTarget(size, 1, {
+    return new WebGLRenderTarget(8, 1, {
       minFilter: NearestFilter,
       magFilter: NearestFilter,
       generateMipmaps: false
     })
-  });
+  }, []);
 
   useEffect(() => {
-    console.log(get(composer, 'current.readBuffer.texture'))
-    // setInit(true) // rerenders initial shader pass if shaders are updated
-
-    // setInterval(() => {
-    //   composer.current.render()
-    //   if (init) setInit(false)
-    // }, 500)
+    setInit(true) // rerenders initial shader pass if shaders ect are updated
   }, [size])
 
+
+  // update shader pass
   useFrame(() => {
     composer.current.render()
-    // composer.current.swapBuffers();
     if (init) setInit(false) // now that the initial shader pass is rendered, set init to false
   }, -1)
 
@@ -495,13 +488,14 @@ function Derrain({ d = 2 }) {
         <fullscreenSampleMaterial map={renderTarget.texture} />
       </mesh>
       <effectComposer ref={composer} args={[gl, renderTarget]} renderToScreen={false}>
+
         <shaderPass
           attachArray="passes"
-          needsSwap={true}
           ref={shaderPass}
           args={[init ? InitialShader : UpdateShader]}
           uniforms-data-value={init ? data : renderTarget.texture} />
-        <savePass attachArray="passes" needsSwap={true} renderTarget={renderTarget} />
+
+        {!init && <savePass attachArray="passes" needsSwap={true} renderTarget={renderTarget} />}
       </effectComposer>
     </>
   );
