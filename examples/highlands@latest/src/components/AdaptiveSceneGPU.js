@@ -1,14 +1,13 @@
-import { Canvas, extend, useThree, useFrame, createPortal, render } from '@react-three/fiber'
+import { Canvas, extend, useThree, useFrame, createPortal } from '@react-three/fiber'
 import { OrbitControls, Stats, Environment, useProgress, Html, useTexture, useFBO, Box, PerspectiveCamera, ScreenQuad, shaderMaterial } from '@react-three/drei'
 import { Suspense, useEffect, useRef, useState, useMemo } from 'react'
 import DynamicBufferGeometry, { update } from './three-landscape/three/DynamicPlaneGeometry';
 import UnindexedGeometry from './three-landscape/three/UnindexedGeometry';
-import { DoubleSide, BufferGeometry, BufferAttribute, Float32BufferAttribute, DataTexture, WebGLRenderTarget, PlaneBufferGeometry, Vector2, Scene, Color, LinearMipMapLinearFilter, NearestFilter, LinearFilter, RGBAFormat } from 'three';
+import { DoubleSide, BufferGeometry, BufferAttribute, Float32BufferAttribute, PlaneBufferGeometry, Vector2, Scene, Color, LinearMipMapLinearFilter, NearestFilter, LinearFilter, RGBAFormat, WebGLRenderTarget } from 'three';
 import glsl from 'glslify';
-import { ShaderPass, RenderPass, EffectComposer, SavePass } from "three-stdlib";
-import get from 'lodash.get';
+import { EffectComposer, ShaderPass, SavePass, RenderPass } from "three-stdlib";
 
-extend({ ShaderPass, RenderPass, EffectComposer, SavePass })
+extend({ EffectComposer, ShaderPass, SavePass, RenderPass })
 
 extend({ DynamicBufferGeometry }); // old, cpu based code
 extend({ UnindexedGeometry });
@@ -21,35 +20,14 @@ export function Level() {
       <Stats />
       <Suspense fallback={<Progress />}>
         <fog attach="fog" args={['#74bbd0', 0, 200]} />
-        <Derrain />
+        {/* <Terrain /> */}
+        <TerrainComposer />
       </Suspense>
     </Canvas>
   )
 }
 
-extend({
-  FullscreenSampleMaterial: shaderMaterial(
-    {
-      map: undefined
-    },
-    glsl`
-    varying vec2 vUv;
-    void main() {
-      // gl_Position = projectionMatrix * modelViewMatrix * vec4( position, 1.0 );
-      gl_Position = vec4(position * 2.0, 1.0);
-      vUv = uv;
-    }
-  `,
-    glsl`
-    varying vec2 vUv;
-    uniform sampler2D map;
-    void main() {
-      gl_FragColor = texture2D(map, vUv);
-      // gl_FragColor = vec4(vUv, 1.0,1.0);
-    }
-  `
-  )
-})
+
 
 
 // textureBuffer
@@ -76,31 +54,28 @@ render(): for 0..n`
 
 */
 
+/*
+DONE: prove i can read / write 32bit values from a texture
+DONE: prove i interpret a texture as a cbt and render it correctly
+DONE: prove I can setup a recursive shader
+
+splitting and merging decisions can be done recursively overtime but sum reduction must be coherent for all renders
+
+TODO: update Terrain to use effectComposer instead of FBO?
+
+*/
 
 // skip initialization, manually set the data
 const data = [
-  1, 0, 0, 3 / 255, // 3
+  0, 0, 0, 3 / 255, // 3
   0, 0, 0, 4 / 255, // 4
   0, 0, 0, 2 / 255, // 2
-  1, 0, 0, 2 / 255, // 2
+  0, 0, 0, 2 / 255, // 2
   0, 0, 0, 1 / 255, // 1
   0, 0, 0, 1 / 255, // 1
   0, 0, 0, 1 / 255, // 1
-  1, 0, 0, 1 / 255, // 1
+  0, 0, 0, 1 / 255, // 1
 ]
-
-function sample(gl, renderTarget, i) {
-  const pixelBuffer = new Uint8Array(4);
-  gl.readRenderTargetPixels(renderTarget, i, 0, 1, 1, pixelBuffer);
-  // pixelBuffer is a 4x8bit array of rgba values that can be converted to a 32bit value in the range 0 to 4,294,967,295 implying a max grid density of 2^16 x 2^16 
-  const [r, g, b, a] = pixelBuffer;
-  return [r, g, b, a];
-}
-
-function decode(rgba) {
-  const binaryString = rgba.map(x => x.toString(2).padStart(8, '0')).join('');
-  return parseInt(binaryString, 2);
-}
 
 const utils = glsl`
   // encodes a 32bit value into a 4x8bit array of rgba values
@@ -124,12 +99,13 @@ const utils = glsl`
   }
 `;
 
-// generates data
-const InitialMaterial = shaderMaterial(
-  {
-    data: data
-  },
-  glsl`
+// UpdateMaterial
+extend({
+  UpdateMaterial: shaderMaterial(
+    {
+      data: data
+    },
+    glsl`
     varying vec2 vUv;
     void main() {
       // gl_Position = projectionMatrix * modelViewMatrix * vec4( position, 1.0 );
@@ -137,7 +113,7 @@ const InitialMaterial = shaderMaterial(
       vUv = uv;
     }
   `,
-  glsl`
+    glsl`
     precision highp float;
     ${utils}
     varying vec2 vUv;
@@ -164,62 +140,14 @@ const InitialMaterial = shaderMaterial(
       // gl_FragColor = vec4(vUv, 1.0,1.0);
     }
   `
-)
-extend({ InitialMaterial })
+  )
+})
 
-// generates data
-const UpdateMaterial = shaderMaterial(
-  {
-    data: data
-  },
-  glsl`
-    varying vec2 vUv;
-    void main() {
-      // gl_Position = projectionMatrix * modelViewMatrix * vec4( position, 1.0 );
-      gl_Position = vec4(position * 2.0, 1.0);
-      vUv = uv;
-    }
-  `,
-  glsl`
-    precision highp float;
-    ${utils}
-    varying vec2 vUv;
-    // uniform float data[${data.length}];
-    uniform sampler2D data;
-    void main() {
-      // int index = int((vUv.x) * float(${data.length / 4}));
-      
-      // sample and operate on rgba values as if they were 32bit integers
-      // vec4 a = vec4(0, 0, 0, 0.5);
-      // vec4 b = vec4(0, 0, 0, 0.5);
-      // vec4 col = a+ b;
-      // int integerValue = decode(col);
-      // vec4 rgba = encode(float(integerValue));
-
-
-      gl_FragColor = texture2D(data, vUv) + vec4(0.5, 0.0, 0.0, 0.0);
-
-      // sample data array
-      // data array is a stand in for the cbt
-      // gl_FragColor = vec4(
-      //   data[index * 4],
-      //   data[index * 4 + 1],
-      //   data[index * 4 + 2],
-      //   data[index * 4 + 3]
-      // );
-
-      // gl_FragColor = vec4(vUv, 0.0,1.0);
-    }
-  `
-)
-extend({ UpdateMaterial })
-
-
-
-// uses textures to render data
-const RenderMaterial = shaderMaterial(
-  { cbt: null, size: 3 },
-  glsl`
+// RenderMaterial
+extend({
+  RenderMaterial: shaderMaterial(
+    { cbt: null, size: 3 },
+    glsl`
     precision highp float;
     ${utils}
     varying vec2 vUv;
@@ -349,7 +277,7 @@ const RenderMaterial = shaderMaterial(
       gl_Position = projectionMatrix * modelViewMatrix *  vec4(Position, 1.0);
     }
   `,
-  glsl`
+    glsl`
     varying vec2 vUv;
     uniform sampler2D cbt;
     void main() {
@@ -357,51 +285,53 @@ const RenderMaterial = shaderMaterial(
       gl_FragColor = vec4(1.0,0.0,0.0,1.0);
     }
   `
-)
-extend({ RenderMaterial })
+  )
+})
 
-function useSwapBuffer(size, name) {
-  const SwapBuffer = useFBO(size, 1, {
-    multisampling: true,
-    minFilter: NearestFilter,
-    magFilter: NearestFilter,
-    generateMipmaps: false
-  })
-  // const texture = useTexture('/80px-Bounan_moutain.jpg')
+// FullscreenSampleMaterial
+extend({
+  FullscreenSampleMaterial: shaderMaterial(
+    {
+      map: undefined
+    },
+    glsl`
+    varying vec2 vUv;
+    void main() {
+      // gl_Position = projectionMatrix * modelViewMatrix * vec4( position, 1.0 );
+      gl_Position = vec4(position * 2.0, 1.0);
+      vUv = uv;
+    }
+  `,
+    glsl`
+    varying vec2 vUv;
+    uniform sampler2D map;
+    void main() {
+      gl_FragColor = texture2D(map, vUv);
+      // gl_FragColor = vec4(vUv, 0.0,1.0);
+    }
+  `
+  )
+})
 
-  SwapBuffer.name = name;
 
-  SwapBuffer.mesh = ({ init, source, initialRender }) => {
-    console.log(name, initialRender, source)
-
-    const Material = initialRender ?
-      () => <initialMaterial attach="material" data={init} /> :
-      () => <updateMaterial attach="material" data={source.texture} />;
-
-    return (
-      <mesh>
-        <planeBufferGeometry attach="geometry" args={[1, 1, 1, 1]} />
-        <Material />
-      </mesh>
-    )
-
-  }
-
-  SwapBuffer.scene = useMemo(() => {
-    const scene = new Scene()
-    scene.background = new Color(0xffffff)
-    scene.autoUpdate = false;
-    return scene
-  }, [])
-
-  return SwapBuffer;
+function sample(gl, renderTarget, i) {
+  const pixelBuffer = new Uint8Array(4);
+  gl.readRenderTargetPixels(renderTarget, i, 0, 1, 1, pixelBuffer);
+  // pixelBuffer is a 4x8bit array of rgba values that can be converted to a 32bit value in the range 0 to 4,294,967,295 implying a max grid density of 2^16 x 2^16 
+  const [r, g, b, a] = pixelBuffer;
+  return [r, g, b, a];
 }
 
+function decode(rgba) {
+  const binaryString = rgba.map(x => x.toString(2).padStart(8, '0')).join('');
+  return parseInt(binaryString, 2);
+}
 
-// generates data
 const InitialShader = {
   uniforms: {
     data: { value: data },
+    size: { value: undefined },
+    d: { value: undefined },
   },
   vertexShader: glsl`
     varying vec2 vUv;
@@ -424,6 +354,9 @@ const InitialShader = {
         data[index * 4 + 3]
       );
 
+      // exaggerate the alpha channel and send it to the red so its visible
+      gl_FragColor = vec4(gl_FragColor.a * 50.0, 0,0, gl_FragColor.a);
+
       // gl_FragColor = vec4(vUv, 1.0,1.0);
     }
   `
@@ -432,6 +365,8 @@ const InitialShader = {
 const UpdateShader = {
   uniforms: {
     data: { value: undefined },
+    size: { value: undefined },
+    d: { value: undefined },
   },
   vertexShader: glsl`
     varying vec2 vUv;
@@ -443,24 +378,38 @@ const UpdateShader = {
   fragmentShader: glsl`
     varying vec2 vUv;
     uniform sampler2D data;
-    void main() {     
-      gl_FragColor = texture2D(data, vUv) + vec4(0.01, 0.0, 0.0, 0.0);
+    uniform float size;
+    uniform float d;
+    void main() {
+      float a = texture2D(data, vUv).a;
+      int index = int(vUv.x * size);
+      gl_FragColor = texture2D(data, vUv); // do noting
+
+      
+      // determining if is leaf is easy, if its value=0 in the range 2^d ... 2^(d+1), then it is a leaf
+      bool isLeaf = a==1.0 / 255.0 && index >= int(pow(2.0,d));
+      if(isLeaf) {
+        gl_FragColor.b = 1.0;
+        // follow path to root, increasing by one 
+      }
+
+      // problem - because we're using gl_FrgColor to write, we have random access to read values but not to write them
+
+
+
+      // gl_FragColor = texture2D(data, vUv) + vec4(0.05, 0.0, 0.0, 0.0);
       // gl_FragColor = vec4(vUv, 1.0,1.0);
     }
   `
 }
 
-
-
-function Derrain({ d = 2 }) {
+function TerrainComposer({ d = 2 }) {
   const { camera, gl } = useThree()
   const size = 2 ** (d + 1); // size of cbt texture;
-  const [leafCount, setLeafCount] = useState(2);
+  const [leafCount, setLeafCount] = useState(4);
 
   const composer = useRef();
-  const shaderPass = useRef();
   const [init, setInit] = useState(true);
-
   const renderTarget = useMemo(() => {
     return new WebGLRenderTarget(8, 1, {
       minFilter: NearestFilter,
@@ -471,36 +420,70 @@ function Derrain({ d = 2 }) {
 
   useEffect(() => {
     setInit(true) // rerenders initial shader pass if shaders ect are updated
+
+    // click update
+    update();
+    window.addEventListener('click', update);
+
   }, [size])
 
-
   // update shader pass
-  useFrame(() => {
+  // useFrame(() => {
+  //   update();
+  // }, -1)
+
+  const update = () => {
+
     composer.current.render()
     if (init) setInit(false) // now that the initial shader pass is rendered, set init to false
-  }, -1)
 
+    // grab the number of leaves from the cbt texture
+    const rgba = sample(gl, renderTarget, 1);
+    const count = decode(rgba);
+    if (count !== leafCount) setLeafCount(count);
+  }
+
+  const data = [
+    0, 0, 0, 3 / 255, // 3
+    0, 0, 0, 0 / 255, // 4
+    0, 0, 0, 0 / 255, // 2
+    0, 0, 0, 0 / 255, // 2
+    0, 0, 0, 1 / 255, // 1
+    0, 0, 0, 1 / 255, // 1
+    0, 0, 0, 1 / 255, // 1
+    0, 0, 0, 1 / 255, // 1
+  ]
 
   return (
     <>
+      {/* Render Texture test */}
       <mesh>
         <planeBufferGeometry attach="geometry" args={[1, 1, 1, 1]} />
         <fullscreenSampleMaterial map={renderTarget.texture} />
       </mesh>
-      <effectComposer ref={composer} args={[gl, renderTarget]} renderToScreen={false}>
 
+      {/* Render Grid */}
+      {/* <mesh>
+        <unindexedGeometry args={[leafCount]} />
+        <renderMaterial side={DoubleSide} wireframe attach="material" cbt={renderTarget.texture} size={size} />
+      </mesh>
+      <mesh position={[0, 0, 0]}>
+        <sphereBufferGeometry args={[0.05]} />
+        <meshStandardMaterial color={0xffffff} />
+      </mesh> */}
+
+      <effectComposer ref={composer} args={[gl, renderTarget]} renderToScreen={false}>
         <shaderPass
           attachArray="passes"
-          ref={shaderPass}
           args={[init ? InitialShader : UpdateShader]}
-          uniforms-data-value={init ? data : renderTarget.texture} />
-
+          uniforms-data-value={init ? data : renderTarget.texture}
+          uniforms-size-value={size}
+          uniforms-d-value={d}
+        />
         {!init && <savePass attachArray="passes" needsSwap={true} renderTarget={renderTarget} />}
       </effectComposer>
     </>
-  );
-
-
+  )
 }
 
 function Terrain({ d = 2 }) {
@@ -508,111 +491,56 @@ function Terrain({ d = 2 }) {
   const size = 2 ** (d + 1); // size of cbt texture;
   const [leafCount, setLeafCount] = useState(4);
 
-  const [initialRender, setInitialRender] = useState(true);
+  // TODO: use d to initialize the CBT
+  // length of a cbt is 2^(d+1)
+  const BTree = useFBO(size, 1, {
+    minFilter: NearestFilter,
+    magFilter: NearestFilter,
+    generateMipmaps: false
+  })
 
-  // gl.domElement.getContext('webgl', { preserveDrawingBuffer: true, autoClear: true });
+  BTree.mesh = () => (
+    <mesh>
+      <planeBufferGeometry attach="geometry" args={[1, 1, 1, 1]} />
+      <updateMaterial attach="material" />
+    </mesh>
+  )
 
-
-  // let A = useSwapBuffer(size, 'a');
-  // let B = useSwapBuffer(size, 'b');
-
-  const [swap, setSwap] = useState([useSwapBuffer(size, 'a', camera), useSwapBuffer(size, 'b', camera)]);
-  const [A, B] = swap;
-
-  // console.log(A.name, B.name)
-
-  useEffect(() => {
-    gl.setRenderTarget(A)
-    gl.render(A.scene, camera)
-    gl.setRenderTarget(null)
-
-    gl.setRenderTarget(B)
-    gl.render(B.scene, camera)
-    gl.setRenderTarget(null)
-
-    const rgba = sample(gl, A, 1);
-    const count = decode(rgba);
-    if (count !== leafCount) setLeafCount(count);
-
-  }, [d])
-
-  // swap buffers
-  useEffect(() => {
-    setSwap(swap => {
-      const [A, B] = swap;
-      return [B, A];
-    });
-    if (initialRender) setInitialRender(false);
-  }, [d])
-
-  // useFrame(({ clock }) => {
-  //   console.log(clock)
-  //   setSwap(swap => {
-  //     const [A, B] = swap;
-  //     return [B, A];
-  //   });
-  // }, [d])
-
-
+  const sceneB = useMemo(() => {
+    const scene = new Scene()
+    scene.background = new Color(0xffffff)
+    return scene
+  }, [])
 
   // trigger cbt update
-  // useFrame((state) => {
-  //   // console.log(active)
+  useFrame((state) => {
 
-  //   state.gl.setRenderTarget(A)
-  //   state.gl.render(sceneB, camera)
+    // update the cbt
+    state.gl.setRenderTarget(BTree)
+    state.gl.render(sceneB, camera)
+    state.gl.setRenderTarget(null)
 
-  //   // grab the number of leaves from the cbt texture
-  //   const rgba = sample(gl, A, 1);
-  //   const count = decode(rgba);
-  //   if (count !== leafCount) setLeafCount(count);
-
-  //   state.gl.setRenderTarget(null)
-  // })
-
-  // return null;
+    // grab the number of leaves from the cbt texture
+    const rgba = sample(gl, BTree, 1);
+    const count = decode(rgba);
+    if (count !== leafCount) setLeafCount(count);
+  })
 
   // render the raw data
+  // return <BTree.mesh />
 
-  const init = [
-    0.5, 0, 0, 3 / 255, // 3
-    0, 0, 0, 4 / 255, // 4
-    0, 0, 0, 2 / 255, // 2
-    0, 0, 0, 2 / 255, // 2
-    0, 0, 0, 1 / 255, // 1
-    0, 0, 0, 1 / 255, // 1
-    0, 0, 0, 1 / 255, // 1
-    0, 0, 0, 1 / 255, // 1
-  ];
-
-
-
-  // return <>
-  //   {/* <A.mesh init={init} source={B} initialRender={initialRender} /> */}
-  //   <B.mesh init={init} source={A} initialRender={initialRender} />
-  // </>
 
   return (
     <>
-      {createPortal(<A.mesh init={init} source={B} initialRender={initialRender} />, A.scene)}
-      {/* {createPortal(<B.mesh init={init} source={A.texture} initialRender={initialRender} />, B.scene)} */}
-
-      <A.mesh init={init} source={B} initialRender={initialRender} />
-
-      {/* <B.mesh init={init} source={A} initialRender={initialRender} /> */}
-      {/* <mesh>
+      {createPortal(<BTree.mesh />, sceneB)}
+      <mesh>
         <unindexedGeometry args={[leafCount]} />
-        <renderMaterial side={DoubleSide} wireframe attach="material" cbt={A.texture} size={size} />
-      </mesh> */}
-      {/* <mesh position={[0, 0, 0]}>
+        <renderMaterial side={DoubleSide} wireframe attach="material" cbt={BTree.texture} size={size} />
+      </mesh>
+      <mesh position={[0, 0, 0]}>
         <sphereBufferGeometry args={[0.05]} />
         <meshStandardMaterial color={0xffffff} />
-      </mesh> */}
-      {/* 
-      <mesh rotation={[-0.0 * Math.PI, 0, 0]}>
-        <circleBufferGeometry attach="geometry" args={[0.5, 40]} />
-        <renderMaterial side={DoubleSide} wireframe attach="material" map={BTree.texture} />
-      </mesh> */}
+      </mesh>
     </>
   )
 }
