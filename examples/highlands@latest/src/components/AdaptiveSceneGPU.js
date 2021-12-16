@@ -6,6 +6,7 @@ import UnindexedGeometry from './three-landscape/three/UnindexedGeometry';
 import { DoubleSide, BufferGeometry, BufferAttribute, Float32BufferAttribute, PlaneBufferGeometry, Vector2, Scene, Color, LinearMipMapLinearFilter, NearestFilter, LinearFilter, RGBAFormat, WebGLRenderTarget } from 'three';
 import glsl from 'glslify';
 import { EffectComposer, ShaderPass, SavePass, RenderPass } from "three-stdlib";
+import get from 'lodash.get';
 
 extend({ EffectComposer, ShaderPass, SavePass, RenderPass })
 
@@ -58,10 +59,48 @@ render(): for 0..n`
 DONE: prove i can read / write 32bit values from a texture
 DONE: prove i interpret a texture as a cbt and render it correctly
 DONE: prove I can setup a recursive shader
+DONE: implement level wise sum reduction
 
 splitting and merging decisions can be done recursively overtime but sum reduction must be coherent for all renders
 
-TODO: update Terrain to use effectComposer instead of FBO?
+problem: sum reduction as initially conceived requires
+  - atomic add
+  - random writes up to the root (or) multiple passes, one per level
+
+TODO::
+- implement resolution independent sum reduction
+- implement a split step either:
+  - pass per leaf
+  - pass per level
+  - single pass?
+
+PASS PER LEVEL:
+sum reduction should be possible by level, but requires a separate shader run (pass uniforms d=total levels and i=level)
+-> at max depth this implies like 27 ish passes, is that a problem? at least it scales linearly with depth
+-> unsure if one pass that could read the entire cbt is worse than multiple passes (probably)
+
+PASS PER LEAF / SINGLE PASS BY LEAF:
+in a vertex shader for each leaf:
+  - decide to split or merge
+  - calculate up the tree neighbors that would be affected
+  - store the effected neighbors in a varying array
+  - update the neighbors in a fragment shader
+
+  problem: the limit on varying size is small, 
+    - so we'd need a bound on the number of affected neighbors
+    - figure out how to insure that the right varying is associated with the right fragment
+
+
+Question: sum reduction can be done bottom up - can splitting be done bottom up?
+-> should be able to imbed a signal to split parent nodes by setting the current node to a value with a specific fractional value.
+-> this would have the effect of essentially triggering an update on the parent node w/o need for random access write.
+-> a cleanup pass or a subsequent render pass can clean up the fractional triggers.
+
++ all of this will work better if we can combine the sum reduction and splitting into one pass
+
+if all of this fails we can always do splitting in js land and only use glsl for sum-reduction
+
+
 
 */
 
@@ -327,11 +366,10 @@ function decode(rgba) {
   return parseInt(binaryString, 2);
 }
 
+// data to texture shader
 const InitialShader = {
   uniforms: {
     data: { value: data },
-    size: { value: undefined },
-    d: { value: undefined },
   },
   vertexShader: glsl`
     varying vec2 vUv;
@@ -341,8 +379,6 @@ const InitialShader = {
     }
   `,
   fragmentShader: glsl`
-    precision highp float;
-    ${utils}
     varying vec2 vUv;
     uniform float data[${data.length}];
     void main() {
@@ -355,29 +391,34 @@ const InitialShader = {
       );
 
       // exaggerate the alpha channel and send it to the red so its visible
-      gl_FragColor = vec4(gl_FragColor.a * 50.0, 0,0, gl_FragColor.a);
+      // gl_FragColor = vec4(gl_FragColor.a * 50.0, 0,0, gl_FragColor.a);
 
       // gl_FragColor = vec4(vUv, 1.0,1.0);
     }
   `
 }
 
-const UpdateShader = {
+const UpdateShader = (len = 2) => ({
   uniforms: {
     data: { value: undefined },
+    delta: { value: undefined },
     size: { value: undefined },
     d: { value: undefined },
   },
   vertexShader: glsl`
     varying vec2 vUv;
+    varying float x[${len}];
     void main() {
       gl_Position = vec4(position * 1.0, 1.0);
       vUv = uv;
+      x[${len - 1}] = 0.1;
     }
   `,
   fragmentShader: glsl`
     varying vec2 vUv;
+    varying float x[${len}];
     uniform sampler2D data;
+    uniform sampler2D delta;
     uniform float size;
     uniform float d;
     void main() {
@@ -388,8 +429,14 @@ const UpdateShader = {
       
       // determining if is leaf is easy, if its value=0 in the range 2^d ... 2^(d+1), then it is a leaf
       bool isLeaf = a==1.0 / 255.0 && index >= int(pow(2.0,d));
+
+      if(texture2D(delta, vUv).a == 1.0){
+        gl_FragColor.b += x[${len - 1}];
+      }
+      
+      
       if(isLeaf) {
-        gl_FragColor.b = 1.0;
+        // gl_FragColor.b += 0.3;
         // follow path to root, increasing by one 
       }
 
@@ -401,11 +448,11 @@ const UpdateShader = {
       // gl_FragColor = vec4(vUv, 1.0,1.0);
     }
   `
-}
+})
 
-function TerrainComposer({ d = 2 }) {
+function TerrainComposer({ depth = 2 }) {
   const { camera, gl } = useThree()
-  const size = 2 ** (d + 1); // size of cbt texture;
+  const size = 2 ** (depth + 1); // size of cbt texture;
   const [leafCount, setLeafCount] = useState(4);
 
   const composer = useRef();
@@ -418,8 +465,19 @@ function TerrainComposer({ d = 2 }) {
     })
   }, []);
 
+  const updateTarget = useMemo(() => {
+    return new WebGLRenderTarget(8, 1, {
+      minFilter: NearestFilter,
+      magFilter: NearestFilter,
+      generateMipmaps: false
+    })
+  }, []);
+
   useEffect(() => {
+    // console.log(gl.getContext('webgl2'));
     setInit(true) // rerenders initial shader pass if shaders ect are updated
+
+    console.log(get(composer, 'current.readBuffer'))
 
     // click update
     update();
@@ -449,42 +507,110 @@ function TerrainComposer({ d = 2 }) {
     0, 0, 0, 0 / 255, // 2
     0, 0, 0, 0 / 255, // 2
     0, 0, 0, 1 / 255, // 1
+    0, 0, 0, 0 / 255, // 1
     0, 0, 0, 1 / 255, // 1
-    0, 0, 0, 1 / 255, // 1
-    0, 0, 0, 1 / 255, // 1
+    0, 0, 0, 0 / 255, // 1
   ]
+
+  const sumReductionPasses = [];
+  for (let i = depth - 1; i >= 0; i--) {
+    sumReductionPasses.push((
+      <>
+        <shaderPass
+          attachArray="passes"
+          args={[SumReductionPass]}
+          uniforms-map-value={renderTarget.texture}
+          uniforms-depth-value={depth}
+          uniforms-size-value={size}
+          uniforms-d-value={i}
+        />
+        <savePass attachArray="passes" needsSwap={true} renderTarget={renderTarget} />
+      </>
+    ));
+  }
+
+  const initialPass = (
+    <shaderPass
+      attachArray="passes"
+      args={[InitialShader]}
+      uniforms-data-value={data}
+    />
+  )
 
   return (
     <>
       {/* Render Texture test */}
-      <mesh>
+      {/* <mesh>
         <planeBufferGeometry attach="geometry" args={[1, 1, 1, 1]} />
         <fullscreenSampleMaterial map={renderTarget.texture} />
-      </mesh>
+      </mesh> */}
 
       {/* Render Grid */}
-      {/* <mesh>
+      <mesh>
         <unindexedGeometry args={[leafCount]} />
         <renderMaterial side={DoubleSide} wireframe attach="material" cbt={renderTarget.texture} size={size} />
       </mesh>
       <mesh position={[0, 0, 0]}>
         <sphereBufferGeometry args={[0.05]} />
         <meshStandardMaterial color={0xffffff} />
-      </mesh> */}
+      </mesh>
 
+      {/* Coherent */}
       <effectComposer ref={composer} args={[gl, renderTarget]} renderToScreen={false}>
-        <shaderPass
-          attachArray="passes"
-          args={[init ? InitialShader : UpdateShader]}
-          uniforms-data-value={init ? data : renderTarget.texture}
-          uniforms-size-value={size}
-          uniforms-d-value={d}
-        />
-        {!init && <savePass attachArray="passes" needsSwap={true} renderTarget={renderTarget} />}
+        {initialPass}
+        {sumReductionPasses}
       </effectComposer>
+
+      {/* Phased, onclick or onFrame */}
+      {/* <effectComposer ref={composer} args={[gl, renderTarget]} renderToScreen={false}>
+        {init ? initialPass : sumReductionPasses}
+      </effectComposer> */}
     </>
   )
 }
+
+const SumReductionPass = ({
+  uniforms: {
+    map: { value: undefined },
+    size: { value: undefined },
+    depth: { value: undefined },
+    d: { value: undefined },
+  },
+  vertexShader: glsl`
+    varying vec2 vUv;
+    void main() {
+      gl_Position = vec4(position * 1.0, 1.0);
+      vUv = uv;
+    }
+  `,
+  fragmentShader: glsl`
+    varying vec2 vUv;
+    uniform sampler2D map;
+    uniform float depth;
+    uniform float size;
+    uniform float d;
+    float z = 2.0;
+    
+    void main() {
+      gl_FragColor = texture2D(map, vUv);
+
+      float index = floor((vUv.x) * 8.0) ;
+      if(index >= pow(2.0, (d)) && index < pow(2.0, (d+1.0))) {
+        // gl_FragColor.b += 0.1;
+        float l = index * 2.0;
+        float r = index * 2.0 + 1.0;
+
+        vec4 leftChild = texture2D(map, vec2(l / size, vUv.y));
+        vec4 rightChild= texture2D(map, vec2(r / size, vUv.y));
+
+        // make visible
+        // gl_FragColor.r = leftChild.r + rightChild.r;
+        
+        gl_FragColor.a = leftChild.a + rightChild.a;
+      }      
+    }
+  `
+})
 
 function Terrain({ d = 2 }) {
   const { camera, gl } = useThree()
