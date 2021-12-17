@@ -105,16 +105,16 @@ if all of this fails we can always do splitting in js land and only use glsl for
 */
 
 // skip initialization, manually set the data
-const data = [
-  0, 0, 0, 3 / 255, // 3
-  0, 0, 0, 4 / 255, // 4
-  0, 0, 0, 2 / 255, // 2
-  0, 0, 0, 2 / 255, // 2
-  0, 0, 0, 1 / 255, // 1
-  0, 0, 0, 1 / 255, // 1
-  0, 0, 0, 1 / 255, // 1
-  0, 0, 0, 1 / 255, // 1
-]
+// const data = [
+//   0, 0, 0, 3 / 255, // 3
+//   0, 0, 0, 4 / 255, // 4
+//   0, 0, 0, 2 / 255, // 2
+//   0, 0, 0, 2 / 255, // 2
+//   0, 0, 0, 1 / 255, // 1
+//   0, 0, 0, 1 / 255, // 1
+//   0, 0, 0, 1 / 255, // 1
+//   0, 0, 0, 1 / 255, // 1
+// ]
 
 const utils = glsl`
   // encodes a 32bit value into a 4x8bit array of rgba values
@@ -139,48 +139,48 @@ const utils = glsl`
 `;
 
 // UpdateMaterial
-extend({
-  UpdateMaterial: shaderMaterial(
-    {
-      data: data
-    },
-    glsl`
-    varying vec2 vUv;
-    void main() {
-      // gl_Position = projectionMatrix * modelViewMatrix * vec4( position, 1.0 );
-      gl_Position = vec4(position * 2.0, 1.0);
-      vUv = uv;
-    }
-  `,
-    glsl`
-    precision highp float;
-    ${utils}
-    varying vec2 vUv;
-    uniform float data[${data.length}];
-    void main() {
-      int index = int((vUv.x) * float(${data.length / 4}));
-      
-      // sample and operate on rgba values as if they were 32bit integers
-      // vec4 a = vec4(0, 0, 0, 0.5);
-      // vec4 b = vec4(0, 0, 0, 0.5);
-      // vec4 col = a+ b;
-      // int integerValue = decode(col);
-      // vec4 rgba = encode(float(integerValue));
+// extend({
+//   UpdateMaterial: shaderMaterial(
+//     {
+//       data: data
+//     },
+//     glsl`
+//     varying vec2 vUv;
+//     void main() {
+//       // gl_Position = projectionMatrix * modelViewMatrix * vec4( position, 1.0 );
+//       gl_Position = vec4(position * 2.0, 1.0);
+//       vUv = uv;
+//     }
+//   `,
+//     glsl`
+//     precision highp float;
+//     ${utils}
+//     varying vec2 vUv;
+//     uniform float data[${data.length}];
+//     void main() {
+//       int index = int((vUv.x) * float(${data.length / 4}));
 
-      // sample data array
-      // data array is a stand in for the cbt
-      gl_FragColor = vec4(
-        data[index * 4],
-        data[index * 4 + 1],
-        data[index * 4 + 2],
-        data[index * 4 + 3]
-      );
+//       // sample and operate on rgba values as if they were 32bit integers
+//       // vec4 a = vec4(0, 0, 0, 0.5);
+//       // vec4 b = vec4(0, 0, 0, 0.5);
+//       // vec4 col = a+ b;
+//       // int integerValue = decode(col);
+//       // vec4 rgba = encode(float(integerValue));
 
-      // gl_FragColor = vec4(vUv, 1.0,1.0);
-    }
-  `
-  )
-})
+//       // sample data array
+//       // data array is a stand in for the cbt
+//       gl_FragColor = vec4(
+//         data[index * 4],
+//         data[index * 4 + 1],
+//         data[index * 4 + 2],
+//         data[index * 4 + 3]
+//       );
+
+//       // gl_FragColor = vec4(vUv, 1.0,1.0);
+//     }
+//   `
+//   )
+// })
 
 // RenderMaterial
 extend({
@@ -327,32 +327,6 @@ extend({
   )
 })
 
-// FullscreenSampleMaterial
-extend({
-  FullscreenSampleMaterial: shaderMaterial(
-    {
-      map: undefined
-    },
-    glsl`
-    varying vec2 vUv;
-    void main() {
-      // gl_Position = projectionMatrix * modelViewMatrix * vec4( position, 1.0 );
-      gl_Position = vec4(position * 2.0, 1.0);
-      vUv = uv;
-    }
-  `,
-    glsl`
-    varying vec2 vUv;
-    uniform sampler2D map;
-    void main() {
-      gl_FragColor = texture2D(map, vUv);
-      // gl_FragColor = vec4(vUv, 0.0,1.0);
-    }
-  `
-  )
-})
-
-
 function sample(gl, renderTarget, i) {
   const pixelBuffer = new Uint8Array(4);
   gl.readRenderTargetPixels(renderTarget, i, 0, 1, 1, pixelBuffer);
@@ -364,38 +338,6 @@ function sample(gl, renderTarget, i) {
 function decode(rgba) {
   const binaryString = rgba.map(x => x.toString(2).padStart(8, '0')).join('');
   return parseInt(binaryString, 2);
-}
-
-// data to texture shader
-const InitialShader = {
-  uniforms: {
-    data: { value: data },
-  },
-  vertexShader: glsl`
-    varying vec2 vUv;
-    void main() {
-      gl_Position = vec4(position * 1.0, 1.0);
-      vUv = uv;
-    }
-  `,
-  fragmentShader: glsl`
-    varying vec2 vUv;
-    uniform float data[${data.length}];
-    void main() {
-      int index = int((vUv.x) * float(${data.length / 4}));
-      gl_FragColor = vec4(
-        data[index * 4],
-        data[index * 4 + 1],
-        data[index * 4 + 2],
-        data[index * 4 + 3]
-      );
-
-      // exaggerate the alpha channel and send it to the red so its visible
-      // gl_FragColor = vec4(gl_FragColor.a * 50.0, 0,0, gl_FragColor.a);
-
-      // gl_FragColor = vec4(vUv, 1.0,1.0);
-    }
-  `
 }
 
 const UpdateShader = (len = 2) => ({
@@ -433,8 +375,7 @@ const UpdateShader = (len = 2) => ({
       if(texture2D(delta, vUv).a == 1.0){
         gl_FragColor.b += x[${len - 1}];
       }
-      
-      
+       
       if(isLeaf) {
         // gl_FragColor.b += 0.3;
         // follow path to root, increasing by one 
@@ -450,7 +391,7 @@ const UpdateShader = (len = 2) => ({
   `
 })
 
-function TerrainComposer({ depth = 2 }) {
+function TerrainComposer({ depth = 5, autoUpdate = true }) {
   const { camera, gl } = useThree()
   const size = 2 ** (depth + 1); // size of cbt texture;
   const [leafCount, setLeafCount] = useState(4);
@@ -458,15 +399,7 @@ function TerrainComposer({ depth = 2 }) {
   const composer = useRef();
   const [init, setInit] = useState(true);
   const renderTarget = useMemo(() => {
-    return new WebGLRenderTarget(8, 1, {
-      minFilter: NearestFilter,
-      magFilter: NearestFilter,
-      generateMipmaps: false
-    })
-  }, []);
-
-  const updateTarget = useMemo(() => {
-    return new WebGLRenderTarget(8, 1, {
+    return new WebGLRenderTarget(size, 1, {
       minFilter: NearestFilter,
       magFilter: NearestFilter,
       generateMipmaps: false
@@ -480,17 +413,25 @@ function TerrainComposer({ depth = 2 }) {
     console.log(get(composer, 'current.readBuffer'))
 
     // click update
-    update();
-    window.addEventListener('click', update);
+    if (!autoUpdate) {
+      update(true);
+      window.addEventListener('click', update);
+    } else {
+      printRenderTarget();
+      window.addEventListener('click', printRenderTarget);
+    }
+
 
   }, [size])
 
   // update shader pass
-  // useFrame(() => {
-  //   update();
-  // }, -1)
+  useFrame(() => {
+    if (autoUpdate) {
+      update();
+    }
+  }, -1)
 
-  const update = () => {
+  const update = (print = false) => {
 
     composer.current.render()
     if (init) setInit(false) // now that the initial shader pass is rendered, set init to false
@@ -499,26 +440,100 @@ function TerrainComposer({ depth = 2 }) {
     const rgba = sample(gl, renderTarget, 1);
     const count = decode(rgba);
     if (count !== leafCount) setLeafCount(count);
+
+    if (print) printRenderTarget();
+
+  }
+
+  const printRenderTarget = () => {
+    const values = [];
+    for (let i = 0; i < size; i++) {
+      const rgba = sample(gl, renderTarget, i);
+      const value = decode(rgba);
+      values.push(value);
+    }
+    console.log(values);
   }
 
   const data = [
-    0, 0, 0, 3 / 255, // 3
+    0, 0, 0, 2 / 255, // 3
     0, 0, 0, 0 / 255, // 4
     0, 0, 0, 0 / 255, // 2
     0, 0, 0, 0 / 255, // 2
+    0, 0, 0, 0 / 255, // 1
+    0, 0, 0, 0 / 255, // 1
+    0, 0, 0, 0 / 255, // 1
+    0, 0, 0, 0 / 255, // 1
+
+    0, 0, 0, 0 / 255, // 1
+    0, 0, 0, 0 / 255, // 1
+    0, 0, 0, 0 / 255, // 1
+    0, 0, 0, 0 / 255, // 1
+    0, 0, 0, 0 / 255, // 1
+    0, 0, 0, 0 / 255, // 1
+    0, 0, 0, 0 / 255, // 1
+    0, 0, 0, 0 / 255, // 1
+
+    0, 0, 0, 0 / 255, // 1
+    0, 0, 0, 0 / 255, // 1
+    0, 0, 0, 0 / 255, // 1
+    0, 0, 0, 0 / 255, // 1
+    0, 0, 0, 0 / 255, // 1
+    0, 0, 0, 0 / 255, // 1
+    0, 0, 0, 0 / 255, // 1
+    0, 0, 0, 0 / 255, // 1
+    0, 0, 0, 0 / 255, // 1
+    0, 0, 0, 0 / 255, // 1
+    0, 0, 0, 0 / 255, // 1
+    0, 0, 0, 0 / 255, // 1
+    0, 0, 0, 0 / 255, // 1
+    0, 0, 0, 0 / 255, // 1
+    0, 0, 0, 0 / 255, // 1
+    0, 0, 0, 0 / 255, // 1
+
     0, 0, 0, 1 / 255, // 1
     0, 0, 0, 0 / 255, // 1
     0, 0, 0, 1 / 255, // 1
+    0, 0, 0, 1 / 255, // 1
+    0, 0, 0, 1 / 255, // 1
+    0, 0, 0, 0 / 255, // 1
+    0, 0, 0, 0 / 255, // 1
+    0, 0, 0, 0 / 255, // 1
+    0, 0, 0, 1 / 255, // 1
+    0, 0, 0, 0 / 255, // 1
+    0, 0, 0, 0 / 255, // 1
+    0, 0, 0, 0 / 255, // 1
+    0, 0, 0, 0 / 255, // 1
+    0, 0, 0, 0 / 255, // 1
+    0, 0, 0, 0 / 255, // 1
+    0, 0, 0, 0 / 255, // 1
+    // --
+    0, 0, 0, 1 / 255, // 1
+    0, 0, 0, 0 / 255, // 1
+    0, 0, 0, 0 / 255, // 1
+    0, 0, 0, 0 / 255, // 1
+    0, 0, 0, 0 / 255, // 1
+    0, 0, 0, 0 / 255, // 1
+    0, 0, 0, 0 / 255, // 1
+    0, 0, 0, 0 / 255, // 1
+    0, 0, 0, 0 / 255, // 1
+    0, 0, 0, 0 / 255, // 1
+    0, 0, 0, 0 / 255, // 1
+    0, 0, 0, 0 / 255, // 1
+    0, 0, 0, 0 / 255, // 1
+    0, 0, 0, 0 / 255, // 1
+    0, 0, 0, 0 / 255, // 1
     0, 0, 0, 0 / 255, // 1
   ]
 
   const sumReductionPasses = [];
+  const sumReductionShader = useMemo(() => SumReduction(data.length), data);
   for (let i = depth - 1; i >= 0; i--) {
     sumReductionPasses.push((
       <>
         <shaderPass
           attachArray="passes"
-          args={[SumReductionPass]}
+          args={[sumReductionShader]}
           uniforms-map-value={renderTarget.texture}
           uniforms-depth-value={depth}
           uniforms-size-value={size}
@@ -529,10 +544,11 @@ function TerrainComposer({ depth = 2 }) {
     ));
   }
 
+  const dataTextureShader = useMemo(() => DataTexture(data.length), [data]);
   const initialPass = (
     <shaderPass
       attachArray="passes"
-      args={[InitialShader]}
+      args={[dataTextureShader]}
       uniforms-data-value={data}
     />
   )
@@ -555,21 +571,52 @@ function TerrainComposer({ depth = 2 }) {
         <meshStandardMaterial color={0xffffff} />
       </mesh>
 
-      {/* Coherent */}
-      <effectComposer ref={composer} args={[gl, renderTarget]} renderToScreen={false}>
+      {/* single pass */}
+      {/* <effectComposer ref={composer} args={[gl, renderTarget]} renderToScreen={false}>
         {initialPass}
         {sumReductionPasses}
-      </effectComposer>
+      </effectComposer> */}
 
       {/* Phased, onclick or onFrame */}
-      {/* <effectComposer ref={composer} args={[gl, renderTarget]} renderToScreen={false}>
+      <effectComposer ref={composer} args={[gl, renderTarget]} renderToScreen={false}>
         {init ? initialPass : sumReductionPasses}
-      </effectComposer> */}
+      </effectComposer>
     </>
   )
 }
 
-const SumReductionPass = ({
+// data to texture shader
+const DataTexture = (length) => ({
+  uniforms: {
+    data: { value: [] },
+  },
+  vertexShader: glsl`
+    varying vec2 vUv;
+    void main() {
+      gl_Position = vec4(position * 1.0, 1.0);
+      vUv = uv;
+    }
+  `,
+  fragmentShader: glsl`
+    varying vec2 vUv;
+    uniform float data[${length}];
+    void main() {
+      int index = int((vUv.x) * float(${length / 4}));
+      gl_FragColor = vec4(
+        data[index * 4],
+        data[index * 4 + 1],
+        data[index * 4 + 2],
+        data[index * 4 + 3]
+      );
+
+      // gl_FragColor = vec4(vUv, 1.0,1.0);
+    }
+  `
+})
+
+
+
+const SumReduction = (length) => ({
   uniforms: {
     map: { value: undefined },
     size: { value: undefined },
@@ -594,23 +641,49 @@ const SumReductionPass = ({
     void main() {
       gl_FragColor = texture2D(map, vUv);
 
-      float index = floor((vUv.x) * 8.0) ;
+      float index = floor((vUv.x) * float(${length / 4})) ;
       if(index >= pow(2.0, (d)) && index < pow(2.0, (d+1.0))) {
-        // gl_FragColor.b += 0.1;
         float l = index * 2.0;
         float r = index * 2.0 + 1.0;
 
         vec4 leftChild = texture2D(map, vec2(l / size, vUv.y));
         vec4 rightChild= texture2D(map, vec2(r / size, vUv.y));
-
-        // make visible
-        // gl_FragColor.r = leftChild.r + rightChild.r;
         
         gl_FragColor.a = leftChild.a + rightChild.a;
       }      
     }
   `
 })
+
+// FullscreenSampleMaterial
+extend({
+  FullscreenSampleMaterial: shaderMaterial(
+    {
+      map: undefined
+    },
+    glsl`
+    varying vec2 vUv;
+    void main() {
+      // gl_Position = projectionMatrix * modelViewMatrix * vec4( position, 1.0 );
+      gl_Position = vec4(position * 2.0, 1.0);
+      vUv = uv;
+    }
+  `,
+    glsl`
+    varying vec2 vUv;
+    uniform sampler2D map;
+    void main() {
+      gl_FragColor = texture2D(map, vUv);
+
+      // exaggerate the alpha channel and send it to the red so its visible
+      gl_FragColor = vec4(gl_FragColor.a * 50.0, 0,0, gl_FragColor.a);
+
+      // gl_FragColor = vec4(vUv, 0.0,1.0);
+    }
+  `
+  )
+})
+
 
 function Terrain({ d = 2 }) {
   const { camera, gl } = useThree()
