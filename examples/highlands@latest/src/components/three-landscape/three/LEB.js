@@ -176,6 +176,7 @@ function neighborsSquare(k) {
     return n;
 }
 
+
 function leb__SplitNodeIDs(nodeIDs, splitBit) {
     const [n1, n2, n3, n4] = nodeIDs;
 
