@@ -15,17 +15,17 @@ const utils = glsl`
   float decode (vec4 col) {
     // ivec4 bytes = ivec4(col * 255.0);
     return ceil(
-      col.r * 255.0 * 255.0 * 255.0 * 256.0 +
-      col.g * 255.0 * 255.0 * 256.0 +
+      col.r * 255.0 * 256.0 * 256.0 * 256.0 +
+      col.g * 255.0 * 256.0 * 256.0 +
       col.b * 255.0 * 256.0 +
       col.a * 255.0
     );
     // return ((bytes.r << 24) | (bytes.g << 16) | (bytes.b << 8) | (bytes.a));
   }
 
-  float getDepth(float v) {
+  float getDepth(float k) {
     float i = 1.0;
-    while (v >=  pow(2.0,i)) i++;
+    while (k >=  pow(2.0,i)) i++;
     return i;
   }
 
@@ -73,6 +73,18 @@ const utils = glsl`
     return floor(node / 2.0);
   }
 
+  bool isEven(float node){
+    return mod(node, 2.0) == 0.0;
+  }
+
+  float sibling(float node){
+    if(isEven(node)){
+      return node + 1.0;
+    } else {
+      return node - 1.0;
+    }
+  }
+
   float left(float node){
     return node * 2.0;
   }
@@ -81,15 +93,30 @@ const utils = glsl`
     return node * 2.0 + 1.0;
   }
 
+  float EP(float node){
+    return edge(parent(node));
+  }
+
+  float ES(float node){
+    return edge(sibling(node));
+  }
+
+  float EL(float node){
+    return edge(left(node));
+  }
+
+  float ER(float node){
+    return edge(right(node));
+  }
+
   vec2 getXY(float k){
     return vec2(mod(k, width), floor(k / width));
   }
 
   // assumes cbt is a 2d texture with values 0..size
   vec4 sampleCBT(float k){
-    // return vec4(0.0, 0.0, 0.0, 1.0 / 255.0);
-    vec2 xy = getXY(k);
-    return texture2D(cbt, xy);
+    vec2 uv = getXY(k) / vec2(width, height);
+    return texture2D(cbt, uv);
   }
 
   // return the kth integer from a cbt of the specified size
@@ -218,11 +245,22 @@ const utils = glsl`
     return d;
   }
 
-  bool shouldSplit(float node){
-    return true;
-    // return nodeDistance(node) <= 0.25;
-    // return node == 17.0 || node == 9.0 || node == 5.0;
+  bool splits(float node){
+      return nodeDistance(node) <= 0.25;
+    return node == 16.0;
   }
+
+  bool shouldSplit(float node){
+    // if(node > (width * height)) return false;
+    // return false;
+    // return node == 4.0;
+    // return node == 34.0 || node == 17.0;
+    // return nodeDistance(node) <= 0.25;
+    return splits(node) || splits(left(edge(node))) || splits(right(edge(node))) || splits(edge(left(edge(node)))) || splits(edge(right(edge(node))))  ;
+    // || node == 3.0 || node == 15.0
+  }
+
+
 
   bool shouldMerge(float node){
     // if(node < 1024.0) return false;
@@ -230,6 +268,21 @@ const utils = glsl`
     // return nodeDistance(node) > 0.25;
     return false;
     // return node == 13.0;
+  }
+
+  bool isSplit(float k){
+    // we don't trust children as they won't be updated yet so we ask grandchildren.
+    float g1 = getHeap(left(left(k)));
+    float g2 = getHeap(right(left(k)));
+    float g3 = getHeap(left(right(k)));
+    float g4 = getHeap(right(right(k)));
+
+    float l = g1+g2;
+    float r = g3+g4;
+
+    // float l = getHeap(left(k));
+    // float r = getHeap(right(k));
+    return l > 0.0 && r > 0.0;
   }
 
   // goes from 2d uv to a 1d float

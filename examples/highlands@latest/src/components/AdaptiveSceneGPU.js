@@ -35,20 +35,14 @@ export function Level() {
   )
 }
 
-// max is 13 until 2d indexing is implemented 
-function TerrainComposer({ depth = 3, autoUpdate = false }) {
+// max is 22 until problem with render material is fixed
+// 7
+function TerrainComposer({ depth = 2, autoUpdate = false }) {
   const { gl } = useThree()
   depth = Math.min(depth, maxDepth(gl));
   const size = 2 ** (depth + 1); // size of cbt texture;
   const { width, height } = calculateSize(depth)
-
-  console.log(width, height)
-
   const [leafCount, setLeafCount] = useState(4);
-
-  // console.log({
-  //   depth, size, width, height
-  // })
 
   const composer = useRef();
   const [init, setInit] = useState(true);
@@ -63,14 +57,15 @@ function TerrainComposer({ depth = 3, autoUpdate = false }) {
   useEffect(() => {
     setInit(true) // rerenders initial shader pass if shaders ect are updated
 
+    update(true);
+
     // click update
-    if (!autoUpdate) {
-      update(true);
-      window.addEventListener('click', update);
-    } else {
-      printRenderTarget(renderTarget);
-      window.addEventListener('click', printRenderTarget);
-    }
+    // if (!autoUpdate) {
+    //   update(true);
+    //   window.addEventListener('click', update);
+    // } else {
+    //   window.addEventListener('click', printAllRenderTargets);
+    // }
 
   }, [size])
 
@@ -90,12 +85,8 @@ function TerrainComposer({ depth = 3, autoUpdate = false }) {
     const { x, y } = getXY(1);
     const rgba = sample2d(gl, renderTarget, x, y);
     const count = decode(rgba);
-    // console.log(count)
     if (count !== leafCount) setLeafCount(count);
-
-    const targets = [renderTarget, get(composer, 'current.renderTarget1'), get(composer, 'current.renderTarget2')]
-    if (print) targets.map(printRenderTarget)
-    console.log('---')
+    if (print) printAllRenderTargets();
 
   }
 
@@ -106,9 +97,14 @@ function TerrainComposer({ depth = 3, autoUpdate = false }) {
     return value;
   }
 
+  const printAllRenderTargets = () => {
+    const targets = [renderTarget, get(composer, 'current.renderTarget1'), get(composer, 'current.renderTarget2')]
+    targets.map(printRenderTarget);
+    console.log('---')
+  }
+
   const printRenderTarget = (target) => {
     const values = [];
-
     // first couple of values
     // for (let i = 0; i < 10; i++) {
     //   values.push(sampleRenderTarget(gl, target, i));
@@ -157,13 +153,13 @@ function TerrainComposer({ depth = 3, autoUpdate = false }) {
   return (
     <>
       {/* Render Texture test */}
-      <mesh>
+      {/* <mesh>
         <planeBufferGeometry attach="geometry" args={[1, 1, 1, 1]} />
         <fullscreenSampleMaterial map={get(composer, 'current.renderTarget2')} />
-      </mesh>
+      </mesh> */}
 
       {/* Render Grid */}
-      {/* <mesh position={[-0.5, -0.5, 0]}>
+      <mesh position={[-0.5, -0.5, 0]}>
         <unindexedGeometry args={[leafCount]} />
         <renderMaterial
           side={DoubleSide}
@@ -174,14 +170,15 @@ function TerrainComposer({ depth = 3, autoUpdate = false }) {
           width={width}
           height={height}
         />
-      </mesh> */}
-      <mesh position={[0, 0, 0]}>
+      </mesh>
+      {/* <mesh position={[0, 0, 0]}>
         <sphereBufferGeometry args={[0.05]} />
         <meshStandardMaterial color={0xffffff} />
-      </mesh>
+      </mesh> */}
 
       <effectComposer ref={composer} args={[gl, renderTarget]} renderToScreen={false}>
-        {init && initialPass}
+        {/* {init && initialPass} */}
+        {initialPass}
         <shaderPass
           attachArray="passes"
           args={[SplitStep]}

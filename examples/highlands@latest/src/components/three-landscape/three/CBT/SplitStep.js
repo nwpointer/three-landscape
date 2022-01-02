@@ -28,62 +28,82 @@ const SplitStep = ({
 
     ${utils}
 
-    bool isEven(float node){
-      return mod(node, 2.0) == 0.0;
-    }
 
-    float sibling(float node){
-      if(isEven(node)){
-        return node + 1.0;
-      } else {
-        return node - 1.0;
-      }
-    }
 
     void main() {
       gl_FragColor = texture2D(map, vUv);
+      float current = decode(gl_FragColor);
       float index = getIndex(vUv);
+      float d = getDepth(index) - 1.0;
 
-      if(shouldSplit(parent(index))) gl_FragColor = encode(1.0);
-      if(shouldSplit(edge(parent(index)))) gl_FragColor = encode(1.0);
-      if(shouldSplit(edge(sibling(index)))) gl_FragColor = encode(1.0);
+      bool split = false;
 
-      // maybe this works?
-      if(shouldMerge(parent(index))) gl_FragColor = vec4(0,0,0, 0.0 / 255.0);
-      if(shouldMerge(edge(parent(index)))) gl_FragColor = vec4(0,0,0, 0.0 / 255.0);
-      if(shouldMerge(edge(sibling(index)))) gl_FragColor = vec4(0,0,0, 0.0 / 255.0);
+      if(shouldSplit(parent(index))) split = true; // implements self split
+      if(shouldSplit(edge(parent(index)))) split = true; // implements the edge split -> 2/3
+      if(shouldSplit(edge(sibling(index)))) split = true; // implements the parent split -> 4/5
+
+      // if no edge than check up sibling path?
+      // if(shouldSplit(sibling(parent(index)))) split = true; //  -> 16
       
+      // if(shouldSplit(left(sibling(parent(index))))) split = true; // 4.0 cross square
+      // if(shouldSplit(right(sibling(parent(index))))) split = true; // 5.0 cross square
 
-      // gl_FragColor = encode(index);
+    
+
+      // these guys are causing the increased ring density
+      // if(shouldSplit(EP(index))) split = true; // needed to cross 2/3 boundary
+      // if(shouldSplit(ES(index))) split = true; // needed to cross 2/3 boundary
+
+      // float xp = EP(index);
+      // float xs = ES(index);
+      // float yp = EP(index);
+      // float ys = ES(index);
+
+      // float n = 0.0;
+      // while(n < depth - d){
+      //   if(shouldSplit(EL(xp))) split = true;
+      //   if(shouldSplit(EL(xs))) split = true;
+      //   xp = EL(xp);
+      //   xs = EL(xp);
+
+      //   if(shouldSplit(ER(yp))) split = true;
+      //   if(shouldSplit(ER(ys))) split = true;
+      //   yp = ER(yp);
+      //   ys = ER(yp);
+
+      //   n++;
+      // }
+
+      if(split) gl_FragColor = encode(max(current, 1.0));
+
+      
+      // look for descendent that should split
+      // float x = edge(index);
+      // float xx = edge(left(index));
+      // float y = edge(index);
+      // float yy = edge(right(index));
+      // float n = 0.0;
+      // while(n < (depth - d)){
+      //   if(shouldSplit(x)) gl_FragColor = vec4(0,0,0, 2.0 / 255.0);
+      //   if(shouldSplit(xx)) gl_FragColor = vec4(0,0,0, 3.0 / 255.0);
+      //   x = edge(left(x));
+      //   xx = edge(left(xx));
+
+      //   if(shouldSplit(y)) gl_FragColor = vec4(0,0,0, 2.0 / 255.0);
+      //   if(shouldSplit(yy)) gl_FragColor = vec4(0,0,0, 3.0 / 255.0);
+      //   y = edge(right(y));
+      //   yy = edge(right(yy));
+      //   n++;
+      // }
+
+      // // maybe this works?
+      // if(shouldMerge(parent(index))) gl_FragColor = vec4(0,0,0, 0.0 / 255.0);
+      // if(shouldMerge(edge(parent(index)))) gl_FragColor = vec4(0,0,0, 0.0 / 255.0);
+      // if(shouldMerge(edge(sibling(index)))) gl_FragColor = vec4(0,0,0, 0.0 / 255.0);
 
       if(index == 0.0) {
         gl_FragColor = encode(depth);
       }
-      // if(index == 1.0) {
-      //   gl_FragColor = encode(depth);
-      // }
-      // if(index == 2.0) {
-      //   gl_FragColor = encode(depth);
-      // }
-      // if(index == 3.0) {
-      //   gl_FragColor = encode(depth);
-      // }
-      // if(index == 4.0) {
-      //   gl_FragColor = encode(depth);
-      // }
-      // if(index == 5.0) {
-      //   gl_FragColor = encode(depth);
-      // }
-      // if(index == 6.0) {
-      //   gl_FragColor = encode(depth);
-      // }
-      // if(index == 7.0) {
-      //   gl_FragColor = encode(7.0);
-      // }
-
-      // if(index == 1.0) {
-      //   gl_FragColor = encode(2.0);
-      // }
 
     }
   `
