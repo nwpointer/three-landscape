@@ -28,19 +28,41 @@ const SplitStep = ({
 
     ${utils}
 
-
-
     void main() {
       gl_FragColor = texture2D(map, vUv);
       float current = decode(gl_FragColor);
       float index = getIndex(vUv);
       float d = getDepth(index) - 1.0;
 
-      bool split = false;
+      // bool split = false;
 
-      if(shouldSplit(parent(index))) split = true; // implements self split
-      if(shouldSplit(edge(parent(index)))) split = true; // implements the edge split -> 2/3
-      if(shouldSplit(edge(sibling(index)))) split = true; // implements the parent split -> 4/5
+      float leafCount = getHeap(1.0);
+
+
+      // works but is slow
+      if(current == 0.0 && index >= pow(2.0, (depth))){
+        for(float i=0.0; i<leafCount; i++){
+          float n = leaf(i);
+          if(shouldSplit(n)){
+            // for node on chain...
+            // split
+            if(index == splitBit(n, depth)) gl_FragColor = encode(1.0);
+            n = edge(n);
+            while (n > 1.0){
+               // split
+              if(index == splitBit(n, depth)) gl_FragColor = encode(1.0);
+              if(n > 1.0) n = parent(n);
+               // split
+              if(index == splitBit(n, depth)) gl_FragColor = encode(1.0);
+              if(n > 1.0) n = edge(n);
+            }
+          }
+        }
+      }
+
+      // if(shouldSplit(parent(index))) split = true; // implements self split
+      // if(shouldSplit(edge(parent(index)))) split = true; // implements the edge split -> 2/3
+      // if(shouldSplit(edge(sibling(index)))) split = true; // implements the parent split -> 4/5
 
       // if no edge than check up sibling path?
       // if(shouldSplit(sibling(parent(index)))) split = true; //  -> 16
@@ -74,7 +96,7 @@ const SplitStep = ({
       //   n++;
       // }
 
-      if(split) gl_FragColor = encode(max(current, 1.0));
+      // if(split) gl_FragColor = encode(max(current, 1.0));
 
       
       // look for descendent that should split
@@ -101,7 +123,7 @@ const SplitStep = ({
       // if(shouldMerge(edge(parent(index)))) gl_FragColor = vec4(0,0,0, 0.0 / 255.0);
       // if(shouldMerge(edge(sibling(index)))) gl_FragColor = vec4(0,0,0, 0.0 / 255.0);
 
-      if(index == 0.0) {
+      if(index == 0.0) {        
         gl_FragColor = encode(depth);
       }
 

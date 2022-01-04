@@ -34,15 +34,18 @@ const DataTexture = ({
         //   gl_FragColor = encode(1.0);
         // }
 
+        // partial splitting
+        float first = pow(2.0, (depth));
+        float last = pow(2.0, (depth+1.0));
+        if(index >= pow(2.0, (depth)) && index < pow(2.0, (depth+1.0))) {
+          if(mod((index - first), 32.0) == 0.0) gl_FragColor = encode(1.0);
+        }
+
 
         // minimal splitting, insures 2&3 = 1 if sum-reduction occurs. All tree should be correct down to depth
-        if(index == pow(2.0, (depth))){
-          gl_FragColor = encode(1.0);
-        }
-        float width = pow(2.0, (depth+1.0)) - pow(2.0, (depth));
-        if(index == pow(2.0, (depth)) + width/2.0){
-          gl_FragColor = encode(1.0);
-        }
+        // if(index == pow(2.0, (depth)) || index == splitBit(1.0, depth)){
+        //   gl_FragColor = encode(1.0);
+        // }
 
         // split at level d - does not update below level d
         // float d = min(depth, 4.0);
@@ -50,9 +53,9 @@ const DataTexture = ({
         //   gl_FragColor = encode(1.0);
         // }
 
-        if(index == 0.0) {
-          gl_FragColor = encode(depth);
-        }
+        // if(index == 0.0) {
+        //   gl_FragColor = encode(depth);
+        // }
 
       }
     `

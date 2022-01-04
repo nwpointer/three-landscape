@@ -23,6 +23,20 @@ const utils = glsl`
     // return ((bytes.r << 24) | (bytes.g << 16) | (bytes.b << 8) | (bytes.a));
   }
 
+  float findMSB(float k){
+    return floor(log2(k));
+  }
+
+  float mergeBit(float k, float depth){
+    int b = int(depth - findMSB(k));
+    return float((int(k)|1) << b);
+  }
+
+  float splitBit(float k, float depth){
+    int b = int(depth - findMSB(k));
+    return float((int(2.0*k) | 1) << (b -1));
+  }
+
   float getDepth(float k) {
     float i = 1.0;
     while (k >=  pow(2.0,i)) i++;
@@ -252,11 +266,12 @@ const utils = glsl`
 
   bool shouldSplit(float node){
     // if(node > (width * height)) return false;
+    // return node == 2.0 || node == 4.0 || node == 8.0 || node == 17.0 || node == 35.0 ;
     // return false;
     // return node == 4.0;
     // return node == 34.0 || node == 17.0;
-    // return nodeDistance(node) <= 0.25;
-    return splits(node) || splits(left(edge(node))) || splits(right(edge(node))) || splits(edge(left(edge(node)))) || splits(edge(right(edge(node))))  ;
+    return nodeDistance(node) <= 0.1;
+    // return splits(node) || splits(left(edge(node))) || splits(right(edge(node))) || splits(edge(left(edge(node)))) || splits(edge(right(edge(node))))  ;
     // || node == 3.0 || node == 15.0
   }
 

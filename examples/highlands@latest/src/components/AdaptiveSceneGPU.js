@@ -37,7 +37,7 @@ export function Level() {
 
 // max is 22 until problem with render material is fixed
 // 7
-function TerrainComposer({ depth = 2, autoUpdate = false }) {
+function TerrainComposer({ depth = 11, autoUpdate = true }) {
   const { gl } = useThree()
   depth = Math.min(depth, maxDepth(gl));
   const size = 2 ** (depth + 1); // size of cbt texture;
@@ -62,7 +62,7 @@ function TerrainComposer({ depth = 2, autoUpdate = false }) {
     // click update
     // if (!autoUpdate) {
     //   update(true);
-    //   window.addEventListener('click', update);
+    // window.addEventListener('click', update);
     // } else {
     //   window.addEventListener('click', printAllRenderTargets);
     // }
@@ -110,10 +110,10 @@ function TerrainComposer({ depth = 2, autoUpdate = false }) {
     //   values.push(sampleRenderTarget(gl, target, i));
     // }
     // all values
-    for (let i = 0; i < size; i++) {
-      values.push(sampleRenderTarget(gl, target, i));
-    }
-    console.log(values);
+    // for (let i = 0; i < size; i++) {
+    //   values.push(sampleRenderTarget(gl, target, i));
+    // }
+    // console.log(values);
   }
 
   const uniforms = {
@@ -177,8 +177,7 @@ function TerrainComposer({ depth = 2, autoUpdate = false }) {
       </mesh> */}
 
       <effectComposer ref={composer} args={[gl, renderTarget]} renderToScreen={false}>
-        {/* {init && initialPass} */}
-        {initialPass}
+        {init && initialPass}
         <shaderPass
           attachArray="passes"
           args={[SplitStep]}

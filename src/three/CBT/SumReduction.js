@@ -85,30 +85,30 @@ const SumReduction = ({
         
       }
 
-      if(index == 0.0){
-        float k = 7.0;
+      // if(index == 0.0){
+      //   float k = 7.0;
 
-        // float g1 = getHeap(left(left(k)));
-        // float g2 = getHeap(right(left(k)));
-        // float g3 = getHeap(left(right(k)));
-        // float g4 = getHeap(right(right(k)));
+      //   // float g1 = getHeap(left(left(k)));
+      //   // float g2 = getHeap(right(left(k)));
+      //   // float g3 = getHeap(left(right(k)));
+      //   // float g4 = getHeap(right(right(k)));
 
-        // // float v = g1+g2+g3+g4;
-        // // float l = g1+g2;
-        // // float r = g3+g4;
+      //   // // float v = g1+g2+g3+g4;
+      //   // // float l = g1+g2;
+      //   // // float r = g3+g4;
 
-        // float l = getHeap(left(k));
-        // float r = getHeap(right(k));
+      //   // float l = getHeap(left(k));
+      //   // float r = getHeap(right(k));
 
-        // gl_FragColor = encode(r);
+      //   // gl_FragColor = encode(r);
         
         
-        if(isSplit(parent(k)) == false && isSplit(edge(parent(k)))){
-          gl_FragColor = encode(100.0);
-        } else{
-          gl_FragColor = encode(0.0);
-        }
-      }
+      //   if(isSplit(parent(k)) == false && isSplit(edge(parent(k)))){
+      //     gl_FragColor = encode(100.0);
+      //   } else{
+      //     gl_FragColor = encode(0.0);
+      //   }
+      // }
     }
   `
 })
