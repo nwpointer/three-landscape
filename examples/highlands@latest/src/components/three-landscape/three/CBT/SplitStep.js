@@ -6,6 +6,7 @@ const SplitStep = ({
   uniforms: {
     map: { value: undefined },
     depth: { value: undefined },
+    d: { value: undefined },
     size: { value: undefined },
     width: { value: undefined },
     height: { value: undefined }
@@ -21,6 +22,7 @@ const SplitStep = ({
     varying vec2 vUv;
     uniform sampler2D map;
     uniform float depth;
+    uniform float d;
     uniform float size;
     uniform float width;
     uniform float height;
@@ -38,27 +40,60 @@ const SplitStep = ({
 
       float leafCount = getHeap(1.0);
 
+      // if(index == 0.0) {        
+      //   gl_FragColor = encode(edge(7.0));
+      // }
 
-      // works but is slow
-      if(current == 0.0 && index >= pow(2.0, (depth))){
-        for(float i=0.0; i<leafCount; i++){
-          float n = leaf(i);
-          if(shouldSplit(n)){
-            // for node on chain...
-            // split
-            if(index == splitBit(n, depth)) gl_FragColor = encode(1.0);
-            n = edge(n);
-            while (n > 1.0){
-               // split
-              if(index == splitBit(n, depth)) gl_FragColor = encode(1.0);
-              if(n > 1.0) n = parent(n);
-               // split
-              if(index == splitBit(n, depth)) gl_FragColor = encode(1.0);
-              if(n > 1.0) n = edge(n);
-            }
-          }
+      // consider splitting everting but last row:
+      // !!! shouldSplit should probably stipulate that index be a leaf to avoid t-junctions?
+      if(index >= pow(2.0, (d)) && index < pow(2.0, (d+1.0)) && d < depth && index != 1.0) {
+
+        if(shouldSplit(index)) gl_FragColor = encode(1.0);
+        if(shouldSplit(edge(index))) gl_FragColor = encode(2.0);
+
+        // if my left or right child was edge split continue chain
+        if(getHeap(left(index)) == 2.0 || getHeap(right(index)) == 2.0){
+          gl_FragColor = encode(1.0); 
+        }
+
+        // if my edges children are edge split continue chain
+        if(getHeap(left(edge(index))) == 2.0 || getHeap(right(edge(index))) == 2.0){
+          gl_FragColor = encode(2.0); 
+        }
+
+        // insure supporting ancestor leaves are also split
+        if(getHeap(left(index)) == 1.0 || getHeap(right(index)) == 1.0){
+          gl_FragColor = encode(1.0); 
+        }
+        //seems to make too much geometry
+        if(getHeap(left(edge(index))) == 1.0 || getHeap(right(edge(index))) == 1.0){
+          gl_FragColor = encode(2.0); 
         }
       }
+
+
+      //////// --------------
+
+      // works but is slow
+      // if(current == 0.0 && index >= pow(2.0, (depth))){
+      //   for(float i=0.0; i<leafCount; i++){
+      //     float n = leaf(i);
+      //     if(shouldSplit(n)){
+      //       // for node on chain...
+      //       // split
+      //       if(index == splitBit(n, depth)) gl_FragColor = encode(1.0);
+      //       n = edge(n);
+      //       while (n > 1.0){
+      //          // split
+      //         if(index == splitBit(n, depth)) gl_FragColor = encode(1.0);
+      //         if(n > 1.0) n = parent(n);
+      //          // split
+      //         if(index == splitBit(n, depth)) gl_FragColor = encode(1.0);
+      //         if(n > 1.0) n = edge(n);
+      //       }
+      //     }
+      //   }
+      // }
 
       // if(shouldSplit(parent(index))) split = true; // implements self split
       // if(shouldSplit(edge(parent(index)))) split = true; // implements the edge split -> 2/3
@@ -123,9 +158,9 @@ const SplitStep = ({
       // if(shouldMerge(edge(parent(index)))) gl_FragColor = vec4(0,0,0, 0.0 / 255.0);
       // if(shouldMerge(edge(sibling(index)))) gl_FragColor = vec4(0,0,0, 0.0 / 255.0);
 
-      if(index == 0.0) {        
-        gl_FragColor = encode(depth);
-      }
+      // if(index == 0.0) {        
+      //   gl_FragColor = encode(depth);
+      // }
 
     }
   `

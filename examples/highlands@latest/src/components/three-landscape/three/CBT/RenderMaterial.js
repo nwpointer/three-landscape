@@ -31,13 +31,13 @@ extend({
                 float centerOffset = ((scale - 1.0) / 2.0);
         
                 // no z alt:
-                // Position = (vec3(faceVertices[0][int(vertex)], faceVertices[1][int(vertex)], 0) * scale) - vec3(centerOffset, centerOffset, 0.0);
+                Position = (vec3(faceVertices[0][int(vertex)], faceVertices[1][int(vertex)], 0) * scale) - vec3(centerOffset, centerOffset, 0.0);
                 
                 // fit to screen
                 // Position = (vec3(faceVertices[0][int(vertex)], faceVertices[1][int(vertex)], 0) * scale) - centerOffset;
 
                 // no scale
-                Position = (vec3(faceVertices[0][int(vertex)], faceVertices[1][int(vertex)], 0));
+                // Position = (vec3(faceVertices[0][int(vertex)], faceVertices[1][int(vertex)], 0));
                 
                 gl_Position = projectionMatrix * modelViewMatrix *  vec4(Position, 1.0);
             }

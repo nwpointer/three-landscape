@@ -51,39 +51,73 @@ const SumReduction = ({
 
       // vec2 xy = getXY(index);
       // gl_FragColor = encode(xy.y);
+
+      if(index == 0.0) {
+        gl_FragColor = encode(depth);
+      }
+
+
+      if(index >= pow(2.0, (d)) && index < pow(2.0, (d+1.0))) {
+        // last row
+        if(index >= pow(2.0, (depth))){
+          // for bits on path to root
+          float p = parent(index);
+          bool split = false;
+          while(p >= 1.0 && split == false){
+            gl_FragColor = encode(p);
+            // if bit is primary bit or split bit of node then :=1
+            if(getHeap(p) > 0.0){
+              if(splitBit(p, depth) == index) split = true;
+              if(primaryBit(p, depth) == index) split = true;
+            }
+            p = parent(p);
+          }
+          gl_FragColor = encode(split ? 1.0 : 0.0);      
+        }
+        // all the other rows 
+        else {
+          // gl_FragColor = encode(d);
+
+          float sum = getHeap(left(index)) + getHeap(right(index));
+          float current = getHeap(index);
+
+          gl_FragColor = encode(max(sum, current));
+        }
+      }
+
     
 
       
-      if(index >= pow(2.0, (d)) && index < pow(2.0, (d+1.0))) {
-        vec4 leftChild  = sampleCBT(left(index));
-        vec4 rightChild = sampleCBT(right(index));
+      // if(index >= pow(2.0, (d)) && index < pow(2.0, (d+1.0))) {
+      //   vec4 leftChild  = sampleCBT(left(index));
+      //   vec4 rightChild = sampleCBT(right(index));
 
-        vec4 leftSib  = sampleCBT(left(sibling(index)));
-        vec4 rightSib = sampleCBT(right(sibling(index)));
+      //   vec4 leftSib  = sampleCBT(left(sibling(index)));
+      //   vec4 rightSib = sampleCBT(right(sibling(index)));
 
-        // vec4 leftEdge  = sampleCBT(left(edge(parent(index))));
-        // vec4 rightEdge = sampleCBT(right(edge(parent(index))));
+      //   // vec4 leftEdge  = sampleCBT(left(edge(parent(index))));
+      //   // vec4 rightEdge = sampleCBT(right(edge(parent(index))));
 
-        float sum = decode(leftChild) + decode(rightChild);
-        float sibSum = decode(leftSib) + decode(rightSib);
-        // float edgeSum = decode(leftEdge) + decode(rightEdge);
-        float current = decode(gl_FragColor);
+      //   float sum = decode(leftChild) + decode(rightChild);
+      //   float sibSum = decode(leftSib) + decode(rightSib);
+      //   // float edgeSum = decode(leftEdge) + decode(rightEdge);
+      //   float current = decode(gl_FragColor);
 
-        gl_FragColor = encode(max(sum, current));
-        // current = decode(gl_FragColor);
+      //   gl_FragColor = encode(max(sum, current));
+      //   // current = decode(gl_FragColor);
 
-        // tries prevents t-juctions
-        // does not work because grand children are not guaranteed to be correct unless we split from the bottom
-        // if(isSplit(parent(index)) == false && isSplit(edge(parent(index)))){
-        //   gl_FragColor = encode(max(sum, 1.0));
-        // }
+      //   // tries prevents t-juctions
+      //   // does not work because grand children are not guaranteed to be correct unless we split from the bottom
+      //   // if(isSplit(parent(index)) == false && isSplit(edge(parent(index)))){
+      //   //   gl_FragColor = encode(max(sum, 1.0));
+      //   // }
 
-        // prevents gaps
-        if((sum == 0.0) && (sibSum >= 2.0)) gl_FragColor = encode(1.0);
-        // current = decode(gl_FragColor);
+      //   // prevents gaps
+      //   if((sum == 0.0) && (sibSum >= 2.0)) gl_FragColor = encode(1.0);
+      //   // current = decode(gl_FragColor);
         
         
-      }
+      // }
 
       // if(index == 0.0){
       //   float k = 7.0;

@@ -37,9 +37,22 @@ const utils = glsl`
     return float((int(2.0*k) | 1) << (b -1));
   }
 
+  float primaryBit(float k, float depth){
+    float b = depth - findMSB(k);
+    return k * pow(2.0, b);
+    // int b = int(depth - findMSB(k));
+    // return float((int(2.0*k) | 1) << (b -1));
+  }
+
   float getDepth(float k) {
     float i = 1.0;
     while (k >=  pow(2.0,i)) i++;
+    return i;
+  }
+
+  float getMaxDepth() {
+    float i = 1.0;
+    while (width*height > pow(2.0,i)) i++;
     return i;
   }
 
@@ -238,6 +251,22 @@ const utils = glsl`
     return matrix;
   }
 
+  mat3x3 subdivideTriangle(mat3x3 matrix, float i, float subdivision) {
+    float depth = subdivision;
+    // ith node on last level of subdivision
+    float node = pow(2.0, depth) + i;
+
+    float b = max(0.0, depth - 1.0);
+    int bit = int(getBitValue(node, b));
+
+    for(b = depth - 2.0; b >= 0.0; b--) {
+      bit = int(getBitValue(node, b));
+      matrix = split(bit) * matrix;
+    }
+
+    return matrix;
+  }
+
   vec2 center(mat2x3 triangle) {
     float x = triangle[0][0] + triangle[0][1] + triangle[0][2];
     float y = triangle[1][0] + triangle[1][1] + triangle[1][2];
@@ -259,23 +288,12 @@ const utils = glsl`
     return d;
   }
 
-  bool splits(float node){
-      return nodeDistance(node) <= 0.25;
-    return node == 16.0;
-  }
-
   bool shouldSplit(float node){
-    // if(node > (width * height)) return false;
-    // return node == 2.0 || node == 4.0 || node == 8.0 || node == 17.0 || node == 35.0 ;
-    // return false;
-    // return node == 4.0;
-    // return node == 34.0 || node == 17.0;
-    return nodeDistance(node) <= 0.1;
-    // return splits(node) || splits(left(edge(node))) || splits(right(edge(node))) || splits(edge(left(edge(node)))) || splits(edge(right(edge(node))))  ;
-    // || node == 3.0 || node == 15.0
+    // return true;
+    return 
+      nodeDistance(node) <= 0.2
+      && nodeDistance(node) - 0.01 <= 0.0075 * (getMaxDepth() - getDepth(node));
   }
-
-
 
   bool shouldMerge(float node){
     // if(node < 1024.0) return false;

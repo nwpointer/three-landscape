@@ -18,6 +18,16 @@ import RenderMaterial from './three-landscape/three/CBT/RenderMaterial';
 import FullScreenSample from './three-landscape/three/CBT/FullScreenSample';
 extend({ EffectComposer, ShaderPass, SavePass, RenderPass })
 extend({ UnindexedGeometry });
+var s = 10;
+
+// traditional geo based approach works at s=10, struggles at s=11
+// s10 = 6.29M lines, d22 = 0.1M lines - 30K lines
+// with tightest shouldSplit bound we should be able to render 2^8 triangles => effective detail equivalent to s14;
+// from s10 -> s14 is a 16x increase in local detail
+
+// d=22 is equivalent to s=10 (n/2 - 1.0)
+
+// we should see a perf gain at mesh subdivision of 2 of greater.
 
 // Entry point
 export function Level() {
@@ -30,14 +40,18 @@ export function Level() {
         <fog attach="fog" args={['#74bbd0', 0, 200]} />
         {/* <Terrain /> */}
         <TerrainComposer />
+        {/* <mesh>
+          <planeBufferGeometry attach="geometry" args={[15, 15, 2 ** s, 2 ** s]} />
+          <meshBasicMaterial attach="material" color="red" wireframe={true} />
+        </mesh> */}
       </Suspense>
     </Canvas>
   )
 }
 
-// max is 22 until problem with render material is fixed
+// max is 23 until problem with render material is fixed
 // 7
-function TerrainComposer({ depth = 11, autoUpdate = true }) {
+function TerrainComposer({ depth = 22, autoUpdate = false }) {
   const { gl } = useThree()
   depth = Math.min(depth, maxDepth(gl));
   const size = 2 ** (depth + 1); // size of cbt texture;
@@ -105,15 +119,15 @@ function TerrainComposer({ depth = 11, autoUpdate = true }) {
 
   const printRenderTarget = (target) => {
     const values = [];
-    // first couple of values
-    // for (let i = 0; i < 10; i++) {
+    //first couple of values
+    // for (let i = 0; i < 100; i++) {
     //   values.push(sampleRenderTarget(gl, target, i));
     // }
-    // all values
+    //all values
     // for (let i = 0; i < size; i++) {
     //   values.push(sampleRenderTarget(gl, target, i));
     // }
-    // console.log(values);
+    console.log(values);
   }
 
   const uniforms = {
@@ -125,7 +139,7 @@ function TerrainComposer({ depth = 11, autoUpdate = true }) {
   }
 
   const sumReductionPasses = [];
-  for (let i = depth - 1; i >= 0; i--) {
+  for (let i = depth; i >= 0; i--) {
     sumReductionPasses.push(
       <shaderPass
         attachArray="passes"
@@ -136,6 +150,22 @@ function TerrainComposer({ depth = 11, autoUpdate = true }) {
       />
     )
     sumReductionPasses.push(
+      <savePass key={i + depth * 2} attachArray="passes" needsSwap={true} renderTarget={renderTarget} />
+    )
+  }
+
+  const splitPasses = [];
+  for (let i = depth - 1; i >= 0; i--) {
+    splitPasses.push(
+      <shaderPass
+        attachArray="passes"
+        key={i}
+        args={[SplitStep]}
+        uniforms-d-value={i}
+        {...uniforms}
+      />
+    )
+    splitPasses.push(
       <savePass key={i + depth} attachArray="passes" needsSwap={true} renderTarget={renderTarget} />
     )
   }
@@ -155,7 +185,7 @@ function TerrainComposer({ depth = 11, autoUpdate = true }) {
       {/* Render Texture test */}
       {/* <mesh>
         <planeBufferGeometry attach="geometry" args={[1, 1, 1, 1]} />
-        <fullscreenSampleMaterial map={get(composer, 'current.renderTarget2')} />
+        <fullscreenSampleMaterial map={get(composer, 'current.renderTarget1')} />
       </mesh> */}
 
       {/* Render Grid */}
@@ -178,13 +208,16 @@ function TerrainComposer({ depth = 11, autoUpdate = true }) {
 
       <effectComposer ref={composer} args={[gl, renderTarget]} renderToScreen={false}>
         {init && initialPass}
-        <shaderPass
+        {/* {initialPass} */}
+        {splitPasses}
+        {/* <shaderPass
           attachArray="passes"
           args={[SplitStep]}
           {...uniforms}
         />
-        <savePass attachArray="passes" needsSwap={true} renderTarget={renderTarget} />
+        <savePass attachArray="passes" needsSwap={true} renderTarget={renderTarget} /> */}
         {sumReductionPasses}
+        {/* <savePass attachArray="passes" needsSwap={true} renderTarget={renderTarget} /> */}
       </effectComposer>
     </>
   )
