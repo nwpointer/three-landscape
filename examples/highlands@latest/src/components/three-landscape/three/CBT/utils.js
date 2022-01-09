@@ -251,16 +251,12 @@ const utils = glsl`
     return matrix;
   }
 
-  mat3x3 subdivideTriangle(mat3x3 matrix, float i, float subdivision) {
-    float depth = subdivision;
-    // ith node on last level of subdivision
-    float node = pow(2.0, depth) + i;
-
-    float b = max(0.0, depth - 1.0);
-    int bit = int(getBitValue(node, b));
-
-    for(b = depth - 2.0; b >= 0.0; b--) {
-      bit = int(getBitValue(node, b));
+  mat3x3 subdivideTriangle(mat3x3 matrix, float i, float s) {
+    float n = pow(2.0, s) + i;
+    int bit;
+    
+    for(float b = s; b > 0.0; b--) {
+      bit = int(getBitValue(n, b));
       matrix = split(bit) * matrix;
     }
 
@@ -288,11 +284,34 @@ const utils = glsl`
     return d;
   }
 
+  float nodeDistance(float node, vec3 origin){
+    // calculate triangle
+    mat3x3 matrix = computeMatrixForNode(node);
+    mat2x3 faceVertices = mat2x3(vec3(0, 0, 1), vec3(1, 0, 0));
+    mat2x3 triangle = matrix * faceVertices;
+    
+    // average the points: x1+x2+x3/3, y1+y2+y3/3
+    vec2 c = center(triangle);
+
+    // calculate the distance
+    float d = distance(vec3(c, 0.0), origin);
+
+    return d;
+  }
+
   bool shouldSplit(float node){
     // return true;
+    float d = nodeDistance(node);
     return 
-      nodeDistance(node) <= 0.2
-      && nodeDistance(node) - 0.01 <= 0.0075 * (getMaxDepth() - getDepth(node));
+      d <= 0.2 && d - 0.0025 <= 0.005 * (getMaxDepth() - getDepth(node));
+  }
+
+  bool shouldSplit(float node, vec3 origin){
+    // return true;
+    return node == 17.0;
+    // float d = nodeDistance(node, origin);
+    // return 
+    //   d <= 0.2 && d - 0.0025 < 0.005 * (getMaxDepth() - getDepth(node));
   }
 
   bool shouldMerge(float node){

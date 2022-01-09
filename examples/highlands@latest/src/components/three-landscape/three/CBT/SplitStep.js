@@ -9,7 +9,8 @@ const SplitStep = ({
     d: { value: undefined },
     size: { value: undefined },
     width: { value: undefined },
-    height: { value: undefined }
+    height: { value: undefined },
+    camera: { value: undefined }
   },
   vertexShader: glsl`
     varying vec2 vUv;
@@ -26,6 +27,7 @@ const SplitStep = ({
     uniform float size;
     uniform float width;
     uniform float height;
+    uniform vec3 camera;
     float z = 2.0;
 
     ${utils}
@@ -48,8 +50,8 @@ const SplitStep = ({
       // !!! shouldSplit should probably stipulate that index be a leaf to avoid t-junctions?
       if(index >= pow(2.0, (d)) && index < pow(2.0, (d+1.0)) && d < depth && index != 1.0) {
 
-        if(shouldSplit(index)) gl_FragColor = encode(1.0);
-        if(shouldSplit(edge(index))) gl_FragColor = encode(2.0);
+        if(shouldSplit(index, camera)) gl_FragColor = encode(1.0);
+        if(shouldSplit(edge(index), camera)) gl_FragColor = encode(2.0);
 
         // if my left or right child was edge split continue chain
         if(getHeap(left(index)) == 2.0 || getHeap(right(index)) == 2.0){

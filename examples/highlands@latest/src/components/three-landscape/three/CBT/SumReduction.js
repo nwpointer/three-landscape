@@ -53,7 +53,19 @@ const SumReduction = ({
       // gl_FragColor = encode(xy.y);
 
       if(index == 0.0) {
-        gl_FragColor = encode(depth);
+        // gl_FragColor = encode(depth);
+        float s = 2.0;
+        float i = 0.0;
+        float n = pow(2.0, depth) + i;
+
+        float b = s;
+        int bit;
+        
+        for(b = s; b > 0.0; b--) {
+          bit = int(getBitValue(n, b));
+        }
+
+        gl_FragColor = encode(float(bit));
       }
 
 

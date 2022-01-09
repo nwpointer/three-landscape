@@ -6,7 +6,7 @@ import utils from './utils.js';
 // RenderMaterial
 extend({
     RenderMaterial: shaderMaterial(
-        { cbt: null, size: 3, scale: 5.0, width: 1.0, height: 1.0 },
+        { cbt: null, size: 3, scale: 5.0, width: 1.0, height: 1.0, subdivision: 0.0 },
         glsl`
             precision highp float;
             varying vec2 vUv;
@@ -14,30 +14,34 @@ extend({
             uniform int size;
             uniform float width;
             uniform float height;
+            uniform float subdivision;
             vec3 Position;
             
             ${utils}
         
             void main() {
                 vUv = uv;
-                float index = floor(float(gl_VertexID) / 3.0);
+                float index = floor(float(gl_VertexID) / 3.0) / pow(2.0, subdivision);
                 float vertex = mod(float(gl_VertexID), 3.0);
+                float s = mod(float(gl_VertexID) / 3.0, pow(2.0, subdivision));
         
                 mat3x3 matrix = computeMatrix(index);
+                mat3x3 subMatrix = subdivideTriangle(matrix, s, subdivision);
+
         
                 mat2x3 faceVertices = mat2x3(vec3(0, 0, 1), vec3(1, 0, 0));
-                faceVertices = matrix * faceVertices;
+                faceVertices = subMatrix * faceVertices;
         
                 float centerOffset = ((scale - 1.0) / 2.0);
         
                 // no z alt:
-                Position = (vec3(faceVertices[0][int(vertex)], faceVertices[1][int(vertex)], 0) * scale) - vec3(centerOffset, centerOffset, 0.0);
+                // Position = (vec3(faceVertices[0][int(vertex)], faceVertices[1][int(vertex)], 0) * scale) - vec3(centerOffset, centerOffset, 0.0);
                 
                 // fit to screen
                 // Position = (vec3(faceVertices[0][int(vertex)], faceVertices[1][int(vertex)], 0) * scale) - centerOffset;
 
                 // no scale
-                // Position = (vec3(faceVertices[0][int(vertex)], faceVertices[1][int(vertex)], 0));
+                Position = (vec3(faceVertices[0][int(vertex)], faceVertices[1][int(vertex)], 0));
                 
                 gl_Position = projectionMatrix * modelViewMatrix *  vec4(Position, 1.0);
             }

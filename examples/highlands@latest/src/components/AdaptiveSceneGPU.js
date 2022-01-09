@@ -1,11 +1,12 @@
 import { Canvas, extend, useThree, useFrame, createPortal, render } from '@react-three/fiber'
-import { OrbitControls, Stats, Environment, useProgress, Html, useTexture, useFBO, Box, PerspectiveCamera, ScreenQuad, shaderMaterial } from '@react-three/drei'
-import { Suspense, useEffect, useRef, useState, useMemo } from 'react'
+import { OrbitControls, Stats, Environment, useProgress, Html, useTexture, useFBO, PerspectiveCamera, ScreenQuad, shaderMaterial, Billboard, Plane, useCamera } from '@react-three/drei'
+import { Suspense, useEffect, useRef, useCallback, createRef, useState, useMemo } from 'react'
 import UnindexedGeometry from './three-landscape/three/UnindexedGeometry';
 import utils from './three-landscape/three/CBT/utils.js';
 import { DoubleSide, BufferGeometry, BufferAttribute, Float32BufferAttribute, PlaneBufferGeometry, Vector2, Scene, Color, LinearMipMapLinearFilter, NearestFilter, LinearFilter, RGBAFormat, WebGLRenderTarget } from 'three';
 import glsl from 'glslify';
 import { EffectComposer, ShaderPass, SavePass, RenderPass } from "three-stdlib";
+import { Flex, Box } from '@react-three/flex'
 import get from 'lodash.get';
 
 // Custom Shader Passes
@@ -16,9 +17,11 @@ import SumReduction from './three-landscape/three/CBT/SumReduction';
 // extends
 import RenderMaterial from './three-landscape/three/CBT/RenderMaterial';
 import FullScreenSample from './three-landscape/three/CBT/FullScreenSample';
+import Hud from './three-landscape/three/CBT/Hud';
+import { Vector3 } from 'three';
 extend({ EffectComposer, ShaderPass, SavePass, RenderPass })
 extend({ UnindexedGeometry });
-var s = 10;
+var s = 9;
 
 // traditional geo based approach works at s=10, struggles at s=11
 // s10 = 6.29M lines, d22 = 0.1M lines - 30K lines
@@ -27,37 +30,85 @@ var s = 10;
 
 // d=22 is equivalent to s=10 (n/2 - 1.0)
 
+// => can render 2k terrain @ 0.125
+
 // we should see a perf gain at mesh subdivision of 2 of greater.
 
 // Entry point
 export function Level() {
   return (
-    <Canvas linear style={{ background: 'black' }}>
+    <Canvas linear style={{ background: 'black' }} camera={{ near: 0.001, position: [0, -0.05, 0.01] }}>
       <OrbitControls />
       <ambientLight intensity={1} />
       <Stats />
+
       <Suspense fallback={<Progress />}>
-        <fog attach="fog" args={['#74bbd0', 0, 200]} />
+        {/* <fog attach="fog" args={['#74bbd0', 0, 200]} /> */}
         {/* <Terrain /> */}
         <TerrainComposer />
-        {/* <mesh>
+        {/* comparison mesh */}
+        {/* <mesh position={[0, 0, -0.001]}>
           <planeBufferGeometry attach="geometry" args={[15, 15, 2 ** s, 2 ** s]} />
           <meshBasicMaterial attach="material" color="red" wireframe={true} />
         </mesh> */}
+
+
+        {/* <HUD /> */}
       </Suspense>
     </Canvas>
   )
 }
 
+function HUD() {
+  const cam = useRef(null);
+  const { scene, size } = useThree();
+  const r = 2.0;
+  // todo add a zoom factor
+  const target = useFBO(size.width / (r * 2), size.height / (r * 2));
+
+  useFrame((state) => {
+    state.gl.setRenderTarget(target)
+    state.gl.render(scene, cam.current)
+    state.gl.setRenderTarget(null)
+  })
+  return (
+    <>
+      <PerspectiveCamera ref={cam} position={[0, 0, 1.5]} />
+      <mesh>
+        <planeBufferGeometry attach="geometry" args={[1, 1, 1, 1]} />
+        <hudMaterial r={r} map={target.texture} />
+      </mesh>
+    </>
+  )
+}
+
+const eq3 = ([a1, a2, a3], [b1, b2, b3]) => a1 === b1 && a2 === b2 && a3 === b3;
+
+const useGetRef = () => {
+  const refs = useRef({})
+  return useCallback(
+    (idx) => (refs.current[idx] ??= createRef()),
+    [refs]
+  )
+}
+
+
 // max is 23 until problem with render material is fixed
-// 7
-function TerrainComposer({ depth = 22, autoUpdate = false }) {
-  const { gl } = useThree()
+// 18 is max w/o performance issues on camera movement
+// 8 is a good paring for subdisivion
+function TerrainComposer({ depth = 9, autoUpdate = false }) {
+
+  const { gl, camera } = useThree()
+  const subdivision = 0.0;
   depth = Math.min(depth, maxDepth(gl));
   const size = 2 ** (depth + 1); // size of cbt texture;
   const { width, height } = calculateSize(depth)
   const [leafCount, setLeafCount] = useState(4);
 
+  const offset = new Vector3(0.5, 0.5, 0);
+  const position = useRef(camera.position);
+
+  const getRef = useGetRef();
   const composer = useRef();
   const [init, setInit] = useState(true);
   const renderTarget = useMemo(() => {
@@ -68,25 +119,34 @@ function TerrainComposer({ depth = 22, autoUpdate = false }) {
     })
   }, []);
 
-  useEffect(() => {
-    setInit(true) // rerenders initial shader pass if shaders ect are updated
-
-    update(true);
-
-    // click update
-    // if (!autoUpdate) {
-    //   update(true);
-    // window.addEventListener('click', update);
-    // } else {
-    //   window.addEventListener('click', printAllRenderTargets);
-    // }
-
-  }, [size])
-
   // update shader pass
   useFrame(() => {
     if (autoUpdate) update()
+
+    // if (!eq3(position.current, camera.position.toArray())) {
+    //   console.log('update');
+    //   // getRef(0).current.uniforms.camera.value = camera.position.toArray();
+    //   position.current = camera.position.toArray();
+    //   // composer.current.render();
+    // } else {
+    //   position.current = camera.position.toArray();
+    // }
   }, -1)
+
+  useEffect(() => {
+    setInit(true) // rerenders initial shader pass if shaders ect are updated
+    // update(true);
+
+    // click update
+    if (!autoUpdate) {
+      update(true);
+      window.addEventListener('click', update);
+    } else {
+      window.addEventListener('click', printAllRenderTargets);
+    }
+
+  }, [size])
+
 
   const getXY = i => ({ x: (i % width), y: Math.floor(i / width) })
 
@@ -124,9 +184,9 @@ function TerrainComposer({ depth = 22, autoUpdate = false }) {
     //   values.push(sampleRenderTarget(gl, target, i));
     // }
     //all values
-    // for (let i = 0; i < size; i++) {
-    //   values.push(sampleRenderTarget(gl, target, i));
-    // }
+    for (let i = 0; i < size; i++) {
+      values.push(sampleRenderTarget(gl, target, i));
+    }
     console.log(values);
   }
 
@@ -159,9 +219,11 @@ function TerrainComposer({ depth = 22, autoUpdate = false }) {
     splitPasses.push(
       <shaderPass
         attachArray="passes"
+        ref={getRef(i)}
         key={i}
         args={[SplitStep]}
         uniforms-d-value={i}
+        uniforms-camera-value={camera.position.clone().add(offset)}
         {...uniforms}
       />
     )
@@ -189,8 +251,9 @@ function TerrainComposer({ depth = 22, autoUpdate = false }) {
       </mesh> */}
 
       {/* Render Grid */}
-      <mesh position={[-0.5, -0.5, 0]}>
-        <unindexedGeometry args={[leafCount]} />
+      {/* <PerspectiveCamera makeDefault fov={75} near={0.001} far={1000} position={[0, 0, 5]} /> */}
+      <mesh position={[-0.5, -0.5, 0]} rotation={[0, 0, 0]}>
+        <unindexedGeometry args={[leafCount * 2 ** subdivision]} />
         <renderMaterial
           side={DoubleSide}
           wireframe attach="material"
@@ -199,6 +262,7 @@ function TerrainComposer({ depth = 22, autoUpdate = false }) {
           size={size}
           width={width}
           height={height}
+          subdivision={subdivision}
         />
       </mesh>
       {/* <mesh position={[0, 0, 0]}>
