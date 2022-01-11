@@ -4,12 +4,14 @@ import glsl from 'glslify';
 // Split or Merge shader
 const SplitStep = ({
   uniforms: {
-    map: { value: undefined },
+    tDiffuse: { value: undefined },
     depth: { value: undefined },
     d: { value: undefined },
     size: { value: undefined },
     width: { value: undefined },
-    height: { value: undefined }
+    height: { value: undefined },
+    camera: { value: undefined }
+
   },
   vertexShader: glsl`
     varying vec2 vUv;
@@ -20,48 +22,47 @@ const SplitStep = ({
   `,
   fragmentShader: glsl`
     varying vec2 vUv;
-    uniform sampler2D map;
+   
     uniform float depth;
     uniform float d;
     uniform float size;
     uniform float width;
     uniform float height;
+    uniform vec3 camera;
     float z = 2.0;
 
     ${utils}
 
     void main() {
-      gl_FragColor = texture2D(map, vUv);
-      float current = decode(gl_FragColor);
+      gl_FragColor = texture2D(tDiffuse, vUv);
+      // float current = decode(texture2D(tDiffuse, vUv));
       float index = getIndex(vUv);
-      float d = getDepth(index) - 1.0;
+      // float d = getDepth(index) - 1.0;
 
-      // bool split = false;
+      // // bool split = false;
 
-      float leafCount = getHeap(1.0);
+      
 
-      // if(index == 0.0) {        
-      //   gl_FragColor = encode(edge(7.0));
-      // }
+      // float leafCount = getHeap(1.0);
 
       // consider splitting everting but last row:
       // !!! shouldSplit should probably stipulate that index be a leaf to avoid t-junctions?
-      if(index >= pow(2.0, (d)) && index < pow(2.0, (d+1.0)) && d < depth && index != 1.0) {
+      if(index >= pow(2.0, (d)) && index < pow(2.0, (d+1.0)) && d < depth) {
 
-        if(shouldSplit(index)) gl_FragColor = encode(1.0);
-        if(shouldSplit(edge(index))) gl_FragColor = encode(2.0);
+        if(shouldSplit(index, camera)) gl_FragColor = encode(1.0);
+        if(shouldSplit(edge(index), camera)) gl_FragColor = encode(2.0);
 
         // if my left or right child was edge split continue chain
         if(getHeap(left(index)) == 2.0 || getHeap(right(index)) == 2.0){
           gl_FragColor = encode(1.0); 
         }
 
-        // if my edges children are edge split continue chain
+        // // if my edges children are edge split continue chain
         if(getHeap(left(edge(index))) == 2.0 || getHeap(right(edge(index))) == 2.0){
           gl_FragColor = encode(2.0); 
         }
 
-        // insure supporting ancestor leaves are also split
+        // // insure supporting ancestor leaves are also split
         if(getHeap(left(index)) == 1.0 || getHeap(right(index)) == 1.0){
           gl_FragColor = encode(1.0); 
         }
@@ -71,6 +72,9 @@ const SplitStep = ({
         }
       }
 
+      if(index == 0.0) {
+        gl_FragColor = encode(depth);
+      }
 
       //////// --------------
 

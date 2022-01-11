@@ -53,7 +53,7 @@ export function Level() {
         </mesh> */}
 
 
-        {/* <HUD /> */}
+        <HUD />
       </Suspense>
     </Canvas>
   )
@@ -92,22 +92,24 @@ const useGetRef = () => {
   )
 }
 
+// create a list 0..n-1 of length |n|
+const list = n => Array(n).fill(0).map((v, i) => i);
 
 // max is 23 until problem with render material is fixed
-// 18 is max w/o performance issues on camera movement
+// 21 seems to have problems now too
 // 8 is a good paring for subdisivion
-function TerrainComposer({ depth = 9, autoUpdate = false }) {
+function TerrainComposer({ depth = 20, autoUpdate = false }) {
 
   const { gl, camera } = useThree()
-  const subdivision = 0.0;
+  const subdivision = 3.0;
   depth = Math.min(depth, maxDepth(gl));
   const size = 2 ** (depth + 1); // size of cbt texture;
   const { width, height } = calculateSize(depth)
-  const [leafCount, setLeafCount] = useState(4);
 
   const offset = new Vector3(0.5, 0.5, 0);
   const position = useRef(camera.position);
 
+  const geo = useRef();
   const getRef = useGetRef();
   const composer = useRef();
   const [init, setInit] = useState(true);
@@ -121,20 +123,19 @@ function TerrainComposer({ depth = 9, autoUpdate = false }) {
 
   // update shader pass
   useFrame(() => {
-    if (autoUpdate) update()
+    // if (autoUpdate) update()
 
-    // if (!eq3(position.current, camera.position.toArray())) {
-    //   console.log('update');
-    //   // getRef(0).current.uniforms.camera.value = camera.position.toArray();
-    //   position.current = camera.position.toArray();
-    //   // composer.current.render();
-    // } else {
-    //   position.current = camera.position.toArray();
-    // }
+    if (!eq3(position.current, camera.position.toArray())) {
+      position.current = camera.position.toArray();
+      update();
+      // composer.current.render();
+    } else {
+      position.current = camera.position.toArray();
+    }
   }, -1)
 
   useEffect(() => {
-    setInit(true) // rerenders initial shader pass if shaders ect are updated
+    // setInit(true) // rerenders initial shader pass if shaders ect are updated
     // update(true);
 
     // click update
@@ -150,114 +151,86 @@ function TerrainComposer({ depth = 9, autoUpdate = false }) {
 
   const getXY = i => ({ x: (i % width), y: Math.floor(i / width) })
 
+  // todo - rate limit this function so it has less impact on fps
   const update = (print = false) => {
-
+    // console.log('update');
     composer.current.render()
-    if (init) setInit(false) // now that the initial shader pass is rendered, set init to false
+
+    // update each shader passes that needs the camera position
+    list(depth).reverse().map(i => {
+      getRef(i).current.uniforms.camera.value = cameraOffset();
+    })
 
     // grab the number of leaves from the cbt texture
     const { x, y } = getXY(1);
     const rgba = sample2d(gl, renderTarget, x, y);
     const count = decode(rgba);
-    if (count !== leafCount) setLeafCount(count);
+    // update the number of leaves drawn
+    if (geo.current) geo.current.setDrawRange(0, 3 * count * 2 ** subdivision);
     if (print) printAllRenderTargets();
 
   }
 
-  const sampleRenderTarget = (gl, target, i) => {
-    const { x, y } = getXY(i);
-    const rgba = sample2d(gl, target, x, y);
-    const value = decode(rgba);
-    return value;
-  }
-
   const printAllRenderTargets = () => {
-    const targets = [renderTarget, get(composer, 'current.renderTarget1'), get(composer, 'current.renderTarget2')]
+    const targets = [get(composer, 'current.renderTarget1'), get(composer, 'current.renderTarget2'), renderTarget]
     targets.map(printRenderTarget);
     console.log('---')
   }
 
+  const cameraOffset = () => camera.position.clone().add(offset).toArray();
+
   const printRenderTarget = (target) => {
     const values = [];
-    //first couple of values
-    // for (let i = 0; i < 100; i++) {
-    //   values.push(sampleRenderTarget(gl, target, i));
+    //all values or first 100
+    // for (let i = 0; i < Math.min(size, 100); i++) {
+    //   const { x, y } = getXY(i);
+    //   const rgba = sample2d(gl, target, x, y);
+    //   const value = decode(rgba);
+    //   values.push(value);
     // }
-    //all values
-    for (let i = 0; i < size; i++) {
-      values.push(sampleRenderTarget(gl, target, i));
-    }
-    console.log(values);
+    // console.log(values);
   }
 
   const uniforms = {
-    "uniforms-map-value": renderTarget.texture,
     "uniforms-depth-value": depth,
     "uniforms-size-value": size,
     "uniforms-width-value": width,
     "uniforms-height-value": height,
   }
 
-  const sumReductionPasses = [];
-  for (let i = depth; i >= 0; i--) {
-    sumReductionPasses.push(
-      <shaderPass
-        attachArray="passes"
-        key={i}
-        args={[SumReduction]}
-        uniforms-d-value={i}
-        {...uniforms}
-      />
-    )
-    sumReductionPasses.push(
-      <savePass key={i + depth * 2} attachArray="passes" needsSwap={true} renderTarget={renderTarget} />
-    )
-  }
+  // const sumReductionPasses = [];
+  // for (let i = depth; i >= 0; i--) {
+  //   sumReductionPasses.push(
+  //     <shaderPass
+  //       attachArray="passes"
+  //       key={i}
+  //       args={[SumReduction]}
+  //       uniforms-d-value={i}
+  //       {...uniforms}
+  //     />
+  //   )
+  //   // sumReductionPasses.push(
+  //   //   <savePass key={i + depth * 2} attachArray="passes" needsSwap={true} renderTarget={renderTarget} />
+  //   // )
+  // }
 
-  const splitPasses = [];
-  for (let i = depth - 1; i >= 0; i--) {
-    splitPasses.push(
-      <shaderPass
-        attachArray="passes"
-        ref={getRef(i)}
-        key={i}
-        args={[SplitStep]}
-        uniforms-d-value={i}
-        uniforms-camera-value={camera.position.clone().add(offset)}
-        {...uniforms}
-      />
-    )
-    splitPasses.push(
-      <savePass key={i + depth} attachArray="passes" needsSwap={true} renderTarget={renderTarget} />
-    )
-  }
-
-  const initialPass = (
-    <shaderPass
-      attachArray="passes"
-      args={[DataTexture]}
-      uniforms-depth-value={depth}
-      uniforms-width-value={width}
-      uniforms-height-value={height}
-    />
-  )
 
   return (
     <>
       {/* Render Texture test */}
       {/* <mesh>
         <planeBufferGeometry attach="geometry" args={[1, 1, 1, 1]} />
-        <fullscreenSampleMaterial map={get(composer, 'current.renderTarget1')} />
+        <fullscreenSampleMaterial map={renderTarget.texture} />
       </mesh> */}
 
       {/* Render Grid */}
       {/* <PerspectiveCamera makeDefault fov={75} near={0.001} far={1000} position={[0, 0, 5]} /> */}
       <mesh position={[-0.5, -0.5, 0]} rotation={[0, 0, 0]}>
-        <unindexedGeometry args={[leafCount * 2 ** subdivision]} />
+        <unindexedGeometry ref={geo} args={[1000 * 2 ** subdivision]} />
         <renderMaterial
           side={DoubleSide}
           wireframe attach="material"
-          cbt={renderTarget.texture}
+          tDiffuse={renderTarget.texture}
           scale={15.0}
           size={size}
           width={width}
@@ -271,17 +244,37 @@ function TerrainComposer({ depth = 9, autoUpdate = false }) {
       </mesh> */}
 
       <effectComposer ref={composer} args={[gl, renderTarget]} renderToScreen={false}>
-        {init && initialPass}
-        {/* {initialPass} */}
-        {splitPasses}
-        {/* <shaderPass
+        <shaderPass
           attachArray="passes"
-          args={[SplitStep]}
+          args={[DataTexture]}
+          needsSwap={true}
           {...uniforms}
         />
-        <savePass attachArray="passes" needsSwap={true} renderTarget={renderTarget} /> */}
-        {sumReductionPasses}
-        {/* <savePass attachArray="passes" needsSwap={true} renderTarget={renderTarget} /> */}
+        {
+          list(depth).reverse().map(i =>
+            <shaderPass
+              attachArray="passes"
+              key={i}
+              ref={getRef(i)}
+              args={[SplitStep]}
+              uniforms-d-value={i + 1}
+              uniforms-camera-value={cameraOffset()}
+              {...uniforms}
+            />
+          )
+        }
+        {
+          list(depth + 1).reverse().map(i =>
+            <shaderPass
+              attachArray="passes"
+              key={i}
+              args={[SumReduction]}
+              uniforms-d-value={i}
+              {...uniforms}
+            />
+          )
+        }
+        <savePass attachArray="passes" needsSwap={false} renderTarget={renderTarget} />
       </effectComposer>
     </>
   )

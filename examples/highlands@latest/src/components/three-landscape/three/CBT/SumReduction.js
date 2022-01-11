@@ -4,7 +4,7 @@ import glsl from 'glslify';
 // Sum reduction shader
 const SumReduction = ({
   uniforms: {
-    map: { value: undefined },
+    tDiffuse: { value: undefined },
     depth: { value: undefined },
     d: { value: undefined },
     size: { value: undefined },
@@ -20,7 +20,6 @@ const SumReduction = ({
   `,
   fragmentShader: glsl`
     varying vec2 vUv;
-    uniform sampler2D map;
     uniform float depth;
     uniform float size;
     uniform float width;
@@ -31,43 +30,12 @@ const SumReduction = ({
     ${utils}
 
     void main() {
-      gl_FragColor = texture2D(map, vUv);
+      gl_FragColor = texture2D(tDiffuse, vUv);
       float index = getIndex(vUv);
 
-      
-      // gl_FragColor = encode(5.0);
+      // gl_FragColor = encode(index);
 
-
-
-      // if(index == 16.0){
-      //   float leftIndex = (index * 2.0) ;
-      //   float rightIndex = (index * 2.0 + 1.0);
-  
-      //   vec4 leftChild  = sampleCBT(leftIndex);
-      //   vec4 rightChild = sampleCBT(rightIndex);
-      //   gl_FragColor = encode(decode(rightChild));
-      // }
-
-
-      // vec2 xy = getXY(index);
-      // gl_FragColor = encode(xy.y);
-
-      if(index == 0.0) {
-        // gl_FragColor = encode(depth);
-        float s = 2.0;
-        float i = 0.0;
-        float n = pow(2.0, depth) + i;
-
-        float b = s;
-        int bit;
-        
-        for(b = s; b > 0.0; b--) {
-          bit = int(getBitValue(n, b));
-        }
-
-        gl_FragColor = encode(float(bit));
-      }
-
+      // --------------------------------------------------
 
       if(index >= pow(2.0, (d)) && index < pow(2.0, (d+1.0))) {
         // last row
@@ -84,19 +52,23 @@ const SumReduction = ({
             }
             p = parent(p);
           }
-          gl_FragColor = encode(split ? 1.0 : 0.0);      
+          gl_FragColor = encode(split ? 1.0 : 0.0);
+          
+          // gl_FragColor = encode(10.0);
         }
         // all the other rows 
         else {
-          // gl_FragColor = encode(d);
 
           float sum = getHeap(left(index)) + getHeap(right(index));
           float current = getHeap(index);
 
           gl_FragColor = encode(max(sum, current));
+
+          // gl_FragColor = encode(20.0);
         }
       }
 
+      // --------------------------------------------------
     
 
       

@@ -2,6 +2,7 @@ import glsl from 'glslify';
 const utils = glsl`
 
   uniform sampler2D cbt;
+  uniform sampler2D tDiffuse;
 
   // encodes a 32bit value into a 4x8bit array of rgba values
   vec4 encode( float value ){
@@ -143,7 +144,7 @@ const utils = glsl`
   // assumes cbt is a 2d texture with values 0..size
   vec4 sampleCBT(float k){
     vec2 uv = getXY(k) / vec2(width, height);
-    return texture2D(cbt, uv);
+    return texture2D(tDiffuse, uv);
   }
 
   // return the kth integer from a cbt of the specified size
@@ -301,6 +302,7 @@ const utils = glsl`
 
   bool shouldSplit(float node){
     // return true;
+    // return node == 1.0;
     float d = nodeDistance(node);
     return 
       d <= 0.2 && d - 0.0025 <= 0.005 * (getMaxDepth() - getDepth(node));
@@ -308,10 +310,10 @@ const utils = glsl`
 
   bool shouldSplit(float node, vec3 origin){
     // return true;
-    return node == 17.0;
-    // float d = nodeDistance(node, origin);
-    // return 
-    //   d <= 0.2 && d - 0.0025 < 0.005 * (getMaxDepth() - getDepth(node));
+    // return node == 17.0;
+    float d = nodeDistance(node, origin);
+    return 
+      node == 2.0 || node == 3.0 || d <= 0.2 && d - 0.0025 < 0.005 * (getMaxDepth() - getDepth(node));
   }
 
   bool shouldMerge(float node){

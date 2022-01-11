@@ -27,7 +27,7 @@ const DataTexture = ({
   
       void main() {
         float index = getIndex(vUv);
-        // gl_FragColor = encode(index / 2.0);
+        gl_FragColor = encode(0.0);
 
         // total splitting
         // if(index >= pow(2.0, (depth)) && index < pow(2.0, (depth+1.0))) {

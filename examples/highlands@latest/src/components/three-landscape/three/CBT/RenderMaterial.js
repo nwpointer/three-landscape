@@ -6,7 +6,7 @@ import utils from './utils.js';
 // RenderMaterial
 extend({
     RenderMaterial: shaderMaterial(
-        { cbt: null, size: 3, scale: 5.0, width: 1.0, height: 1.0, subdivision: 0.0 },
+        { tDiffuse: null, size: 3, scale: 5.0, width: 1.0, height: 1.0, subdivision: 0.0 },
         glsl`
             precision highp float;
             varying vec2 vUv;
@@ -48,7 +48,7 @@ extend({
         `,
         glsl`
             varying vec2 vUv;
-            uniform sampler2D cbt;
+            uniform sampler2D tDiffuse;
             void main() {
                 // gl_FragColor = vec4(texture2D(map, vUv).rgb,1.0);
                 gl_FragColor = vec4(1.0,1.0,1.0,1.0);
