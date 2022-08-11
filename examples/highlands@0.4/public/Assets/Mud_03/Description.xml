@@ -1,7 +1,0 @@
-<WorldCreator Version="2.0">
-  <Textures Preview="preview.png" Tags="" Description="" Publisher="" Website="" Guid="b85a855d-6da6-4fbb-8760-329e92bbabba">
-    <Diffuse File="Ground_WetBumpyMud_col.png" Time="208678456360000000" />
-    <Normal File="Ground_WetBumpyMud_norm.png" Time="208678456360000000" />
-    <Displacement File="" Time="132711316150000000" />
-  </Textures>
-</WorldCreator>

@@ -1,19 +1,26 @@
 {
   "name": "three-landscape",
-  "description": "r3f custom terrain component for rendering high quality 3d landscapes",
-  "version": "0.4.0",
+  "description": "custom terrain component for rendering high quality 3d landscapes",
+  "version": "0.5.0",
   "license": "MIT",
   "bugs": {
     "url": "https://github.com/nwpointer/three-landscape/issues"
   },
   "scripts": {
+    "build": "npm run build:esm && npm run build:cjs",
+    "build:esm": "tsc",
+    "build:cjs": "tsc --module commonjs --outDir dist/cjs",
+    "lint": "eslint \"{**/*,*}.{js,ts,jsx,tsx}\"",
+    "prepare": "npm run build",
+    "prepublishOnly": ""
   },
   "repository": {
     "type": "git",
     "url": "https://github.com/nwpointer/three-landscape"
   },
-  "main": "dist/index.js",
-  "module": "dist/index.js",
+  "main": "./dist/cjs/index.js",
+  "module": "./dist/esm/index.js",
+  "types": "./dist/esm/index.d.ts",
   "sideEffects": false,
   "keywords": [
     "r3f",
@@ -24,10 +31,25 @@
     "material",
     "shader"
   ],
-  "dependencies": {
-   
-  },
   "devDependencies": {
-    
+    "@react-three/fiber": "^8.3.1",
+    "@types/react": "^18.0.17",
+    "@types/three": "^0.143.0",
+    "@typescript-eslint/eslint-plugin": "^5.33.0",
+    "@typescript-eslint/parser": "^5.33.0",
+    "eslint": "^8.21.0",
+    "eslint-config-react-app": "^7.0.1",
+    "eslint-plugin-react": "^7.30.1",
+    "eslint-plugin-react-hooks": "^4.6.0",
+    "process": "^0.11.10",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "three": "^0.143.0",
+    "three-stdlib": "^2.13.0",
+    "tslib": "^2.4.0",
+    "typescript": "^4.7.4"
   },
+  "peerDependencies": {
+    "react": ">=18"
+  }
 }
