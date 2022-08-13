@@ -1,8 +1,7 @@
 {
-  "name": "highlands",
+  "name": "vanilla",
   "version": "1.0.0",
   "main": "index.js",
-  "devDependencies": {},
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
   },
@@ -17,5 +16,6 @@
     "url": "https://github.com/nwpointer/three-landscape/issues"
   },
   "homepage": "https://github.com/nwpointer/three-landscape#readme",
+  "devDependencies": {},
   "description": ""
 }
