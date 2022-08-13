@@ -1,0 +1,7 @@
+<WorldCreator Version="2.0">
+  <Textures Preview="preview.png" Tags="" Description="" Publisher="" Website="" Guid="ff94ee2a-e579-4396-8b99-6014253c6076">
+    <Diffuse File="ground_Grass1_col.png" Time="208678456360000000" />
+    <Normal File="" Time="132711316150000000" />
+    <Displacement File="" Time="132711316150000000" />
+  </Textures>
+</WorldCreator>
