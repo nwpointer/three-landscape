@@ -15,7 +15,7 @@ export default function TerrainMaterial({}) {
           vec4 csm_DiffuseColor = vec4(0,0,0,0);
         #endif
         void main(){
-          csm_DiffuseColor = vec4(1,1,0,0);
+          csm_DiffuseColor = vec4(1,0,0,1);
         }
       `}
     />
