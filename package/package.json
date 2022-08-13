@@ -6,11 +6,7 @@
   "types": "dist/index.d.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "build": "swc src -d dist",
-    "types": "tsc",
-    "watch": "npm run watch-build & npm run watch-types",
-    "watch-build": "fswatch ./src/ | xargs -n1 -I{} npm run build",
-    "watch-types": "fswatch ./src/ | xargs -n1 -I{} npm run types"
+    "build": "tsc -w --emitDeclarationOnly & swc -w ./src/ --out-dir ./dist"
   },
   "repository": {
     "type": "git",
@@ -24,24 +20,18 @@
   },
   "homepage": "https://github.com/nwpointer/three-landscape#readme",
   "devDependencies": {
-    "@react-three/fiber": "^8.3.1",
-    "@swc/cli": "^0.1.46",
-    "@swc/core": "^1.2.77",
-    "react": "^18.2.0",
-    "react-dom": "^18.2.0",
-    "three": "^0.143.0",
+    "@swc/cli": "^0.1.57",
+    "@swc/core": "^1.2.229",
+    "chokidar": "^3.5.3",
     "typescript": "^4.3.5"
+  },
+  "dependencies": {
+    "glslify": "^7.1.1",
+    "three-custom-shader-material": "^4.0.0"
   },
   "peerDependencies": {
     "@react-three/fiber": "^8.2.0",
     "react": "^18.2.0",
     "react-dom": "^18.2.0"
-  },
-  "dependencies": {
-    "@types/node": "^18.7.2",
-    "glslify": "^7.1.1",
-    "npm-watch": "^0.11.0",
-    "three-custom-shader-material": "^4.0.0",
-    "watch": "^1.0.2"
   }
 }

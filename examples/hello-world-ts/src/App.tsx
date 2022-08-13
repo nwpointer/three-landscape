@@ -5,9 +5,9 @@ import { Cube } from "three-landscape";
 function App() {
   return (
     <Canvas>
-      <ambientLight />
+      <ambientLight intensity={0.5} />
       <Cube position={[1, 0, 0]} />
-      <Cube position={[0, 0, 0]} />
+      <Cube position={[0, 1, 0]} />
     </Canvas>
   );
 }
