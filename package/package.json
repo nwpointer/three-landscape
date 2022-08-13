@@ -26,6 +26,7 @@
     "typescript": "^4.3.5"
   },
   "dependencies": {
+    "@types/three": "^0.143.0",
     "glslify": "^7.1.1",
     "three-custom-shader-material": "^4.0.0"
   },
