@@ -1,4 +1,49 @@
+const grass = {
+normal: img,
+albedo: img,
+displacement: img,
+triaplanar: true | false,
+scale: [x],
+tilingMethod: {
+type: grid | smoothVoronoi | smoothhex,
+args: {}
+},
+edge: hard | blend | stocastic
+}
+
+<TerrainMaterial
+displacementMap
+displacementScale
+displacementBias
+splatTextureModeMode="rgab|bw"
+interpolateHights
+normalMap={img}
+splats={[a,b]}
+splatTextureMode="rgab|bw"
+materials={[grass,moss,dirt,mud,rocks]}
+
+>
+
+<!-- should be able to integrate dynamic mesh with physics system -->
+
+F1
+TerrainMaterial, extends standard material + supports just splatting
+materials = {albedo,scale}
+
+F2
+splatTexture modes
+
+F3
+material normals
+
+F4
+Tiling method: smoothVoronoi
+
+F3
+material displacement
+
 # research
+
 https://hhoppe.com/geomclipmap.pdf
 (render hd near camera)
 restricted quadtree triagulation
@@ -10,11 +55,11 @@ concurent binary tree:
 https://onrendering.com/data/papers/cbt/ConcurrentBinaryTrees.pdf
 avoids t-juctions to so no cracks in the terrain
 
-
 need higher quality tile textures
 should be able to get away with lower quality splat if they are procedurally blended instead of just a straight linear gradient
 
 ## Realistic atmospheric scattering
+
 https://docs.unity3d.com/Packages/com.unity.render-pipelines.high-definition@6.5/manual/Atmospheric-Scattering.html
 
 https://developer.nvidia.com/gpugems/gpugems2/part-ii-shading-lighting-and-shadows/chapter-16-accurate-atmospheric-scattering
