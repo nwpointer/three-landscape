@@ -29,17 +29,11 @@ materials={[grass,moss,dirt,mud,rocks]}
 F1
 TerrainMaterial, extends standard material + supports just splatting
 materials = {albedo,scale}
+scale
+splat color modes
 
-F2
-splatTexture modes
-
-F3
 material normals
-
-F4
 Tiling method: smoothVoronoi
-
-F3
 material displacement
 
 # research
