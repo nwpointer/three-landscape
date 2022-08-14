@@ -19,8 +19,8 @@ export default function TerrainMaterial(props: {
   const diffuse = props.materials.map((v) => v.diffuse);
   const normal = props.materials.map((v) => v.normal);
   const repeat = props.materials.map((v) => v.repeat || 1);
-  // const textures = [...props.splats, ...diffuse, ...normal].filter((v) => v);
-  // useMemo(() => textures.map(repeatTexture), [diffuse.length]);
+  const textures = [...props.splats, ...diffuse, ...normal].filter((v) => v);
+  textures.map(repeatTexture);
 
   if (props.materials.length > 2 && props.splatMode === "bw")
     throw Error("use rgb or rgba textures if you have more than 2 materials");
@@ -56,7 +56,10 @@ export default function TerrainMaterial(props: {
   );
 }
 
-const repeatTexture = (t) => (t.wrapS = t.wrapT = RepeatWrapping);
+const repeatTexture = (t) => {
+  t.wrapS = t.wrapT = RepeatWrapping;
+  t.needsUpdate = true;
+};
 
 const splatSize = {
   bw: 2,
