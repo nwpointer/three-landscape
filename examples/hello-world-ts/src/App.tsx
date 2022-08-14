@@ -4,8 +4,6 @@ import { TerrainMaterial } from "three-landscape";
 import { OrbitControls, useTexture } from "@react-three/drei";
 import { RepeatWrapping, Texture } from "three";
 
-const repeatTexture = (t: Texture) => (t.wrapS = t.wrapT = RepeatWrapping);
-
 // function Terrain() {
 //   const textures = useTexture([
 //     "/splat-bw.jpg",
@@ -14,8 +12,6 @@ const repeatTexture = (t: Texture) => (t.wrapS = t.wrapT = RepeatWrapping);
 //     "/Mud_030/Ground_WetBumpyMud_col.jpg",
 //     "/Mud_030/Ground_WetBumpyMud_norm.jpg",
 //   ]);
-
-//   textures.map(repeatTexture);
 
 //   const grass = {
 //     diffuse: textures[1],
@@ -48,8 +44,6 @@ function Terrain() {
     "/Cliffs_02/Rock_DarkCrackyCliffs_col.png",
     "/Cliffs_02/Rock_DarkCrackyCliffs_norm.png",
   ]);
-
-  textures.map(repeatTexture);
 
   const grass = {
     diffuse: textures[1],
