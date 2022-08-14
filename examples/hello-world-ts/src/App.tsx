@@ -62,13 +62,17 @@ function Terrain() {
     normal: textures[6],
     repeat: 2,
   };
-  console.log(textures[0].isTexture);
 
-  // example bw
+  // example rgb
   return textures ? (
     <mesh position={[0, 0, 0]}>
       <planeBufferGeometry args={[4, 4, 10, 10]} />
-      <TerrainMaterial splatMode="rgb" map={textures[0]} splats={[textures[0]]} materials={[grass, mud, clif]} />
+      <TerrainMaterial
+        splatMode="rgb"
+        map={textures[0]}
+        splats={[textures[0]]}
+        materials={[grass, mud, clif]}
+      />
     </mesh>
   ) : null;
 }

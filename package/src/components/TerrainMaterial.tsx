@@ -16,8 +16,8 @@ export default function TerrainMaterial(props: {
   splats: Texture[];
   splatMode?: "bw" | "rgb" | "rgba";
 }) {
-  const diffuse = props.materials.map((v) => v.diffuse);
-  const normal = props.materials.map((v) => v.normal);
+  const diffuse = props.materials.map((v) => v.diffuse).filter((v) => v);
+  const normal = props.materials.map((v) => v.normal).filter((v) => v);
   const repeat = props.materials.map((v) => v.repeat || 1);
   const textures = [...props.splats, ...diffuse, ...normal].filter((v) => v);
   textures.map(repeatTexture);
@@ -49,7 +49,10 @@ export default function TerrainMaterial(props: {
         uniform float uRepeat[${repeat.length}];
 
         void main(){
-          csm_DiffuseColor = normalize(${computeDiffuse(props.materials, props.splatMode)});
+          csm_DiffuseColor = normalize(${computeDiffuse(
+            props.materials,
+            props.splatMode
+          )});
         }
       `}
     />
@@ -59,12 +62,6 @@ export default function TerrainMaterial(props: {
 const repeatTexture = (t) => {
   t.wrapS = t.wrapT = RepeatWrapping;
   t.needsUpdate = true;
-};
-
-const splatSize = {
-  bw: 2,
-  rgb: 3,
-  rgba: 4,
 };
 
 function computeDiffuse(materials, splatMode = "bw") {
@@ -84,7 +81,9 @@ function computeDiffuse(materials, splatMode = "bw") {
       if (material.diffuse) {
         const r = material.repeat || 1;
         const colorValue = `texture2D(uDiffuse[${d}], vUv * vec2(${r}, ${r}))`;
-        let weight = `texture2D(uSplats[${splatIndex(m, splatMode)}], vUv).${splatChannel(m, splatMode)}`;
+        const index = splatIndex(m, splatMode);
+        const channel = splatChannel(m, splatMode);
+        let weight = `texture2D(uSplats[${index}], vUv).${channel}`;
         d++;
         return `${colorValue} * ${weight}`;
       }
@@ -92,6 +91,12 @@ function computeDiffuse(materials, splatMode = "bw") {
     .filter((v) => v)
     .join(" + ");
 }
+
+const splatSize = {
+  bw: 2,
+  rgb: 3,
+  rgba: 4,
+};
 
 function splatIndex(i, splatMode) {
   return Math.floor(i / splatSize[splatMode]);
