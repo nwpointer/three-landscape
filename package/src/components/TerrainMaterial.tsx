@@ -2,6 +2,7 @@ import React, { useMemo } from "react";
 import CustomShaderMaterial from "three-custom-shader-material";
 import { Material, MeshStandardMaterial, RepeatWrapping, Texture } from "three";
 import glsl from "glslify";
+import noise from "./noise";
 
 export type splatMaterial = {
   diffuse?: Texture;
@@ -15,7 +16,7 @@ export default function TerrainMaterial(props: {
   map?: Texture;
   splats: Texture[];
   splatMode?: "bw" | "rgb" | "rgba";
-  noise: Texture;
+  noise?: Texture;
 }) {
   const diffuse = props.materials.map((v) => v.diffuse).filter((v) => v);
   const normal = props.materials.map((v) => v.normal).filter((v) => v);
@@ -36,7 +37,7 @@ export default function TerrainMaterial(props: {
       // metalness={0.5}
       roughness={0.5}
       uniforms={{
-        uNoise: { value: props.noise },
+        uNoise: { value: props.noise || noise },
         uSplats: { value: props.splats },
         uDiffuse: { value: diffuse },
         uNormal: { value: normal },
@@ -67,7 +68,7 @@ export default function TerrainMaterial(props: {
 
         float sum( vec3 v ) { return v.x+v.y+v.z; }
 
-        vec4 textureNoTile( sampler2D samp, vec2 uv ){
+        vec4 stochasticSample( sampler2D samp, vec2 uv ){
           // sample variation pattern
           float k = texture2D( uNoise, 0.005*uv ).x; // cheap (cache friendly) lookup
 
@@ -170,7 +171,9 @@ const normalValue = (i, material) => colorValue(i, material, "normal");
 function colorValue(i, material, type: "diffuse" | "normal") {
   const textureArrayName = type == "diffuse" ? "uDiffuse" : "uNormal";
   const r = material.repeat || 1;
-  return `textureNoTile(${textureArrayName}[${i}], vUv * vec2(${r}, ${r}))`;
+  const sampler =
+    material.sampler === "tiled" ? "texture2D" : "stochasticSample";
+  return `${sampler}(${textureArrayName}[${i}], vUv * vec2(${r}, ${r}))`;
 }
 
 function splatValue(m, splatMode) {
