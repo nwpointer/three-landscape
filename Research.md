@@ -26,15 +26,10 @@ materials={[grass,moss,dirt,mud,rocks]}
 
 <!-- should be able to integrate dynamic mesh with physics system -->
 
-F1
-TerrainMaterial, extends standard material + supports just splatting
-materials = {albedo,scale}
-scale
-splat color modes
-
-material normals
-Tiling method: smoothVoronoi
-material displacement
+#idea:
+dynamic angle based teselation:
+increase teselation if you are looking at the side of a surface, decrease it if you are looking at it head on
+could drive off of heightmap or infer from normal map
 
 # research
 

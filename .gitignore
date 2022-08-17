@@ -2,3 +2,4 @@ node_modules
 dist
 .tga
 .parcel-cache
+.DS_Store

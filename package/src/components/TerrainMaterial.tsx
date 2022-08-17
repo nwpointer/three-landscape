@@ -26,10 +26,14 @@ export default function TerrainMaterial(props: {
     throw Error("use rgb or rgba textures if you have more than 2 materials");
 
   return (
+    // @ts-expect-error
     <CustomShaderMaterial
       baseMaterial={MeshStandardMaterial}
       wireframe={props.wireframe}
-      map={props.map}
+      map={diffuse[0]}
+      normalMap={normal[0]}
+      // metalness={0.5}
+      roughness={0.5}
       uniforms={{
         uSplats: { value: props.splats },
         uDiffuse: { value: diffuse },
@@ -47,49 +51,101 @@ export default function TerrainMaterial(props: {
         uniform sampler2D uDiffuse[${diffuse.length}];
         uniform sampler2D uNormal[${normal.length}];
         uniform float uRepeat[${repeat.length}];
+        vec4 zeroN = vec4(0.5, 0.5, 1, 1);
+        vec3 csm_NormalMap;
 
+        // utility function
+        vec4 blend_rnm(vec4 n1, vec4 n2){
+          vec3 t = n1.xyz*vec3( 2,  2, 2) + vec3(-1, -1,  0);
+          vec3 u = n2.xyz*vec3(-2, -2, 2) + vec3( 1,  1, -1);
+          vec3 r = t*dot(t, u) /t.z -u;
+          return vec4((r), 1.0) * 0.5 + 0.5;
+        }
+        
         void main(){
+          // normalize insures all pixels are at full strength and not mixed with black
           csm_DiffuseColor = normalize(${computeDiffuse(
             props.materials,
             props.splatMode
           )});
+
+          // csm_NormalMap = texture2D( normalMap, vUv ).xyz * 2.0 - 1.0;
+          csm_NormalMap = ${computeNormal(
+            props.materials,
+            props.splatMode
+          )}.rgb * 2.0 - 1.0;
         }
       `}
+      patchMap={{
+        csm_NormalMap: {
+          "#include <normal_fragment_maps>": glsl`
+            vec3 mapN = csm_NormalMap;
+            mapN.xy *= normalScale;
+            normal = perturbNormal2Arb( - vViewPosition, normal, mapN, faceDirection );
+          `,
+        },
+      }}
     />
   );
 }
+
+// csm_DiffuseColor = ${computeNormal(
+//   props.materials,
+//   props.splatMode
+// )} * 2.0 - 1.0;
 
 const repeatTexture = (t) => {
   t.wrapS = t.wrapT = RepeatWrapping;
   t.needsUpdate = true;
 };
 
-function computeDiffuse(materials, splatMode = "bw") {
-  if (splatMode === "bw") {
-    const r1 = materials[0].repeat || 1;
-    const r2 = materials[1].repeat || 1;
-    return `mix(
-      texture2D(uDiffuse[0], vUv * vec2(${r1},${r1})),
-      texture2D(uDiffuse[1], vUv * vec2(${r2},${r2})),
-      texture2D(uSplats[0], vUv).r
-    )`;
-  }
+function computeNormal(materials, splatMode) {
+  let n = 0;
+  return materials.reduce((shader, material, m) => {
+    if (material.normal) {
+      if (n == 0) shader = "zeroN";
+      const color = normalValue(n, material);
+      const weight = splatValue(m, splatMode);
+      const normalScale = (material.normalScale || 1).toFixed(2);
+      const value = `mix(zeroN, ${color}, ${weight} * ${normalScale})`;
+      n++;
+      return `blend_rnm(
+        ${value}, 
+        ${shader})
+      `;
+    }
+    return shader;
+  }, "");
+}
 
+function computeDiffuse(materials, splatMode) {
   let d = 0;
   return materials
     .map((material, m) => {
       if (material.diffuse) {
-        const r = material.repeat || 1;
-        const colorValue = `texture2D(uDiffuse[${d}], vUv * vec2(${r}, ${r}))`;
-        const index = splatIndex(m, splatMode);
-        const channel = splatChannel(m, splatMode);
-        let weight = `texture2D(uSplats[${index}], vUv).${channel}`;
+        const color = diffuseValue(d, material);
+        const weight = splatValue(m, splatMode);
         d++;
-        return `${colorValue} * ${weight}`;
+        return `${color} * ${weight}`;
       }
     })
     .filter((v) => v)
     .join(" + ");
+}
+
+const diffuseValue = (i, material) => colorValue(i, material, "diffuse");
+const normalValue = (i, material) => colorValue(i, material, "normal");
+
+function colorValue(i, material, type: "diffuse" | "normal") {
+  const textureArrayName = type == "diffuse" ? "uDiffuse" : "uNormal";
+  const r = material.repeat || 1;
+  return `texture2D(${textureArrayName}[${i}], vUv * vec2(${r}, ${r}))`;
+}
+
+function splatValue(m, splatMode) {
+  const index = splatIndex(m, splatMode);
+  const channel = splatChannel(m, splatMode);
+  return `texture2D(uSplats[${index}], vUv).${channel}`;
 }
 
 const splatSize = {
