@@ -90,6 +90,7 @@ function Terrain() {
     normal: textures[6],
     normalScale: 2.0,
     repeat: 10,
+    sampler: "tiled",
   };
 
   // example rgb
@@ -101,7 +102,6 @@ function Terrain() {
         map={textures[0]}
         splats={[textures[0]]}
         materials={[grass, mud, clif]}
-        noise={textures[7]}
       />
     </mesh>
   ) : null;
