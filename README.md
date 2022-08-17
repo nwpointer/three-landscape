@@ -29,39 +29,52 @@ Can be used in vanilla (non react) Three.js projects by importing from the /thre
 - all the props & behaviors of meshStandardMaterial
 - seamless tile blending (aka texture bombing)
 - terrain and detail normal maps
-- texture saturation and brightness filters for additional creative control 
+- texture saturation and brightness filters for additional creative control
 
 #### new props:
 
-- splats*: [Texture] (expects splat data in rgb and a channels)
+- splats\*: [Texture] (expects splat data in rgb and a channels)
 - normalMaps: [Texture]
 - normalWeights: [float]
-- diffuseMaps*: [Texture]
-- scale*: [float] (size of terrain tiles)
+- diffuseMaps\*: [Texture]
+- scale\*: [float] (size of terrain tiles)
 - saturation: [float]
 - brightness: [float]
-- noise*: Texture 
+- noise\*: Texture
 
 \* required prop
 
 ```js
 function MySuperCoolTerrain() {
-  const [displacement, normal, noise, d1, n1, d2, n2, d3, n3, d4, splat1, splat2] = useTexture([
-    '/hd/heightmap.png',
-    '/hd/normalmap.png',
-    '/simplex-noise.png',
-    '/Assets/Cliffs_02/Rock_DarkCrackyCliffs_col.jpg',
-    '/Assets/Cliffs_02/Rock_DarkCrackyCliffs_norm.jpg',
-    '/Assets/Rock_04/Rock_sobermanRockWall_col.jpg',
-    '/Assets/Rock_04/Rock_sobermanRockWall_norm.jpg',
-    '/Assets/Mud_03/Ground_WetBumpyMud_col.jpg',
-    '/Assets/Mud_03/Ground_WetBumpyMud_norm.jpg',
-    '/Assets/Grass_020/ground_Grass1_col.jpg',
-    '/hd/splatmap_00.png',
-    '/hd/splatmap_01.png'
-  ])
+  const [
+    displacement,
+    normal,
+    noise,
+    d1,
+    n1,
+    d2,
+    n2,
+    d3,
+    n3,
+    d4,
+    splat1,
+    splat2,
+  ] = useTexture([
+    "/hd/heightmap.png",
+    "/hd/normalmap.png",
+    "/simplex-noise.png",
+    "/Assets/Cliffs_02/Rock_DarkCrackyCliffs_col.jpg",
+    "/Assets/Cliffs_02/Rock_DarkCrackyCliffs_norm.jpg",
+    "/Assets/Rock_04/Rock_sobermanRockWall_col.jpg",
+    "/Assets/Rock_04/Rock_sobermanRockWall_norm.jpg",
+    "/Assets/Mud_03/Ground_WetBumpyMud_col.jpg",
+    "/Assets/Mud_03/Ground_WetBumpyMud_norm.jpg",
+    "/Assets/Grass_020/ground_Grass1_col.jpg",
+    "/hd/splatmap_00.png",
+    "/hd/splatmap_01.png",
+  ]);
 
-  const { width, height } = displacement.image
+  const { width, height } = displacement.image;
 
   return (
     <mesh position={[0, 0, 0]} rotation={[-Math.PI / 2, 0, 0]}>
@@ -78,11 +91,11 @@ function MySuperCoolTerrain() {
         displacementBias={-10}
       />
     </mesh>
-  )
+  );
 }
 ```
 
-See example directory for advanced usage and example textures but 
+See example directory for advanced usage and example textures but
 
 Note: The textures are not covered by the MIT license and should not be used with out first acquiring the rights to do so.
 
@@ -180,7 +193,6 @@ function Terrain(){
 Thought it might be fun to let people vote on new feature ideas! If you're interested in a particular feature leave a thumbs up on the assosiated issue:
 
 [view issues sorted by most votes](https://github.com/nwpointer/three-landscape/issues?q=is%3Aissue+is%3Aopen+sort%3Areactions-%2B1-desc)
-
 
 ## Contributing
 
