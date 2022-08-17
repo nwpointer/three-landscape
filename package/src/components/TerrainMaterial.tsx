@@ -17,6 +17,8 @@ export default function TerrainMaterial(props: {
   splats: Texture[];
   splatMode?: "bw" | "rgb" | "rgba";
   noise?: Texture;
+  displacementMap?: Texture;
+  displacementScale: Number;
 }) {
   const diffuse = props.materials.map((v) => v.diffuse).filter((v) => v);
   const normal = props.materials.map((v) => v.normal).filter((v) => v);
@@ -35,6 +37,8 @@ export default function TerrainMaterial(props: {
       map={diffuse[0]}
       normalMap={normal[0]}
       // metalness={0.5}
+      displacementMap={props.displacementMap}
+      displacementScale={props.displacementScale}
       roughness={0.5}
       uniforms={{
         uNoise: { value: props.noise || noise },

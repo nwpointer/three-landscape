@@ -69,7 +69,8 @@ function Terrain() {
     "/Mud_030/Ground_WetBumpyMud_norm.jpg",
     "/Cliffs_02/Rock_DarkCrackyCliffs_col.png",
     "/Cliffs_02/Rock_DarkCrackyCliffs_norm.png",
-    "simplex-noise.png",
+    "/simplex-noise.png",
+    "/heightmap.png",
   ]);
 
   const grass = {
@@ -95,13 +96,15 @@ function Terrain() {
 
   // example rgb
   return textures ? (
-    <mesh position={[0, 0, 0]}>
-      <planeBufferGeometry args={[6, 6, 10, 10]} />
+    <mesh position={[0, 0, 0]} rotation={[0, 0, Math.PI / 2]}>
+      <planeBufferGeometry args={[6, 6, 100, 100]} />
       <TerrainMaterial
         splatMode="rgb"
         map={textures[0]}
         splats={[textures[0]]}
         materials={[grass, mud, clif]}
+        displacementMap={textures[8]}
+        displacementScale={5}
       />
     </mesh>
   ) : null;
