@@ -15,6 +15,7 @@ export default function TerrainMaterial(props: {
   map?: Texture;
   splats: Texture[];
   splatMode?: "bw" | "rgb" | "rgba";
+  noise: Texture;
 }) {
   const diffuse = props.materials.map((v) => v.diffuse).filter((v) => v);
   const normal = props.materials.map((v) => v.normal).filter((v) => v);
@@ -35,6 +36,7 @@ export default function TerrainMaterial(props: {
       // metalness={0.5}
       roughness={0.5}
       uniforms={{
+        uNoise: { value: props.noise },
         uSplats: { value: props.splats },
         uDiffuse: { value: diffuse },
         uNormal: { value: normal },
@@ -47,6 +49,7 @@ export default function TerrainMaterial(props: {
           vec4 csm_DiffuseColor = vec4(0,0,0,0);
         #endif
 
+        uniform sampler2D uNoise;
         uniform sampler2D uSplats[${props.splats.length}];
         uniform sampler2D uDiffuse[${diffuse.length}];
         uniform sampler2D uNormal[${normal.length}];
@@ -60,6 +63,34 @@ export default function TerrainMaterial(props: {
           vec3 u = n2.xyz*vec3(-2, -2, 2) + vec3( 1,  1, -1);
           vec3 r = t*dot(t, u) /t.z -u;
           return vec4((r), 1.0) * 0.5 + 0.5;
+        }
+
+        float sum( vec3 v ) { return v.x+v.y+v.z; }
+
+        vec4 textureNoTile( sampler2D samp, vec2 uv ){
+          // sample variation pattern
+          float k = texture2D( uNoise, 0.005*uv ).x; // cheap (cache friendly) lookup
+
+          // compute index
+          float l = k*8.0;
+          float f = fract(l);
+          float ia = floor(l);
+          float ib = ia + 1.0;
+
+          // offsets for the different virtual patterns
+          float v = 0.4;
+          vec2 offa = sin(vec2(3.0,7.0)*ia); // can replace with any other hash
+          vec2 offb = sin(vec2(3.0,7.0)*ib); // can replace with any other hash
+
+          // compute derivatives for mip-mapping, requires shader extension derivatives:true
+          vec2 dx = dFdx(uv), dy = dFdy(uv);
+          // sample the two closest virtual patterns
+          vec3 cola = texture2DGradEXT( samp, uv + v*offa, dx, dy ).xyz;
+          vec3 colb = texture2DGradEXT( samp, uv + v*offb, dx, dy ).xyz;
+
+          // // interpolate between the two virtual patterns
+          vec3 col = mix( cola, colb, smoothstep(0.2,0.8,f-0.1*sum(cola-colb)) );
+          return vec4(col,1.0);
         }
         
         void main(){
@@ -139,7 +170,7 @@ const normalValue = (i, material) => colorValue(i, material, "normal");
 function colorValue(i, material, type: "diffuse" | "normal") {
   const textureArrayName = type == "diffuse" ? "uDiffuse" : "uNormal";
   const r = material.repeat || 1;
-  return `texture2D(${textureArrayName}[${i}], vUv * vec2(${r}, ${r}))`;
+  return `textureNoTile(${textureArrayName}[${i}], vUv * vec2(${r}, ${r}))`;
 }
 
 function splatValue(m, splatMode) {
