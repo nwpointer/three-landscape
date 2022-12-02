@@ -1,124 +1,125 @@
-import { useState } from "react";
-import { Canvas } from "@react-three/fiber";
-import { TerrainMaterial } from "three-landscape";
-import { OrbitControls, useTexture } from "@react-three/drei";
-import { RepeatWrapping, Texture, LinearMipmapNearestFilter } from "three";
-
-// function Terrain() {
-//   const textures = useTexture([
-//     "/splat-bw.jpg",
-//     "/Grass_021/ground_Grass1_col.jpg",
-//     "/Grass_021/ground_Grass1_norm.jpg",
-//     "/Mud_030/Ground_WetBumpyMud_col.jpg",
-//     "/Mud_030/Ground_WetBumpyMud_norm.jpg",
-//   ]);
-
-//   const grass = {
-//     diffuse: textures[1],
-//     normal: textures[2],
-//     repeat: 10,
-//   };
-
-//   const mud = {
-//     diffuse: textures[3],
-//     normal: textures[4],
-//     repeat: 2,
-//   };
-
-//   // example bw
-//   return (
-//     <mesh position={[0, 0, 0]}>
-//       <planeBufferGeometry args={[4, 4, 10, 10]} />
-//       <TerrainMaterial map={textures[0]} splats={[textures[0]]} materials={[grass, mud]} />
-//     </mesh>
-//   );
-// }
-
-function Test() {
-  const textures = useTexture([
-    "/Grass_021/ground_Grass1_col.jpg",
-    "/Grass_021/ground_Grass1_norm.jpg",
-    "/Mud_030/Ground_WetBumpyMud_col.jpg",
-    "/Mud_030/Ground_WetBumpyMud_norm.jpg",
-    "/Cliffs_02/Rock_DarkCrackyCliffs_col.png",
-    "/Cliffs_02/Rock_DarkCrackyCliffs_norm.png",
-  ]);
-  textures.map((t) => {
-    t.minFilter = LinearMipmapNearestFilter;
-  });
-  return (
-    <mesh>
-      <planeBufferGeometry args={[5, 5]}></planeBufferGeometry>
-      <meshStandardMaterial
-        map={textures[0]}
-        normalMap={textures[1]}
-        vertextTangents={true}
-        metalness={0.25}
-        roughness={0.25}
-      ></meshStandardMaterial>
-    </mesh>
-  );
-}
+import { Canvas, useThree } from "@react-three/fiber";
+import { SplatMaterial } from "three-landscape";
+import { OrbitControls, useTexture, Environment, FlyControls, FirstPersonControls, PointerLockControls, PerformanceMonitor, Stats } from "@react-three/drei";
+import { Skybox } from './Skybox'
+import { Vector4 } from 'three';
+import { useEffect } from "react";
 
 function Terrain() {
+
   const textures = useTexture([
     "/splat-rgb.jpg",
     "/Grass_021/ground_Grass1_col.jpg",
     "/Grass_021/ground_Grass1_norm.jpg",
     "/Mud_030/Ground_WetBumpyMud_col.jpg",
     "/Mud_030/Ground_WetBumpyMud_norm.jpg",
-    "/Cliffs_02/Rock_DarkCrackyCliffs_col.png",
+    "/Cliffs_02/Rock_DarkCrackyCliffs_col.jpg",
     "/Cliffs_02/Rock_DarkCrackyCliffs_norm.png",
-    "/simplex-noise.png",
-    "/heightmap.png",
+    "/Rock_04/Rock_sobermanRockWall_col.jpg",
+    "/Rock_04/Rock_sobermanRockWall_norm.jpg",
+    "/heightmap@0.5.png",
+    "/normalmap.png",
+    "/splatmap_00.png",
+    "/splatmap_01.png",
+    "FORESTFLOOR-07/FORESTFLOOR-07_COLOR_2k.jpg",
+    "FORESTFLOOR-07/FORESTFLOOR-07_NORMAL_2k.jpg"
   ]);
 
-  const grass = {
+  const octaves = [
+    {
+      blur:0.5,
+      amplitude: 1.25,
+      wavelength: 1024.0*16.0,
+      accuracy: 1.25
+    },
+    {
+      blur:1.0,
+      amplitude: 1.0,
+      wavelength: 1024.0*64.0,
+      accuracy: 1.0
+    }
+  ]
+
+  const grass1 = {
     diffuse: textures[1],
     normal: textures[2],
-    repeat: 10,
+    repeat: 300,
+    saturation: 0.5,
+    tint: new Vector4(1,1.4,1,1),
+    blend: {
+      mode: "noise",
+      octaves
+    }
+  };
+
+  const grass2 = {
+    diffuse: textures[1],
+    normal: textures[2],
+    repeat: 300,
+    saturation: 0.6,
+    blend: {
+      mode: "noise",
+      octaves
+    }
   };
 
   const mud = {
     diffuse: textures[3],
     normal: textures[4],
-    normalScale: 0.5,
-    repeat: 10,
+    repeat: 200,
+    saturation: 0.5,
   };
 
   const clif = {
-    diffuse: textures[5],
-    normal: textures[6],
-    normalScale: 2.0,
-    repeat: 10,
-    sampler: "tiled",
+    diffuse: textures[7],
+    normal: textures[8],
+    repeat: 200,
+    saturation: 0.5,
   };
 
-  // example rgb
+  const rock = {
+    diffuse: textures[5],
+    normal: textures[6],
+    repeat: 400,
+    saturation: 0.5,
+  };
+
+
   return textures ? (
-    <mesh position={[0, 0, 0]} rotation={[0, 0, Math.PI / 2]}>
-      <planeBufferGeometry args={[6, 6, 100, 100]} />
-      <TerrainMaterial
-        splatMode="rgb"
-        map={textures[0]}
-        splats={[textures[0]]}
-        materials={[grass, mud, clif]}
-        displacementMap={textures[8]}
-        displacementScale={5}
+    <mesh rotation={[-Math.PI/2,0,-2*Math.PI/2]} position={[0,0,0]}>
+      <planeBufferGeometry args={[1024, 1024, 1024 * 1.0, 1024 * 1.0]} />
+      <SplatMaterial
+        splats={[textures[11], textures[12]]}
+        surfaces={[rock, clif, mud, grass1, grass2, mud]}
+        normalMap={textures[10]}
+        displacementMap={textures[9]}
+        displacementScale={100.0 }
+        // envMapIntensity={0.5} cv
+        // metalness={0.5}
+        // roughness={0.85}
       />
     </mesh>
   ) : null;
 }
 
+
 function App() {
+
+
   return (
-    <Canvas>
+    <Canvas  camera={{fov:30, far: 2000, near:0.01, position:[0,3,3] }}>
+      {/* <FirstPersonControls movementSpeed={100} lookSpeed={0.25} mom/> */}
+      {/* <PointerLockControls /> */}
+      <Stats />
       <OrbitControls />
-      <ambientLight intensity={0.5} />
-      <directionalLight intensity={0.5} />
-      {/* <spotLight args={["white", 0.5, 5]} /> */}
+      <Skybox fog={false} />
+      <fog attach="fog" args={['#9fdced', 0, 2000]} />
+
+      <Environment preset="park" background={false} />
+      {/* <spotLight position={[100,1000,-100]} intensity={0.25} color="blue" />  */}
+      <spotLight position={[-100,1000,-100]} intensity={0.25} color="yellow" />
+      {/* <ambientLight intensity={1.0} /> */}
       <Terrain />
-      {/* <Test /> */}
     </Canvas>
   );
 }

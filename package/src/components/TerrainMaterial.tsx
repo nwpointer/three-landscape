@@ -4,11 +4,40 @@ import { Material, MeshStandardMaterial, RepeatWrapping, Texture } from "three";
 import glsl from "glslify";
 import noise from "./noise";
 
+//github.com/simondevyoutube/Quick_3D_MMORPG/blob/547884332ca650abe96264f7230702d36481b9bc/client/src/terrain-shader.js
+
+// substance instead of material?
 export type splatMaterial = {
   diffuse?: Texture;
   normal?: Texture;
   repeat?: Number;
 };
+
+function getDimensions(texture) {
+  return {
+    width: texture.source.data.width,
+    height: texture.source.data.height,
+  };
+}
+
+const map = f => arr => arr.map(f);
+const filter = f => arr => arr.filter(f);
+const pipe = (...fns) => (x) => fns.reduce((v, f) => f(v), x);
+
+const pluck = key => map(v=>v[key])
+const defined = filter(v=>v);
+const standard = defaultValue => map(v=>v||defaultValue);
+const repeatTexture = (t) => {
+  t.wrapS = t.wrapT = RepeatWrapping;
+  t.needsUpdate = true;
+}
+
+const repeatTextures = map(repeatTexture);
+const option = (arr, key, defaultValue?) => pipe(
+  pluck(key),
+  standard(defaultValue),
+  defined,
+)(arr)
 
 export default function TerrainMaterial(props: {
   wireframe?: boolean;
@@ -18,16 +47,26 @@ export default function TerrainMaterial(props: {
   splatMode?: "bw" | "rgb" | "rgba";
   noise?: Texture;
   displacementMap?: Texture;
+  normalMap?: Texture;
   displacementScale: Number;
 }) {
-  const diffuse = props.materials.map((v) => v.diffuse).filter((v) => v);
-  const normal = props.materials.map((v) => v.normal).filter((v) => v);
-  const repeat = props.materials.map((v) => v.repeat || 1);
-  const textures = [...props.splats, ...diffuse, ...normal].filter((v) => v);
-  textures.map(repeatTexture);
-
+  const diffuse = option(props.materials, 'diffuse')
+  const normal = option(props.materials, 'normal')
+  const repeat = option(props.materials, 'repeat', 1)
+  const textures = defined([...props.splats, ...diffuse, ...normal, noise])
+  
+  // apply repetition option to all textures
+  repeatTextures(textures)
+  
   if (props.materials.length > 2 && props.splatMode === "bw")
     throw Error("use rgb or rgba textures if you have more than 2 materials");
+
+  const displacementSize = getDimensions(props.displacementMap);
+  if (displacementSize.width != displacementSize.height) {
+    throw Error("please use square displacement maps");
+  }
+  const dw = displacementSize.width.toFixed(20);
+  const dh = displacementSize.height.toFixed(20);
 
   return (
     // @ts-expect-error
@@ -35,11 +74,11 @@ export default function TerrainMaterial(props: {
       baseMaterial={MeshStandardMaterial}
       wireframe={props.wireframe}
       map={diffuse[0]}
-      normalMap={normal[0]}
       // metalness={0.5}
+      // roughness={0.5}
       displacementMap={props.displacementMap}
+      normalMap={props.normalMap}
       displacementScale={props.displacementScale}
-      roughness={0.5}
       uniforms={{
         uNoise: { value: props.noise || noise },
         uSplats: { value: props.splats },
@@ -47,13 +86,46 @@ export default function TerrainMaterial(props: {
         uNormal: { value: normal },
         uRepeat: { value: repeat },
       }}
-      fragmentShader={glsl`
-        precision mediump float;
-        #pragma vscode_glsllint_stage : frag
-        #ifndef csm_DiffuseColor
-          vec4 csm_DiffuseColor = vec4(0,0,0,0);
-        #endif
+      vertexShader={glsl`
+        varying vec3 csm_vWorldPosition;
+        varying vec3 csm_vNormal;
+        float csm_Displacement;
 
+        float biLerp(float a, float b, float c, float d, float s, float t)
+        {
+          float x = mix(a, b, t);
+          float y = mix(c, d, t);
+          return mix(x, y, s);
+        }
+
+        void main() {
+          // todo: change this from world position + height to uv + height?
+          // csm_vWorldPosition = (modelMatrix * vec4(position, 1.0)).xyz;
+          // vec3 realPosition = position;
+          // realPosition.z = texture2D( displacementMap, uv ).x * displacementScale + displacementBias;
+          // csm_vWorldPosition = (modelMatrix * vec4(realPosition, 1.0)).xyz;
+          csm_vNormal = normal;
+
+          // displaceent
+          float tw = 1.0 / ${dw};
+          float th = 1.0 / ${dh};
+          // float dx = uv.x - (floor(uv.x * ${dw})/${dw});
+          // float dy = uv.y - (floor(uv.y * ${dh})/${dh});
+          float dx = 0.5;
+          float dy = 0.5;
+          float a = texture2D( displacementMap, uv ).x;
+          float b = texture2D( displacementMap, uv + tw ).x;
+          float c = texture2D( displacementMap, uv + th ).x;
+          float d = texture2D( displacementMap, uv + tw + th ).x;
+          float t = texture2D( displacementMap, uv ).x;
+          float l = biLerp(a,b,c,d,dy,dx);
+          csm_Displacement = t * displacementScale + displacementBias;
+        }
+      `}
+      fragmentShader={glsl`
+        // precision mediump float;
+        uniform sampler2D displacementMap;
+        uniform float displacementScale;
         uniform sampler2D uNoise;
         uniform sampler2D uSplats[${props.splats.length}];
         uniform sampler2D uDiffuse[${diffuse.length}];
@@ -62,7 +134,11 @@ export default function TerrainMaterial(props: {
         vec4 zeroN = vec4(0.5, 0.5, 1, 1);
         vec3 csm_NormalMap;
 
-        // utility function
+        varying vec3 csm_vWorldPosition;
+        varying vec3 csm_vNormal;
+
+
+        // UTILITY FUNCTIONS ----------------------------------------------------------------------------------------------------
         vec4 blend_rnm(vec4 n1, vec4 n2){
           vec3 t = n1.xyz*vec3( 2,  2, 2) + vec3(-1, -1,  0);
           vec3 u = n2.xyz*vec3(-2, -2, 2) + vec3( 1,  1, -1);
@@ -71,6 +147,20 @@ export default function TerrainMaterial(props: {
         }
 
         float sum( vec3 v ) { return v.x+v.y+v.z; }
+        vec3 pow3(vec3 n, float x){
+          return vec3(pow(n.x,x),pow(n.y,x),pow(n.z,x));
+        }
+
+        vec3 heightNormal(){
+          float o = 8.0/1024.0;
+          float h = dot(texture2D(displacementMap, vUv),  vec4(1,0,0,1));
+          float hx = dot(texture2D(displacementMap, vUv + vec2( o, 0.0 )), vec4(1,0,0,1));
+          float hy = dot(texture2D(displacementMap, vUv + vec2( 0.0, o )),  vec4(1,0,0,1));
+          float dScale = 30.0;
+          float dx = (hx - h) * dScale;
+          float dy = (hy - h) * dScale;
+          return (cross(vec3(1.0,0.0,dx), vec3(0.0,1.0,dy)));
+        }
 
         vec4 stochasticSample( sampler2D samp, vec2 uv ){
           // sample variation pattern
@@ -97,7 +187,39 @@ export default function TerrainMaterial(props: {
           vec3 col = mix( cola, colb, smoothstep(0.2,0.8,f-0.1*sum(cola-colb)) );
           return vec4(col,1.0);
         }
-        
+
+        vec4 triSample(sampler2D map, float scale){
+          // vec3 n = (heightNormal()); 
+          vec3 n = texture2D( normalMap, vUv ).xyz;
+          
+          vec3 yDiff = texture2D(map, csm_vWorldPosition.xz * scale).xyz;
+			    vec3 xDiff = texture2D(map, csm_vWorldPosition.zy * scale).xyz;
+          vec3 zDiff = texture2D(map, csm_vWorldPosition.xy * scale).xyz;
+
+          float sharpness = 20.0;
+          vec3 weights = normalize(pow3(n,sharpness));
+          vec3 color = (xDiff * weights.x + yDiff * weights.y + zDiff * weights.z);
+
+          return vec4(color,1.0);
+        }
+
+        vec4 triSampleStocastic(sampler2D map, float scale){
+          // vec3 n = (heightNormal()); 
+          vec3 n = texture2D( normalMap, vUv ).xyz;
+          
+          vec3 yDiff = stochasticSample(map, csm_vWorldPosition.xz * scale).xyz;
+			    vec3 xDiff = stochasticSample(map, csm_vWorldPosition.zy * scale).xyz;
+          vec3 zDiff = stochasticSample(map, csm_vWorldPosition.xy * scale).xyz;
+
+
+          float sharpness = 20.0;
+          vec3 weights = normalize(pow3(n,sharpness));
+          vec3 color = (xDiff * weights.x + yDiff * weights.y + zDiff * weights.z);
+
+          return vec4(color,1.0);
+        }
+
+        // FRAGMENT OUT ----------------------------------------------------------------------------------------------------
         void main(){
           // normalize insures all pixels are at full strength and not mixed with black
           csm_DiffuseColor = normalize(${computeDiffuse(
@@ -105,11 +227,18 @@ export default function TerrainMaterial(props: {
             props.splatMode
           )});
 
-          // csm_NormalMap = texture2D( normalMap, vUv ).xyz * 2.0 - 1.0;
-          csm_NormalMap = ${computeNormal(
+          csm_NormalMap = normalize(${computeNormal(
             props.materials,
             props.splatMode
-          )}.rgb * 2.0 - 1.0;
+          )}.rgb * 2.0 - 1.0);
+
+          // csm_NormalMap = texture2D(normalMap, vUv).xyz;
+
+          // displayment test
+          // csm_DiffuseColor = texture2D(displacementMap, vUv);
+          // csm_DiffuseColor.x = mod(csm_DiffuseColor.x*80.0, 1.0);
+          // csm_DiffuseColor.y = mod(csm_DiffuseColor.y*80.0, 1.0);
+          // csm_DiffuseColor.z = mod(csm_DiffuseColor.z*80.0, 1.0);
         }
       `}
       patchMap={{
@@ -120,20 +249,19 @@ export default function TerrainMaterial(props: {
             normal = perturbNormal2Arb( - vViewPosition, normal, mapN, faceDirection );
           `,
         },
+        csm_Displacement: {
+          "#include <displacementmap_vertex>": glsl`
+            #ifdef USE_DISPLACEMENTMAP
+              transformed += normalize( objectNormal ) * csm_Displacement;
+            #endif
+          `,
+        },
       }}
     />
   );
 }
 
-// csm_DiffuseColor = ${computeNormal(
-//   props.materials,
-//   props.splatMode
-// )} * 2.0 - 1.0;
 
-const repeatTexture = (t) => {
-  t.wrapS = t.wrapT = RepeatWrapping;
-  t.needsUpdate = true;
-};
 
 function computeNormal(materials, splatMode) {
   let n = 0;
@@ -174,10 +302,23 @@ const normalValue = (i, material) => colorValue(i, material, "normal");
 
 function colorValue(i, material, type: "diffuse" | "normal") {
   const textureArrayName = type == "diffuse" ? "uDiffuse" : "uNormal";
-  const r = material.repeat || 1;
-  const sampler =
-    material.sampler === "tiled" ? "texture2D" : "stochasticSample";
-  return `${sampler}(${textureArrayName}[${i}], vUv * vec2(${r}, ${r}))`;
+  let r = (material.repeat || 1).toFixed(20);
+
+  if (material.triplanar) r = (r / 10).toFixed(20);
+
+  if (material.sampler == "tiled") {
+    if (material.triplanar) {
+      return `triSample(${textureArrayName}[${i}], ${r})`;
+    } else {
+      return `texture2D(${textureArrayName}[${i}], vUv * vec2(${r}, ${r}))`;
+    }
+  } else {
+    if (material.triplanar) {
+      return `triSampleStocastic(${textureArrayName}[${i}], ${r})`;
+    } else {
+      return `stochasticSample(${textureArrayName}[${i}], vUv * vec2(${r}, ${r}))`;
+    }
+  }
 }
 
 function splatValue(m, splatMode) {

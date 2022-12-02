@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import reactLogo from './assets/react.svg'
+// import reactLogo from './assets/react.svg'
 import { Canvas } from '@react-three/fiber'
 import { Cube } from "three-landscape"
 
