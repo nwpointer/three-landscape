@@ -45,6 +45,7 @@ function Terrain() {
     normal: textures[2],
     repeat: 300,
     saturation: 0.5,
+    gridless: true,
     tint: new Vector4(1,1.4,1,1),
     blend: {
       mode: "noise",
@@ -56,6 +57,7 @@ function Terrain() {
     diffuse: textures[1],
     normal: textures[2],
     repeat: 300,
+    gridless: true,
     saturation: 0.6,
     blend: {
       mode: "noise",
@@ -73,6 +75,8 @@ function Terrain() {
   const clif = {
     diffuse: textures[7],
     normal: textures[8],
+    trilinear: true,
+    gridless: true,
     repeat: 200,
     saturation: 0.5,
   };
@@ -80,6 +84,8 @@ function Terrain() {
   const rock = {
     diffuse: textures[5],
     normal: textures[6],
+    trilinear: true,
+    gridless: true,
     repeat: 400,
     saturation: 0.5,
   };
@@ -94,6 +100,7 @@ function Terrain() {
         normalMap={textures[10]}
         displacementMap={textures[9]}
         displacementScale={100.0 }
+        normalScale={[3,2]}
         // envMapIntensity={0.5} cv
         // metalness={0.5}
         // roughness={0.85}
