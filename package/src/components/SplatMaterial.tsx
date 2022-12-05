@@ -26,6 +26,7 @@ function cartesian(args) {
 export type Surface = {
   diffuse: Texture;
   normal?: Texture;
+  normalStrength?: Number;
   repeat?: Number;
   saturation?: Number;
   tint?: Vector4
@@ -137,9 +138,9 @@ export default function TerrainMaterial(props: {
         uniform vec4 uTint[${tint.length}];
         uniform sampler2D displacementMap;
         uniform sampler2D uTextures[${textures.length}];
-        uniform int uTextureMap[1];
-        uniform vec2 uTextureOffset[1];
-        uniform vec2 uTextureSize[1];
+        uniform int uTextureMap[${numSufaces}];
+        uniform vec2 uTextureOffset[${numSufaces}];
+        uniform vec2 uTextureSize[${numSufaces}];
 
       
         ${glslNoise}
@@ -179,24 +180,27 @@ export default function TerrainMaterial(props: {
 
         // MIXERS ----------------------------------------------------------------
         
-        vec3 LinearMix(vec3[2] c, float weight){
-          return mix( c[0], c[1], weight);
+        vec3 LinearMix(vec3 c0, vec3 c1, float weight){
+          return mix(c0, c1, weight);
         }
 
-        vec3 LinearMix(vec3[3] c, vec3 weights){
+        vec3 LinearMix(vec3 c0, vec3 c1, vec3 c2, vec3 weights){
           // color normalize (works better than normalize)
           weights /= sum(weights);
-          return (c[0] * weights.x + c[1] * weights.y + c[2] * weights.z);
+          return (c0 * weights.x + c1 * weights.y + c2 * weights.z);
         }
 
-        vec3 NormalMix(vec3[2] c, float weight){
-          return NormalBlend(c[0], c[1], weight);
+        vec3 NormalMix(vec3 c0, vec3 c1, float weight){
+          return blend_rnm(
+            vec4(c0, 1.0),
+            slerp(zeroN, vec4(c1, 1.0), weight) // mix also works but is slightly wrong
+          ).xyz;
         }
 
-        vec3 NormalMix(vec3[3] c, vec3 weights){
-          vec3 colora = NormalBlend(c[2], vec3(0.5, 0.5, 1), 1.0-weights.z);
-          vec3 colorb = NormalBlend(c[1], colora, 1.0-weights.y);
-          vec3 colorc = NormalBlend(c[0], colorb, 1.0-weights.x);
+        vec3 NormalMix(vec3 c0, vec3 c1, vec3 c2, vec3 weights){
+          vec3 colora = NormalMix(c2, vec3(0.5, 0.5, 1), 1.0-weights.z);
+          vec3 colorb = NormalMix(c1, colora, 1.0-weights.y);
+          vec3 colorc = NormalMix(c0, colorb, 1.0-weights.x);
           return colorc;
         }
 
@@ -216,8 +220,8 @@ export default function TerrainMaterial(props: {
             vec4 GridlessSample${mixer}( sampler2D samp, vec2 uv, float scale ){
               uv = uv * scale;
               // sample variation pattern
-              float k = texture2D( uNoise, 0.005*uv ).x; // cheap (cache friendly) lookup
-              // float k = noise(2.0*uv); // slower but may need to do it if at texture limit
+              // float k = texture2D( uNoise, 0.005*uv ).x; // cheap (cache friendly) lookup
+              float k = noise(2.0*uv); // slower but may need to do it if at texture limit
             
               // compute index
               float l = k*8.0;
@@ -237,7 +241,7 @@ export default function TerrainMaterial(props: {
               vec3 colb = texture2DGradEXT( samp, uv + v*offb, dx, dy ).xyz;
     
               // interpolate between the two virtual patterns
-              vec3 color = ${mixer}Mix( vec3[2](cola, colb), smoothstep(0.2,0.8,f-0.1*sum(cola-colb)) );
+              vec3 color = ${mixer}Mix(cola, colb, smoothstep(0.2,0.8,f-0.1*sum(cola-colb)) );
               return vec4(color,1.0);
             }
           `;
@@ -268,7 +272,7 @@ export default function TerrainMaterial(props: {
             vec3 yDiff = ${sampler}${mixer}(map, csm_vWorldPosition.xz, scale).xyz;
             vec3 zDiff = ${sampler}${mixer}(map, csm_vWorldPosition.xy, scale).xyz;
 
-            vec3 color = LinearMix(vec3[3](xDiff,yDiff,zDiff), weights);
+            vec3 color = ${mixer}Mix(xDiff,yDiff,zDiff, weights);
             return vec4(color,1.0);
             
           }
@@ -279,6 +283,7 @@ export default function TerrainMaterial(props: {
         void main(){
           float splatWeights[${numSplatChannels}] = splat();
           
+          // Diffuse 
           csm_DiffuseColor = ${props.surfaces.map((surface, i)=>{
             const index = i.toString();
             if(blend[i].mode === 'noise'){
@@ -295,21 +300,19 @@ export default function TerrainMaterial(props: {
           csm_DiffuseColor = normalize(csm_DiffuseColor);
 
           
-          
+          // Normal
           ${props.normalMap && glsl`
             csm_NormalMap = texture2D(normalMap, vUv).xyz;
-            // csm_NormalMap = NormalMix(vec3[2](csm_NormalMap, (${sample(4, 'Normal', 'uNormal' )}).xyz ), 0.5);
+            vec3 n = csm_NormalMap;
 
+            ${props.surfaces.map((surface, i)=>{
+              const index = i.toString();
+              const normalStrength = (typeof surface.normalStrength === undefined ? 1 : surface.normalStrength).toFixed(8);
+              if(normalStrength === (0).toFixed(8)) return null; // don't sample if strength is 0
+              return glsl`n = NormalMix(n,  (${sample(i, 'Normal', 'uNormal' )}).xyz, splatWeights[${index}] * ${normalStrength});`
+            }).filter(v=>v).join("\n")}
 
-            // OK TWO PROBLEMS: 
-            // REALLY NEED SOME TEXTURE PACKING and/or get rid of uNoise texture
-            // Need to Debug my normal adder cause it fucked up
-
-            // csm_DiffuseColor = texture2D(normalMap, vUv);
-            // csm_DiffuseColor = vec4(
-            //   NormalMix(vec3[2](csm_NormalMap, (${sample(0, 'Normal')}).xyz ), 0.25),
-            //   1.0
-            // );
+            csm_NormalMap = n;
             
           `}
         }
@@ -317,9 +320,26 @@ export default function TerrainMaterial(props: {
       patchMap={{
         csm_NormalMap: props.normalMap ? {
           "#include <normal_fragment_maps>": glsl`
-            vec3 mapN = csm_NormalMap;
-            mapN.xy *= normalScale;
-            normal = perturbNormal2Arb( - vViewPosition, normal, mapN, faceDirection );
+            #ifdef OBJECTSPACE_NORMALMAP
+              normal = csm_NormalMap * 2.0 - 1.0; // overrides both flatShading and attribute normals
+              #ifdef FLIP_SIDED
+                normal = - normal;
+              #endif
+              #ifdef DOUBLE_SIDED
+                normal = normal * faceDirection;
+              #endif
+              normal = normalize( normalMatrix * normal );
+              #elif defined( TANGENTSPACE_NORMALMAP )
+                vec3 mapN = csm_NormalMap * 2.0 - 1.0;
+                mapN.xy *= normalScale;
+                #ifdef USE_TANGENT
+                  normal = normalize( vTBN * mapN );
+                #else
+                  normal = perturbNormal2Arb( - vViewPosition, normal, mapN, faceDirection );
+                #endif
+              #elif defined( USE_BUMPMAP )
+                normal = perturbNormalArb( - vViewPosition, normal, dHdxy_fwd(), faceDirection );
+              #endif
           `,
         } : {},
       }}

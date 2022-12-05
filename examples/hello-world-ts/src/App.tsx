@@ -40,25 +40,27 @@ function Terrain() {
     }
   ]
 
-  const grass1 = {
+  const grass2 = {
     diffuse: textures[1],
     normal: textures[2],
+    normalStrength: 0.0,
     repeat: 300,
-    saturation: 0.5,
     gridless: true,
-    tint: new Vector4(1,1.4,1,1),
+    saturation: 0.65,
     blend: {
       mode: "noise",
       octaves
     }
   };
 
-  const grass2 = {
+  const grass1 = {
     diffuse: textures[1],
     normal: textures[2],
+    normalStrength: 0.0,
     repeat: 300,
+    saturation: 0.55,
     gridless: true,
-    saturation: 0.6,
+    tint: new Vector4(1,1.2,1,1),
     blend: {
       mode: "noise",
       octaves
@@ -68,6 +70,7 @@ function Terrain() {
   const mud = {
     diffuse: textures[3],
     normal: textures[4],
+    normalStrength: 1.0,
     repeat: 200,
     saturation: 0.5,
   };
@@ -75,6 +78,8 @@ function Terrain() {
   const clif = {
     diffuse: textures[7],
     normal: textures[8],
+    normalStrength: 0.75,
+    tint: new Vector4(1.4,1.4,1.4,1),
     trilinear: true,
     gridless: true,
     repeat: 200,
@@ -86,25 +91,30 @@ function Terrain() {
   const rock = {
     diffuse: textures[5],
     normal: textures[6],
-    trilinear: false,
-    gridless: false,
-    repeat: 60,
+    normalStrength: 1.0,
+    tint: new Vector4(1.4,1.4,1.4,1),
+    trilinear: true,
+    gridless: true,
+    repeat: 200,
     saturation: 0.5,
   };
 
+  // TODO PRE RELEASE: Add AO map!!!!!!!!!!!!!!!!
 
   return textures ? (
-    <mesh rotation={[-Math.PI/2,0,-2*Math.PI/2]} position={[0,0,0]}>
+    <mesh rotation={[-1*Math.PI/2,0,-2.15*Math.PI/2]} position={[0,0,0]}>
       <planeBufferGeometry args={[1024, 1024, 1024 * 1.0, 1024 * 1.0]} />
       <SplatMaterial
         splats={[textures[11], textures[12]]}
-        surfaces={[rock, clif, mud, grass1, grass2, mud]}
+        // todo: after atlasing add mud back 
+        surfaces={[rock, clif, mud, grass1, grass2 /* mud */]}
         normalMap={textures[10]}
         displacementMap={textures[9]}
         displacementScale={100.0 }
-        normalScale={[3,2]}
-        // envMapIntensity={0.5} cv
-        // metalness={0.5}
+        normalScale={[1,1]}
+        orientation={[-1,1]}
+        envMapIntensity={0.5}
+        metalness={0.65}
         // roughness={0.85}
       />
     </mesh>
@@ -114,7 +124,6 @@ function Terrain() {
 
 function App() {
 
-
   return (
     <Canvas  camera={{fov:30, far: 2000, near:0.01, position:[0,3,3] }}>
       {/* <FirstPersonControls movementSpeed={100} lookSpeed={0.25} mom/> */}
@@ -122,12 +131,12 @@ function App() {
       <Stats />
       <OrbitControls />
       <Skybox fog={false} />
-      <fog attach="fog" args={['#9fdced', 0, 2000]} />
+      <fog attach="fog" args={['#9fdced', 0, 2500]} />
 
       <Environment preset="park" background={false} />
       {/* <spotLight position={[100,1000,-100]} intensity={0.25} color="blue" />  */}
-      <spotLight position={[-100,1000,-100]} intensity={0.25} color="yellow" />
-      {/* <ambientLight intensity={1.0} /> */}
+      {/* <spotLight position={[-100,1000,-100]} intensity={0.25} color="yellow" /> */}
+      <ambientLight intensity={1.0} />
       <Terrain />
     </Canvas>
   );

@@ -1,4 +1,5 @@
 import { RepeatWrapping, NearestFilter, LinearMipmapNearestFilter } from "three";
+import glsl from "glslify";
 
 export function getDimensions(texture) {
     return {
@@ -32,23 +33,23 @@ export const option = (arr, key, defaultValue?) => pipe(
   defined,
 )(arr)
 
-export const edgeBlend = `
-// operates on a weight
-float edgeBlend(float v, float blur, float amplitude, float wavelength, float accuracy){
-//   float k = texture2D( uNoise, vUv*wavelength*0.0075 ).x; // cheap (cache friendly) lookup
-  float k = noise(vUv*wavelength); // slower but may need to do it if at texture limit
-  return smoothstep(1.5-blur, 1.5 + blur, v*accuracy + k*amplitude);
-}
+export const edgeBlend = glsl`
+	// operates on a weight
+	float edgeBlend(float v, float blur, float amplitude, float wavelength, float accuracy){
+		//   float k = texture2D( uNoise, vUv*wavelength*0.0075 ).x; // cheap (cache friendly) lookup
+		float k = noise(vUv*wavelength); // slower but may need to do it if at texture limit
+		return smoothstep(1.5-blur, 1.5 + blur, v*accuracy + k*amplitude);
+	}
 
-float edgeBlend(float v, float blur){
-  float amplitude = 1.0;
-  float wavelength = 1024.0*64.0;
-  float accuracy  = 2.0;
-  return edgeBlend(v, blur, amplitude, wavelength, accuracy);
-}
+	float edgeBlend(float v, float blur){
+	float amplitude = 1.0;
+	float wavelength = 1024.0*64.0;
+	float accuracy  = 2.0;
+	return edgeBlend(v, blur, amplitude, wavelength, accuracy);
+	}
 `
 
-export const luma = `
+export const luma = glsl`
 	float luma(vec3 color) {
 		return dot(color, vec3(0.299, 0.587, 0.114));
   	}
@@ -58,72 +59,34 @@ export const luma = `
   	}
 `
 
-export const normalFunctions = `
-vec4 zeroN = vec4(0.5, 0.5, 1, 1);
+export const normalFunctions = glsl`
+	vec4 zeroN = vec4(0.5, 0.5, 1, 1);
 
-vec4 RotationFromZ(vec3 g1){
-	int x = floatBitsToInt(2.0 + g1.z * 2.0);
-	x = 0x5F37624F - (x >> 1);
-	float s = intBitsToFloat(x);
-	g1.x = 0.5;
-	return vec4(g1.y * s, -g1.x * s, 0.0, 0.5 / s);
-}
+	vec4 blend_rnm(vec4 n1, vec4 n2){
+		vec3 t = n1.xyz*vec3( 2,  2, 2) + vec3(-1, -1,  0);
+		vec3 u = n2.xyz*vec3(-2, -2, 2) + vec3( 1,  1, -1);
+		vec3 r = t*dot(t, u) /t.z -u;
+		return vec4((r), 1.0) * 0.5 + 0.5;
+	}
 
-vec4 nlerp(vec4 q0, vec4 q1, float t)
-{
-    return normalize(mix(q0, q1, t));
-}
-
-vec4 fnlerp(vec4 l, vec4 r, float t)
-{
-	float ca = dot(l, r);
-	float k = 0.931872f + ca * (-1.25654f + ca * 0.331442f);
-	float ot = t + t * (t - 0.5f) * (t - 1.0) * k;
-    return normalize(mix(l, r, ot));
-}
-
-vec4 slerp(vec4 a, vec4 b, float t)
-{
-    // Get half-angle between quaternions
-    float cos_theta = clamp(dot(a, b), -1.0, 1.0);
-    float theta = acos(cos_theta);
-    float sin_theta = sqrt(1.0 - cos_theta * cos_theta);
-
-    // Slerp
-    float t0 = sin((1.0 - t) * theta) / sin_theta;
-    float t1 = sin(t * theta) / sin_theta;
-    vec4 r;
-    r.x = a.x * t0 + b.x * t1;
-    r.y = a.y * t0 + b.y * t1;
-    r.z = a.z * t0 + b.z * t1;
-    r.w = a.w * t0 + b.w * t1;
-    return r;
-}
-
-vec3 TransformZ(vec4 q)
-{
-    // Transforming <0,0,1> by q where q.z = 0 for tangent-space normal
-    vec3 r;
-    r.x = -2.0 * q.w * q.y;
-    r.y =  2.0 * q.w * q.x;
-    r.z =  q.w * q.w - dot(q.xy, q.xy);
-    return r;
-}
-
-vec3 NormalBlend(vec3 n1, vec3 n2, float t)
-{
-    n1 = n1 * 2.0 - 1.0;
-    n2 = n2 * 2.0 - 1.0;
-        
-    vec4 q1 = RotationFromZ(n1);
-    vec4 q2 = RotationFromZ(n2);    
-    
-    vec4 qa = slerp(q1, q2, t);
-    return TransformZ(qa);
-}
+	vec4 slerp(vec4 p0, vec4 p1, float t)
+	{
+		float dotp = dot(normalize(p0), normalize(p1));
+		if ((dotp > 0.9999) || (dotp<-0.9999))
+		{
+			if (t<=0.5)
+			return p0;
+			return p1;
+		}
+		float theta = acos(dotp);
+		vec4 P = ((p0*sin((1.0-t)*theta) + p1*sin(t*theta)) / sin(theta));
+		P.w = 1.0;
+		return P;
+	}
+	
 `
 
-export const colorFunctions = `
+export const colorFunctions = glsl`
 	vec3 HSVtoRGB(in vec3 HSV){
 		float H   = HSV.x;
 		float R   = abs(H * 6.0 - 3.0) - 1.0;
@@ -153,7 +116,7 @@ export const colorFunctions = `
 `
 
 
-export const glslNoise = `
+export const glslNoise = glsl`
   // Precision-adjusted variations of https://www.shadertoy.com/view/4djSRW
   float hash(float p) { p = fract(p * 0.011); p *= p + 7.5; p *= p + p; return fract(p); }
   float hash(vec2 p) {vec3 p3 = fract(vec3(p.xyx) * 0.13); p3 += dot(p3, p3.yzx + 3.333); return fract((p3.x + p3.y) * p3.z); }
@@ -204,7 +167,7 @@ export const glslNoise = `
   }
 `
 
-export const paralax = `
+export const paralax = glsl`
 vec3 viewAngle( vec3 surfPosition, vec3 surfNormal, vec3 viewPosition, vec2 uv ) {
 	vec2 texDx = dFdx( uv );
 	vec2 texDy = dFdy( uv );
