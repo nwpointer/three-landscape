@@ -6,6 +6,22 @@ import noise from "./noise";
 import { option, repeatTextures, defined, colorFunctions, glslNoise, edgeBlend, luma, normalFunctions  } from './util.js'
 import { Vector4 } from 'three';
 
+function cartesian(args) {
+  var r = [], max = args.length-1;
+  function helper(arr, i) {
+      for (var j=0, l=args[i].length; j<l; j++) {
+          var a = arr.slice(0); // clone arr
+          a.push(args[i][j]);
+          if (i==max)
+              r.push(a);
+          else
+              helper(a, i+1);
+      }
+  }
+  helper([], 0);
+  return r;
+}
+
 // substance instead of material?
 export type Surface = {
   diffuse: Texture;
@@ -52,7 +68,7 @@ export default function TerrainMaterial(props: {
   const sample = (i)=>{
     let color;
     const index = i.toString();
-    color = glsl`${trilinear[i] ? 'Tri':''}${gridless[i] ? 'Gridless':''}Sample(uDiffuse[${index}], vUv, uRepeat[${index}] )`
+    color = glsl`${trilinear[i] ? 'Tri':''}${gridless[i] ? 'Gridless':''}SampleLinear(uDiffuse[${index}], vUv, uRepeat[${index}] )`
     color = glsl`saturation(${color}, uSaturation[${index}])`
     color = glsl`${color} * uTint[${index}]`
     return color
@@ -160,21 +176,21 @@ export default function TerrainMaterial(props: {
 
         // MIXERS ----------------------------------------------------------------
         
-        vec3 linearMix(vec3[2] c, float weight){
+        vec3 LinearMix(vec3[2] c, float weight){
           return mix( c[0], c[1], weight);
         }
 
-        vec3 linearMix(vec3[3] c, vec3 weights){
+        vec3 LinearMix(vec3[3] c, vec3 weights){
           // color normalize (works better than normalize)
           weights /= sum(weights);
           return (c[0] * weights.x + c[1] * weights.y + c[2] * weights.z);
         }
 
-        vec3 normalMix(vec3[2] c, float weight){
+        vec3 NormalMix(vec3[2] c, float weight){
           return NormalBlend(c[0], c[1], weight);
         }
 
-        vec3 normalMix(vec3[3] c, vec3 weights){
+        vec3 NormalMix(vec3[3] c, vec3 weights){
           vec3 colora = NormalBlend(c[2], vec3(0.5, 0.5, 1), 1.0-weights.z);
           vec3 colorb = NormalBlend(c[1], colora, 1.0-weights.y);
           vec3 colorc = NormalBlend(c[0], colorb, 1.0-weights.x);
@@ -183,67 +199,73 @@ export default function TerrainMaterial(props: {
 
         // SAMPLERS ----------------------------------------------------------------
 
-        vec4 Sample( sampler2D samp, vec2 uv, float scale){
-          return texture2D(samp, uv * scale);
-        }
-
-        vec4 GridlessSample( sampler2D samp, vec2 uv, float scale ){
-          uv = uv * scale;
-          // sample variation pattern
-          float k = texture2D( uNoise, 0.005*uv ).x; // cheap (cache friendly) lookup
-          // float k = noise(2.0*uv); // slower but may need to do it if at texture limit
-
-        
-          // compute index
-          float l = k*8.0;
-          float f = fract(l);
-          float ia = floor(l);
-          float ib = ia + 1.0;
-
-          // offsets for the different virtual patterns
-          float v = 0.4;
-          vec2 offa = sin(vec2(3.0,7.0)*ia); // can replace with any other hash
-          vec2 offb = sin(vec2(3.0,7.0)*ib); // can replace with any other hash
-
-          // compute derivatives for mip-mapping, requires shader extension derivatives:true
-          vec2 dx = dFdx(uv), dy = dFdy(uv);
-          // sample the two closest virtual patterns
-          vec3 cola = texture2DGradEXT( samp, uv + v*offa, dx, dy ).xyz;
-          vec3 colb = texture2DGradEXT( samp, uv + v*offb, dx, dy ).xyz;
-
-          // interpolate between the two virtual patterns
-          vec3 color = linearMix( vec3[2](cola, colb), smoothstep(0.2,0.8,f-0.1*sum(cola-colb)) );
-          return vec4(color,1.0);
-        }
-
-
-        // todo pass in a mixer:
-        ${[['GridlessSample'], ['Sample']].map(([sampler])=>{
+        ${cartesian([['Linear', 'Normal']]).map(([mixer])=>{
           return glsl`
-          vec4 Tri${sampler}(sampler2D map, vec2 uv, float scale){
+            // single channel sample does not care about mixer but having both simplifies other code
+            vec4 Sample${mixer}( sampler2D samp, vec2 uv, float scale){
+              return texture2D(samp, uv * scale);
+            }
+          `;
+        }).join("\n")}
+
+        ${cartesian([['Linear', 'Normal']]).map(([mixer])=>{
+          return glsl`
+            vec4 GridlessSample${mixer}( sampler2D samp, vec2 uv, float scale ){
+              uv = uv * scale;
+              // sample variation pattern
+              float k = texture2D( uNoise, 0.005*uv ).x; // cheap (cache friendly) lookup
+              // float k = noise(2.0*uv); // slower but may need to do it if at texture limit
+            
+              // compute index
+              float l = k*8.0;
+              float f = fract(l);
+              float ia = floor(l);
+              float ib = ia + 1.0;
+    
+              // offsets for the different virtual patterns
+              float v = 0.4;
+              vec2 offa = sin(vec2(3.0,7.0)*ia); // can replace with any other hash
+              vec2 offb = sin(vec2(3.0,7.0)*ib); // can replace with any other hash
+    
+              // compute derivatives for mip-mapping, requires shader extension derivatives:true
+              vec2 dx = dFdx(uv), dy = dFdy(uv);
+              // sample the two closest virtual patterns
+              vec3 cola = texture2DGradEXT( samp, uv + v*offa, dx, dy ).xyz;
+              vec3 colb = texture2DGradEXT( samp, uv + v*offb, dx, dy ).xyz;
+    
+              // interpolate between the two virtual patterns
+              vec3 color = ${mixer}Mix( vec3[2](cola, colb), smoothstep(0.2,0.8,f-0.1*sum(cola-colb)) );
+              return vec4(color,1.0);
+            }
+          `;
+        }).join("\n")}
+
+        ${cartesian([['GridlessSample', 'Sample'], ['Linear', 'Normal']]).map(([sampler, mixer])=>{
+          return glsl`
+          vec4 Tri${sampler}${mixer}(sampler2D map, vec2 uv, float scale){
             float sharpness = 10.0;
             vec3 weights = abs(pow3(vGeometryNormal, sharpness * 2.0));
 
             // cheap 1 channel sample
             float cutoff = 1.5;
             if(weights.z >cutoff*weights.x && weights.z > cutoff*weights.y){
-              return ${sampler}(map, csm_vWorldPosition.xy, scale);
+              return ${sampler}${mixer}(map, csm_vWorldPosition.xy, scale);
             }
 
             if(weights.x >cutoff*weights.z && weights.x > cutoff*weights.y){
-              return ${sampler}(map, csm_vWorldPosition.yz, scale);
+              return ${sampler}${mixer}(map, csm_vWorldPosition.yz, scale);
             }
 
             if(weights.y >cutoff*weights.z && weights.y > cutoff*weights.x){
-              return ${sampler}(map, csm_vWorldPosition.xz, scale);
+              return ${sampler}${mixer}(map, csm_vWorldPosition.xz, scale);
             }
             
             // expensive 3 channel blend
-            vec3 xDiff = ${sampler}(map, csm_vWorldPosition.yz, scale).xyz;
-            vec3 yDiff = ${sampler}(map, csm_vWorldPosition.xz, scale).xyz;
-            vec3 zDiff = ${sampler}(map, csm_vWorldPosition.xy, scale).xyz;
+            vec3 xDiff = ${sampler}${mixer}(map, csm_vWorldPosition.yz, scale).xyz;
+            vec3 yDiff = ${sampler}${mixer}(map, csm_vWorldPosition.xz, scale).xyz;
+            vec3 zDiff = ${sampler}${mixer}(map, csm_vWorldPosition.xy, scale).xyz;
 
-            vec3 color = linearMix(vec3[3](xDiff,yDiff,zDiff), weights);
+            vec3 color = LinearMix(vec3[3](xDiff,yDiff,zDiff), weights);
             return vec4(color,1.0);
             
           }
