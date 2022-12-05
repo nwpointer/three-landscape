@@ -48,11 +48,11 @@ export default function TerrainMaterial(props: {
   const numSplats = props.splats.length;
   const numSplatChannels = props.splats.length * 4.0;
 
+
   const sample = (i)=>{
     let color;
     const index = i.toString();
-    const arg = trilinear[i] ? glsl`uRepeat[${index}]` : `vUv * uRepeat[${index}]`;
-    color = glsl`${trilinear[i] ? 'Tri':''}${gridless[i] ? 'Gridless':''}Sample(uDiffuse[${index}], ${arg})`
+    color = glsl`${trilinear[i] ? 'Tri':''}${gridless[i] ? 'Gridless':''}Sample(uDiffuse[${index}], vUv, uRepeat[${index}] )`
     color = glsl`saturation(${color}, uSaturation[${index}])`
     color = glsl`${color} * uTint[${index}]`
     return color
@@ -143,6 +143,10 @@ export default function TerrainMaterial(props: {
           return splatWeights;
         }
 
+        vec3 pow3(vec3 n, float x){
+          return vec3(pow(n.x,x),pow(n.y,x),pow(n.z,x));
+        }
+
         vec2 rotateUV(vec2 uv, float rotation)
         {
             float mid = 0.5;
@@ -153,7 +157,8 @@ export default function TerrainMaterial(props: {
         }
 
         float sum( vec3 v ) { return v.x+v.y+v.z; }
-        
+
+        // MIXERS ----------------------------------------------------------------
         
         vec3 linearMix(vec3[2] c, float weight){
           return mix( c[0], c[1], weight);
@@ -176,15 +181,19 @@ export default function TerrainMaterial(props: {
           return colorc;
         }
 
-        vec4 Sample( sampler2D samp, vec2 uv ){
-          return texture2D(samp, uv);
+        // SAMPLERS ----------------------------------------------------------------
+
+        vec4 Sample( sampler2D samp, vec2 uv, float scale){
+          return texture2D(samp, uv * scale);
         }
 
-        vec4 GridlessSample( sampler2D samp, vec2 uv ){
+        vec4 GridlessSample( sampler2D samp, vec2 uv, float scale ){
+          uv = uv * scale;
           // sample variation pattern
           float k = texture2D( uNoise, 0.005*uv ).x; // cheap (cache friendly) lookup
           // float k = noise(2.0*uv); // slower but may need to do it if at texture limit
 
+        
           // compute index
           float l = k*8.0;
           float f = fract(l);
@@ -207,46 +216,32 @@ export default function TerrainMaterial(props: {
           return vec4(color,1.0);
         }
 
-        vec3 pow3(vec3 n, float x){
-          return vec3(pow(n.x,x),pow(n.y,x),pow(n.z,x));
-        }
-
-        vec3 calculateNormalsFromHeightMap(){
-          float o = 1.0/1024.0;
-          float h = dot(texture2D(displacementMap, vUv),  vec4(1,0,0,1));
-          float hx = dot(texture2D(displacementMap, vUv + vec2( o, 0.0 )), vec4(1,0,0,1));
-          float hy = dot(texture2D(displacementMap, vUv + vec2( 0.0, o )),  vec4(1,0,0,1));
-          float dScale = 150.0;
-          float dx = (hx - h) * dScale;
-          float dy = (hy - h) * dScale;
-          return (cross(vec3(1.0,0.0,dx), vec3(0.0,1.0,dy)));
-        }
 
         // todo pass in a mixer:
         ${[['GridlessSample'], ['Sample']].map(([sampler])=>{
           return glsl`
-          vec4 Tri${sampler}(sampler2D map, float scale){
+          vec4 Tri${sampler}(sampler2D map, vec2 uv, float scale){
             float sharpness = 10.0;
             vec3 weights = abs(pow3(vGeometryNormal, sharpness * 2.0));
 
             // cheap 1 channel sample
             float cutoff = 1.5;
             if(weights.z >cutoff*weights.x && weights.z > cutoff*weights.y){
-              return ${sampler}(map, (csm_vWorldPosition.xy * scale));
+              return ${sampler}(map, csm_vWorldPosition.xy, scale);
             }
 
             if(weights.x >cutoff*weights.z && weights.x > cutoff*weights.y){
-              return ${sampler}(map, (csm_vWorldPosition.yz * scale));
+              return ${sampler}(map, csm_vWorldPosition.yz, scale);
             }
 
             if(weights.y >cutoff*weights.z && weights.y > cutoff*weights.x){
-              return ${sampler}(map, (csm_vWorldPosition.xz * scale));
+              return ${sampler}(map, csm_vWorldPosition.xz, scale);
             }
             
             // expensive 3 channel blend
-            vec3 xDiff = ${sampler}(map, (csm_vWorldPosition.yz * scale)).xyz;
-            vec3 yDiff = ${sampler}(map, (csm_vWorldPosition.xz * scale)).xyz;
-            vec3 zDiff = ${sampler}(map, (csm_vWorldPosition.xy * scale)).xyz;
+            vec3 xDiff = ${sampler}(map, csm_vWorldPosition.yz, scale).xyz;
+            vec3 yDiff = ${sampler}(map, csm_vWorldPosition.xz, scale).xyz;
+            vec3 zDiff = ${sampler}(map, csm_vWorldPosition.xy, scale).xyz;
 
             vec3 color = linearMix(vec3[3](xDiff,yDiff,zDiff), weights);
             return vec4(color,1.0);

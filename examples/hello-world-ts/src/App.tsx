@@ -81,12 +81,14 @@ function Terrain() {
     saturation: 0.5,
   };
 
+  // problem: this tock texture is suppose to add macro scratches etc but its getting blown out in the render
+  // -> would be good to have a strength param or something to modify the weight
   const rock = {
     diffuse: textures[5],
     normal: textures[6],
-    trilinear: true,
-    gridless: true,
-    repeat: 400,
+    trilinear: false,
+    gridless: false,
+    repeat: 60,
     saturation: 0.5,
   };
 
