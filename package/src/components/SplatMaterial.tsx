@@ -55,20 +55,18 @@ export default function TerrainMaterial(props: {
     t.encoding = sRGBEncoding
     t.needsUpdate = true;
   })
-
-  console.log(props.displacementMap);
   
   // apply repetition option to all textures
   repeatTextures(textures)
 
   const numSplats = props.splats.length;
   const numSplatChannels = props.splats.length * 4.0;
+  const numSufaces = props.surfaces.length
 
-
-  const sample = (i)=>{
+  const sample = (i, mixer="Linear", map="uDiffuse")=>{
     let color;
     const index = i.toString();
-    color = glsl`${trilinear[i] ? 'Tri':''}${gridless[i] ? 'Gridless':''}SampleLinear(uDiffuse[${index}], vUv, uRepeat[${index}] )`
+    color = glsl`${trilinear[i] ? 'Tri':''}${gridless[i] ? 'Gridless':''}Sample${mixer}(${map}[${index}], vUv, uRepeat[${index}] )`
     color = glsl`saturation(${color}, uSaturation[${index}])`
     color = glsl`${color} * uTint[${index}]`
     return color
@@ -138,6 +136,11 @@ export default function TerrainMaterial(props: {
         uniform float uSaturation[${saturation.length}];
         uniform vec4 uTint[${tint.length}];
         uniform sampler2D displacementMap;
+        uniform sampler2D uTextures[${textures.length}];
+        uniform int uTextureMap[1];
+        uniform vec2 uTextureOffset[1];
+        uniform vec2 uTextureSize[1];
+
       
         ${glslNoise}
         ${colorFunctions}
@@ -290,9 +293,24 @@ export default function TerrainMaterial(props: {
           }).join("+")};
 
           csm_DiffuseColor = normalize(csm_DiffuseColor);
+
           
-          ${props.normalMap && `
-          csm_NormalMap = texture2D(normalMap, vUv).xyz;
+          
+          ${props.normalMap && glsl`
+            csm_NormalMap = texture2D(normalMap, vUv).xyz;
+            // csm_NormalMap = NormalMix(vec3[2](csm_NormalMap, (${sample(4, 'Normal', 'uNormal' )}).xyz ), 0.5);
+
+
+            // OK TWO PROBLEMS: 
+            // REALLY NEED SOME TEXTURE PACKING and/or get rid of uNoise texture
+            // Need to Debug my normal adder cause it fucked up
+
+            // csm_DiffuseColor = texture2D(normalMap, vUv);
+            // csm_DiffuseColor = vec4(
+            //   NormalMix(vec3[2](csm_NormalMap, (${sample(0, 'Normal')}).xyz ), 0.25),
+            //   1.0
+            // );
+            
           `}
         }
       `}
