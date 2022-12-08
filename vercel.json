@@ -1,5 +1,5 @@
 {
     "buildCommand": "npm run build --workspaces",
-    "outputDirectory": "examples/highlands",
+    "outputDirectory": "examples/highlands/dist",
     "framework": "vite"
 }
