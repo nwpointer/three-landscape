@@ -5,6 +5,8 @@ import glsl from "glslify";
 import noise from "./noise";
 import { option, repeatTextures, defined, colorFunctions, glslNoise, edgeBlend, luma, normalFunctions  } from './util.js'
 import { Vector4 } from 'three';
+import TextureMerger from '../textureMerger'
+import { useThree } from "@react-three/fiber";
 
 function cartesian(args) {
   var r = [], max = args.length-1;
@@ -30,7 +32,31 @@ export type Surface = {
   repeat?: Number;
   saturation?: Number;
   tint?: Vector4
+  splatId?: Number;
 };
+
+function onlyUnique(value, index, self) {
+  return self.indexOf(value) === index;
+}
+
+function removeDuplicated(values){
+  const flag = {};
+  const unique = [];
+  values.map(object => {
+    if(!flag[object.uuid]){
+      flag[object.uuid] = true;
+      unique.push(object)
+    }
+  })
+  return unique;
+}
+
+function toObject(arr) {
+  var rv = {};
+  for (var i = 0; i < arr.length; ++i)
+    rv[i] = arr[i];
+  return rv;
+}
 
 export default function TerrainMaterial(props: {
   wireframe?: boolean;
@@ -40,8 +66,10 @@ export default function TerrainMaterial(props: {
   noise?: Texture;
   displacementMap?: Texture;
   normalMap?: Texture;
+  normalScale: [Number, Number];
   displacementScale: Number;
 }) {
+  const {gl} = useThree();
   const diffuse = option(props.surfaces, 'diffuse')
   const normal = option(props.surfaces, 'normal')
   const repeat = option(props.surfaces, 'repeat', 1)
@@ -50,13 +78,41 @@ export default function TerrainMaterial(props: {
   const gridless = option(props.surfaces, 'gridless', false)
   const blend = option(props.surfaces, 'blend', { mode: 'linear'})
   const trilinear = option(props.surfaces, 'trilinear', false)
-  const textures = defined([...props.splats, ...diffuse, ...normal, noise])
+  const surfaceTextures = [...diffuse, ...normal];
+  const textures = defined([...props.splats, ...surfaceTextures, noise])
+  const createAtlas = false;
 
   diffuse.map(t => {
     t.encoding = sRGBEncoding
     t.needsUpdate = true;
   })
+
+  // check for duplicate textures by texture uuid
+  const ti = surfaceTextures.map(t=>t.uuid).filter(onlyUnique)
+  const tx = removeDuplicated(surfaceTextures);
+  const textureMap = []
+  props.surfaces.forEach((surface, s) => {
+    textureMap[s] = {}
+    textureMap[s].splatId = typeof surface.splatId != 'undefined' ? surface.splatId : s;
+    for(const textureType of ['normal', 'diffuse']){
+      textureMap[s][textureType] = {
+        id: surface[textureType] ? ti.indexOf(surface[textureType].uuid) : -1
+      }
+    }
+  })
+
+
+  // TODO: only create atlas if nessisary?
+  if(true){
+    var textureMerger = new TextureMerger( toObject(tx), gl.capabilities.maxTextureSize);
+    var atlas = [textureMerger.mergedTexture];
+    // startU, endU, startV, endV
+    var ranges = Object.values(textureMerger.ranges).map(range => Object.values(range))
+    console.log({ranges})
+  }
   
+
+  // const nids = (props.surfaces.map(surface => tid.indexOf())
   // apply repetition option to all textures
   repeatTextures(textures)
 
@@ -64,10 +120,24 @@ export default function TerrainMaterial(props: {
   const numSplatChannels = props.splats.length * 4.0;
   const numSufaces = props.surfaces.length
 
-  const sample = (i, mixer="Linear", map="uDiffuse")=>{
+  // TODO: modify sampler to use the generated atlas
+
+  const sample = (i, mixer="Linear", map="diffuse")=>{
     let color;
     const index = i.toString();
-    color = glsl`${trilinear[i] ? 'Tri':''}${gridless[i] ? 'Gridless':''}Sample${mixer}(${map}[${index}], vUv, uRepeat[${index}] )`
+    const textureIndex = textureMap[i][map].id.toString();
+    if(createAtlas){
+      var map = `uAtlas[0]` // todo support multiple atlas
+      const [startU, endU, startV, endV] = ranges[textureIndex].map(v=>v.toFixed(8));
+      const coordX = `(vUv.x * (${endU} - ${startU}) + ${startU})`;
+      const coordY = `(vUv.y * (${startV} - ${endV}) + ${endV})`;
+      var uv = `vec2(${coordX}, ${coordY})`
+    } else {
+      var map = `uTextures[${textureIndex}]`
+      var uv = `vUv`
+    }
+    // todo handle index -1?
+    color = glsl`${trilinear[i] ? 'Tri':''}${gridless[i] ? 'Gridless':''}Sample${mixer}(${map}, ${uv}, uRepeat[${index}] )`
     color = glsl`saturation(${color}, uSaturation[${index}])`
     color = glsl`${color} * uTint[${index}]`
     return color
@@ -87,6 +157,10 @@ export default function TerrainMaterial(props: {
         uRepeat: { value: repeat },
         uSaturation: { value: saturation },
         uTint: { value: tint, type:'vec4' },
+        uAtlas: { value: atlas}, 
+        // uNormalID: {value: textureMap.map(t=>t.normal.id)},
+        // uDiffuseID: {value: textureMap.map(t=>t.diffuse.id)},
+        uTextures: {value: tx }
       }}
       vertexShader={glsl`
         varying vec4 csm_vWorldPosition;
@@ -129,16 +203,25 @@ export default function TerrainMaterial(props: {
         vec3 csm_NormalMap;
         
         // precision highp float;
-        uniform sampler2D uNoise;
-        uniform sampler2D uSplats[${numSplats}];
-        uniform sampler2D uDiffuse[${diffuse.length}];
-        uniform sampler2D uNormal[${normal.length}];
         uniform float uRepeat[${repeat.length}];
         uniform float uSaturation[${saturation.length}];
         uniform vec4 uTint[${tint.length}];
+        
+        
+        // texture indexes
+        // uniform sampler2D uDiffuse[${diffuse.length}];
+        // uniform sampler2D uNormal[${normal.length}];
+
+        uniform sampler2D uNoise;
+        uniform sampler2D uSplats[${numSplats}];
         uniform sampler2D displacementMap;
-        uniform sampler2D uTextures[${textures.length}];
-        uniform int uTextureMap[${numSufaces}];
+        // uniform sampler2D normalMap; // is allready defined
+        uniform sampler2D uTextures[${tx.length}];
+        uniform sampler2D uAtlas[1];
+        
+        // will probably be able to inline this info, so no need for vars?:
+        // uniform int uNormalID[${numSufaces}];
+        // uniform int uDiffuseID[${numSufaces}];
         uniform vec2 uTextureOffset[${numSufaces}];
         uniform vec2 uTextureSize[${numSufaces}];
 
@@ -198,10 +281,16 @@ export default function TerrainMaterial(props: {
         }
 
         vec3 NormalMix(vec3 c0, vec3 c1, vec3 c2, vec3 weights){
-          vec3 colora = NormalMix(c2, vec3(0.5, 0.5, 1), 1.0-weights.z);
-          vec3 colorb = NormalMix(c1, colora, 1.0-weights.y);
+          weights /= sum(weights);
+          // vec3 colora = NormalMix(c2, zeroN.xyz, 1.0-weights.z);
+
+          // return c2;
+
+          // skiping colora is cool and leads to this sedementary rock vibe but probably just want to reutrn the top two
+          vec3 colora = slerp(zeroN, vec4(c0, 1.0), weights.z).xyz;
+          vec3 colorb = NormalMix(c1, zeroN.xyz, 1.0-weights.y);
           vec3 colorc = NormalMix(c0, colorb, 1.0-weights.x);
-          return colorc;
+          return colorb;
         }
 
         // SAMPLERS ----------------------------------------------------------------
@@ -220,8 +309,8 @@ export default function TerrainMaterial(props: {
             vec4 GridlessSample${mixer}( sampler2D samp, vec2 uv, float scale ){
               uv = uv * scale;
               // sample variation pattern
-              // float k = texture2D( uNoise, 0.005*uv ).x; // cheap (cache friendly) lookup
-              float k = noise(2.0*uv); // slower but may need to do it if at texture limit
+              float k = texture2D( uNoise, 0.005*uv ).x; // cheap (cache friendly) lookup
+              // float k = noise(2.0*uv); // slower but may need to do it if at texture limit
             
               // compute index
               float l = k*8.0;
@@ -254,7 +343,7 @@ export default function TerrainMaterial(props: {
             vec3 weights = abs(pow3(vGeometryNormal, sharpness * 2.0));
 
             // cheap 1 channel sample
-            float cutoff = 1.5;
+            float cutoff = 10.5;
             if(weights.z >cutoff*weights.x && weights.z > cutoff*weights.y){
               return ${sampler}${mixer}(map, csm_vWorldPosition.xy, scale);
             }
@@ -266,6 +355,9 @@ export default function TerrainMaterial(props: {
             if(weights.y >cutoff*weights.z && weights.y > cutoff*weights.x){
               return ${sampler}${mixer}(map, csm_vWorldPosition.xz, scale);
             }
+            
+            // TODO: Normies create pilling on surface :( had to raise cut off from 1.5 -> 3.5
+            // TODO: why can't I ad normals at strenght = 1.0;
             
             // expensive 3 channel blend
             vec3 xDiff = ${sampler}${mixer}(map, csm_vWorldPosition.yz, scale).xyz;
@@ -309,7 +401,7 @@ export default function TerrainMaterial(props: {
               const index = i.toString();
               const normalStrength = (typeof surface.normalStrength === undefined ? 1 : surface.normalStrength).toFixed(8);
               if(normalStrength === (0).toFixed(8)) return null; // don't sample if strength is 0
-              return glsl`n = NormalMix(n,  (${sample(i, 'Normal', 'uNormal' )}).xyz, splatWeights[${index}] * ${normalStrength});`
+              return glsl`n = NormalMix(n,  (${sample(i, 'Normal', 'normal' )}).xyz, splatWeights[${index}] * ${normalStrength});`
             }).filter(v=>v).join("\n")}
 
             csm_NormalMap = n;
