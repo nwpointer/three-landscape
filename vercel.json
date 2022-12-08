@@ -1,4 +1,0 @@
-{
-    "buildCommand": "npm run build --workspaces",
-    "outputDirectory": "examples/highlands"
-}

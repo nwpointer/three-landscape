@@ -2,8 +2,8 @@
   "name": "three-landscape",
   "version": "0.5.0",
   "description": "",
-  "main": "dist/index.js",
-  "types": "dist/index.d.js",
+  "main": "dist/index",
+  "types": "dist/index",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "dev": "tsc -w --emitDeclarationOnly & swc -w ./src/ --out-dir ./dist",
