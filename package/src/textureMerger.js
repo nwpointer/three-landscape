@@ -45,8 +45,6 @@ TextureMergerRectangle.prototype.overlaps = function (rect) {
 var TextureMerger = function (texturesObj, maxSize) {
   this.MAX_TEXTURE_SIZE = maxSize || 4096;
 
-  console.log(texturesObj);
-
   if (!texturesObj) {
     return;
   }
