@@ -6,7 +6,8 @@
   "types": "dist/index.d.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "build": "tsc -w --emitDeclarationOnly & swc -w ./src/ --out-dir ./dist"
+    "dev": "tsc -w --emitDeclarationOnly & swc -w ./src/ --out-dir ./dist",
+    "build": "tsc --emitDeclarationOnly & swc ./src/ --out-dir ./dist"
   },
   "repository": {
     "type": "git",

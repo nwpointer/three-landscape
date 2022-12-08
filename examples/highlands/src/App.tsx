@@ -1,5 +1,5 @@
 import { Canvas, useThree } from "@react-three/fiber";
-import { TerrainMaterial, useProgressiveTexture } from "three-landscape";
+import { TerrainMaterial, useProgressiveTextures } from "three-landscape";
 import { OrbitControls, useTexture, Environment, FlyControls, FirstPersonControls, PointerLockControls, PerformanceMonitor, Stats, useProgress, Html } from "@react-three/drei";
 import { Skybox } from './Skybox'
 import { Vector4 } from 'three';
@@ -7,7 +7,7 @@ import { Suspense, useEffect } from "react";
 
 function Terrain() {
 
-  const [q, textures] = useProgressiveTexture([[
+  const [q, textures] = useProgressiveTextures([[
     "/aomap.png",
     "/Grass_02/ground_Grass1_col.jpg",
     "/Grass_02/ground_Grass1_norm.jpg",
@@ -130,13 +130,13 @@ function Terrain() {
         normalMap={t[10]}
         displacementMap={t[9]}
         displacementScale={100.0 }
-        normalScale={[1,1]}
-        orientation={[-1,1]}
+        // normalScale={[1,1]}
+        // orientation={[-1,1]}
         envMapIntensity={0.5}
         metalness={0.5}
         aoMap = {t[0]}
         aoMapIntensity={0.5}
-        // roughness={0.8}
+        roughness={0.8}
       />
     </mesh>
   ) : null;

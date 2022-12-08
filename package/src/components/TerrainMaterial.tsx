@@ -6,7 +6,7 @@ import noise from "./noise";
 import { option, repeatTextures, defined, colorFunctions, glslNoise, edgeBlend, luma, normalFunctions  } from './util.js'
 import { Vector4 } from 'three';
 import TextureMerger from '../textureMerger'
-import { useThree } from "@react-three/fiber";
+import { useThree, MeshStandardMaterialProps } from "@react-three/fiber";
 
 function cartesian(args) {
   var r = [], max = args.length-1;
@@ -58,7 +58,7 @@ function toObject(arr) {
   return rv;
 }
 
-export default function TerrainMaterial(props: {
+export default function TerrainMaterial(props: MeshStandardMaterialProps & {
   wireframe?: boolean;
   surfaces: Surface[];
   map?: Texture;
@@ -66,7 +66,7 @@ export default function TerrainMaterial(props: {
   noise?: Texture;
   displacementMap?: Texture;
   normalMap?: Texture;
-  normalScale: [Number, Number];
+  normalScale?: [Number, Number];
   displacementScale: Number;
 }) {
   const {gl} = useThree();
@@ -142,7 +142,7 @@ export default function TerrainMaterial(props: {
   }
 
   return (
-    // @ts-expect-error
+    
     <CustomShaderMaterial
       baseMaterial={MeshStandardMaterial}
       {...props}
@@ -154,6 +154,7 @@ export default function TerrainMaterial(props: {
         uNormal: { value: normal },
         uRepeat: { value: repeat },
         uSaturation: { value: saturation },
+        // @ts-expect-error
         uTint: { value: tint, type:'vec4' },
         uAtlas: { value: atlas}, 
         // uNormalID: {value: textureMap.map(t=>t.normal.id)},
