@@ -31,7 +31,7 @@ function Terrain() {
     "/Cliffs_02/Rock_DarkCrackyCliffs_norm.png",
     "/Rock_04/Rock_sobermanRockWall_col.jpg",
     "/Rock_04/Rock_sobermanRockWall_norm.jpg",
-    `/heightmap.png`,
+    `/heightmap@0.5.png`,
     `/normalmap.png`,
     `/splatmap_00.png`,
     `/splatmap_01.png`
@@ -95,18 +95,7 @@ function Terrain() {
   const clif = {
     diffuse: t[7],
     normal: t[8],
-    normalStrength: 0.25,
-    tint: new Vector4(1.5,1.5,1.5,1),
-    trilinear: true,
-    gridless: true,
-    repeat: 400,
-    saturation: 0.5,
-  };
-
-  const rock = {
-    diffuse: t[5],
-    normal: t[6],
-    normalStrength: 0.5,
+    normalStrength: 0.75,
     tint: new Vector4(1.5,1.5,1.5,1),
     trilinear: true,
     gridless: true,
@@ -114,11 +103,27 @@ function Terrain() {
     saturation: 0.5,
   };
 
+  const rock = {
+    diffuse: t[5],
+    normal: t[6],
+    normalStrength: 0.75,
+    tint: new Vector4(1.5,1.5,1.5,1),
+    trilinear: true,
+    gridless: true,
+    repeat: 100,
+    saturation: 0.5,
+  };
+
   // TODO PRE RELEASE: Add AO map!!!!!!!!!!!!!!!!
 
   return textures ? (
     <mesh rotation={[-1*Math.PI/2,0,-3.35*Math.PI/2]} position={[0,0,0]}>
-      <planeBufferGeometry args={[1024, 1024, 1024 * 1.0, 1024 * 1.0]} />
+      <planeBufferGeometry args={[1024, 1024, 1024 * 1.0, 1024 * 1.0]} ref={geometry => {
+        if(geometry){
+          geometry.attributes.uv2 = geometry.attributes.uv.clone();
+          geometry.needsUpdate = true;
+        }
+      }} />
       <TerrainMaterial
         splats={[t[11], t[12]]}
         surfaces={[rock, clif, mud, grass1, grass2, mud, mud]}
@@ -127,9 +132,10 @@ function Terrain() {
         displacementScale={100.0 }
         normalScale={[1,1]}
         orientation={[-1,1]}
-        envMapIntensity={0.35}
+        envMapIntensity={0.5}
         metalness={0.5}
-        // aoMap = {t[0]}
+        aoMap = {t[0]}
+        aoMapIntensity={0.5}
         // roughness={0.8}
       />
     </mesh>
@@ -143,7 +149,7 @@ function App() {
       {/* <Stats /> */}
       <OrbitControls />
       <fog attach="fog" args={['#9fdced', 0, 2000]} />
-      <ambientLight intensity={0.25} />
+      <ambientLight intensity={0.5} />
       <Suspense fallback={<Progress />}>
         <Environment preset="park" background={false} />
         <Skybox fog={false} />
