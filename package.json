@@ -11,6 +11,7 @@
     "examples/highlands"
   ],
   "dependencies": {
-    "leva": "^0.9.34"
+    "leva": "^0.9.34",
+    "r3f-perf": "^6.6.0"
   }
 }

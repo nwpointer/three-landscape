@@ -231,6 +231,8 @@ export default function TerrainMaterial(props: MeshStandardMaterialProps & {
         ${luma}
         ${normalFunctions}
 
+        vec3 n2;
+
         // TODO: proper handling of variable numbers of channels w/ forloop
         float[${numSplatChannels}] splat(){
           float splatWeights[${numSplatChannels}];
@@ -276,40 +278,27 @@ export default function TerrainMaterial(props: MeshStandardMaterialProps & {
         }
 
         vec3 NormalMix(vec3 c0, vec3 c1, float weight){
-          // return c1;
           return blend_rnm(
-            vec4(c0, 1.0),
+            slerp(zeroN, vec4(c0, 1.0), 1.0 - weight),
+            // vec4(c0, 1.0),
             slerp(zeroN, vec4(c1, 1.0), weight) // mix also works but is slightly wrong
           ).xyz;
         }
 
         vec3 NormalMix(vec3 c0, vec3 c1, vec3 c2, vec3 weights){
           weights /= sum(weights);
-          // vec3 colora = NormalMix(c2, zeroN.xyz, 1.0-weights.z);
-
-          // return c2;
-
-          // TODO: figure out proper blend
-
-          // mix two most dominant 
-          // if(weights[1] < weights[0] && weights[1] < weights[2]){
-          //   float ratio = weights[0] / (weights[0] + weights[2]);
-          //   return NormalMix(c0, c2, ratio);
-          // }
-          // if(weights[0] < weights[0] && weights[0] < weights[2]){
-          //   float ratio = weights[1] / (weights[1] + weights[2]);
-          //   return NormalMix(c1, c2, ratio);
-          // }
-          // if(weights[2] < weights[0] && weights[2] < weights[1]){
-          //   float ratio = weights[0] / (weights[0] + weights[1]);
-          //   return NormalMix(c0, c1, ratio);
-          // }
-
+          
           // mixing all three just looks messy most of the time
-          vec3 colora = slerp(zeroN, vec4(c0, 1.0), weights.z).xyz;
-          vec3 colorb = NormalMix(c1, colora, 1.0-weights.y);
-          vec3 colorc = NormalMix(c0, colorb, 1.0-weights.x);
-          return colorc;
+          // vec3 colora = slerp(zeroN, vec4(c0, 1.0), weights.z).xyz;
+          // vec3 colorb = NormalMix(c1, colora, 1.0-weights.y);
+          // vec3 colorc = NormalMix(c2, colorb, 1.0-weights.x);
+          vec4 colora = slerp(zeroN, vec4(c0, 1.0), weights.x);
+          vec4 colorb = slerp(zeroN, vec4(c1, 1.0), weights.y);
+          vec4 colorc = slerp(zeroN, vec4(c2, 1.0), weights.z);
+          vec4 colord = blend_rnm(colorc, colorb);
+          vec4 colore = blend_rnm(colora, colord);
+          return colore.xyz;
+          // return colord.xyz;
         }
 
         // SAMPLERS ----------------------------------------------------------------
@@ -358,30 +347,32 @@ export default function TerrainMaterial(props: MeshStandardMaterialProps & {
         ${cartesian([['GridlessSample', 'Sample'], ['Linear', 'Normal']]).map(([sampler, mixer])=>{
           return glsl`
           vec4 Tri${sampler}${mixer}(sampler2D map, vec2 uv, float scale){
-            float sharpness = 15.0;
-            vec3 weights = abs(pow3(vGeometryNormal, sharpness * 2.0));
+            float sharpness = 10.0;
+            vec3 weights = abs(pow3(n2, sharpness));
+
+            // float sharpness = 18.0;
+            // vec3 weights = abs(pow3(n2, sharpness));
 
             // cheap 1 channel sample
-            float cutoff = ${(mixer == 'Normal' ? 1.0 : 10.0).toFixed(2)};
-            if(weights.z >cutoff*weights.x && weights.z > cutoff*weights.y){
-              return ${sampler}${mixer}(map, csm_vWorldPosition.xy, scale);
-            }
+            // float cutoff = pow(sharpness, 4.0);
+            // if(weights.z >cutoff*weights.x && weights.z > cutoff*weights.y){
+            //   return ${sampler}${mixer}(map, csm_vWorldPosition.xy, scale);
+            // }
 
-            if(weights.x >cutoff*weights.z && weights.x > cutoff*weights.y){
-              return ${sampler}${mixer}(map, csm_vWorldPosition.yz, scale);
-            }
+            // if(weights.x >cutoff*weights.z && weights.x > cutoff*weights.y){
+            //   return ${sampler}${mixer}(map, csm_vWorldPosition.yz, scale);
+            // }
 
-            if(weights.y >cutoff*weights.z && weights.y > cutoff*weights.x){
-              return ${sampler}${mixer}(map, csm_vWorldPosition.xz, scale);
-            }
-            
-            // TODO: Normies create pilling on surface :( had to raise cut off from 1.5 -> 3.5
-            // TODO: why can't I ad normals at strenght = 1.0;
+            // if(weights.y >cutoff*weights.z && weights.y > cutoff*weights.x){
+            //   return ${sampler}${mixer}(map, csm_vWorldPosition.xz, scale);
+            // }
             
             // expensive 3 channel blend
-            vec3 xDiff = ${sampler}${mixer}(map, csm_vWorldPosition.yz, scale).xyz;
-            vec3 yDiff = ${sampler}${mixer}(map, csm_vWorldPosition.xz, scale).xyz;
-            vec3 zDiff = ${sampler}${mixer}(map, csm_vWorldPosition.xy, scale).xyz;
+            vec3 xDiff = ${sampler}${mixer}(map, csm_vWorldPosition.zy, scale).xyz;
+            vec3 yDiff = ${sampler}${mixer}(map, csm_vWorldPosition.xz * vec2(1.0, -1.0) , scale).xyz;
+            vec3 zDiff = ${sampler}${mixer}(map, csm_vWorldPosition.xy * vec2(1.0, 1.0), scale).xyz;
+
+            // weights[0] = 0.0;
 
             vec3 color = ${mixer}Mix(xDiff,yDiff,zDiff, weights);
             return vec4(color,1.0);
@@ -390,9 +381,22 @@ export default function TerrainMaterial(props: MeshStandardMaterialProps & {
           `
         }).join("\n")}
 
+        vec3 calculateNormalsFromHeightMap(){
+          float o = 1.0/1024.0;
+          float h = dot(texture2D(displacementMap, vUv),  vec4(1,0,0,1));
+          float hx = dot(texture2D(displacementMap, vUv + vec2( o, 0.0 )), vec4(1,0,0,1));
+          float hy = dot(texture2D(displacementMap, vUv + vec2( 0.0, o )),  vec4(1,0,0,1));
+          float dScale = 150.0;
+          float dx = (hx - h) * dScale;
+          float dy = (hy - h) * dScale;
+          return (cross(vec3(1.0,0.0,dx), vec3(0.0,1.0,dy)));
+        }
+
         // FRAGMENT OUT ----------------------------------------------------------------
         void main(){
           float splatWeights[${numSplatChannels}] = splat();
+
+          n2 = calculateNormalsFromHeightMap();
           
           // Diffuse 
           csm_DiffuseColor = ${props.surfaces.map((surface, i)=>{
@@ -409,6 +413,8 @@ export default function TerrainMaterial(props: MeshStandardMaterialProps & {
           }).join("+")};
 
           csm_DiffuseColor = normalize(csm_DiffuseColor);
+
+          // csm_DiffuseColor = texture2D(displacementMap, vUv);
 
           
           // Normal

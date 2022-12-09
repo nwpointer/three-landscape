@@ -2,13 +2,14 @@ import { Canvas, useThree } from "@react-three/fiber";
 import { TerrainMaterial, useProgressiveTextures } from "three-landscape";
 import { OrbitControls, useTexture, Environment, FlyControls, FirstPersonControls, PointerLockControls, PerformanceMonitor, Stats, useProgress, Html } from "@react-three/drei";
 import { Skybox } from './Skybox'
-import { Vector4 } from 'three';
+import { MeshStandardMaterial, Vector4 } from 'three';
 import { Suspense, useEffect } from "react";
 import { useControls } from 'leva'
+import { Perf } from 'r3f-perf';
 
 function Terrain() {
 
-  const { trilinear, gridless, noiseBlend, ao } = useControls({ trilinear: false, gridless: false, noiseBlend:false, ao: {
+  const { debugTextures, trilinear, gridless, noiseBlend, ao } = useControls({debugTextures:false, trilinear: true, gridless: true, noiseBlend:false, ao: {
     value: 0.5,
     min:0,
     max: 2.0
@@ -69,8 +70,8 @@ function Terrain() {
 
   // TODO: figure out why grass normal is whack
 
-  const debugDiffuse = false;
-  const debugNormal = false;
+  const debugDiffuse = debugTextures;
+  const debugNormal = debugTextures;
 
   const grass2 = {
     diffuse: debugDiffuse ? t[13] : t[1],
@@ -108,7 +109,7 @@ function Terrain() {
   const mud = {
     diffuse: debugDiffuse ? t[13] : t[3],
     normal: debugNormal ? t[14] : t[4],
-    normalStrength: 0.45,
+    normalStrength: 0.125,
     repeat: 200,
     saturation: 0.5,
   };
@@ -145,6 +146,16 @@ function Terrain() {
           geometry.needsUpdate = true;
         }
       }} />
+      {/* <meshStandardMaterial
+        normalMap={t[10]}
+        displacementMap={t[9]}
+        displacementScale={100.0 }
+        envMapIntensity={0.35}
+        metalness={0.125}
+        aoMap = {t[0]}
+        aoMapIntensity={ao}
+        roughness={0.8}
+      /> */}
       <TerrainMaterial
         splats={[t[11], t[12]]}
         surfaces={[rock, clif, mud, grass1, grass2, mud, mud]}
@@ -153,7 +164,7 @@ function Terrain() {
         displacementScale={100.0 }
         // normalScale={[1,1]}
         // orientation={[-1,1]}
-        envMapIntensity={0.35}
+        envMapIntensity={0.5}
         metalness={0.125}
         aoMap = {t[0]}
         aoMapIntensity={ao}
@@ -168,6 +179,7 @@ function App() {
   return (
     <Canvas camera={{fov:30, far: 2000, near:0.01, position:[0,200,200] }}>
       <Stats />
+      <Perf position="bottom-left" deepAnalyze={true} />
       <OrbitControls />
       <fog attach="fog" args={['#9fdced', 0, 2000]} />
       <ambientLight intensity={0.35} />
