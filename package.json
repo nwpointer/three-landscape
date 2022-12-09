@@ -9,5 +9,8 @@
   "workspaces": [
     "package",
     "examples/highlands"
-  ]
+  ],
+  "dependencies": {
+    "leva": "^0.9.34"
+  }
 }

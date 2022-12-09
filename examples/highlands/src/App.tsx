@@ -4,8 +4,11 @@ import { OrbitControls, useTexture, Environment, FlyControls, FirstPersonControl
 import { Skybox } from './Skybox'
 import { Vector4 } from 'three';
 import { Suspense, useEffect } from "react";
+import { useControls } from 'leva'
 
 function Terrain() {
+
+  const { trilinear, gridless, noiseBlend } = useControls({ trilinear: false, gridless: false, noiseBlend:true })
 
   /*
   [
@@ -70,13 +73,9 @@ function Terrain() {
     normal: debugNormal ? t[14] : t[2],
     normalStrength: 0.0,
     repeat: 200,
-    gridless: true,
+    gridless: gridless,
     saturation: 0.60,
     tint: new Vector4(0.8,1.0,0.8,1),
-    blend: {
-      mode: "noise",
-      octaves
-    }
   };
 
   const grass1 = {
@@ -85,13 +84,22 @@ function Terrain() {
     normalStrength: 0.0,
     repeat: 200,
     saturation: 0.50,
-    gridless: true,
+    gridless: gridless,
     tint: new Vector4(0.8,1.0,0.8,1),
-    blend: {
+  };
+
+  if(noiseBlend){
+    //@ts-ignore
+    grass1.blend = {
       mode: "noise",
       octaves
     }
-  };
+    //@ts-ignore
+    grass2.blend = {
+      mode: "noise",
+      octaves
+    }
+  }
 
   const mud = {
     diffuse: debugDiffuse ? t[13] : t[3],
@@ -106,8 +114,8 @@ function Terrain() {
     normal: debugNormal ? t[14] : t[8],
     normalStrength: 0.5,
     tint: new Vector4(1.5,1.5,1.5,1),
-    trilinear: true,
-    gridless: true,
+    trilinear: trilinear,
+    gridless: gridless,
     repeat: 150,
     saturation: 0.5,
   };
@@ -117,8 +125,8 @@ function Terrain() {
     normal: debugNormal ? t[14] : t[6],
     normalStrength: 0.5,
     tint: new Vector4(1.5,1.5,1.5,1),
-    trilinear: true,
-    gridless: true,
+    trilinear: trilinear,
+    gridless: gridless,
     repeat: 150,
     saturation: 0.5,
   };
@@ -141,10 +149,10 @@ function Terrain() {
         displacementScale={100.0 }
         // normalScale={[1,1]}
         // orientation={[-1,1]}
-        envMapIntensity={0.4}
-        metalness={0.5}
+        envMapIntensity={0.35}
+        metalness={0.125}
         aoMap = {t[0]}
-        aoMapIntensity={0.5}
+        aoMapIntensity={0.4}
         roughness={0.8}
       />
     </mesh>
@@ -158,7 +166,7 @@ function App() {
       {/* <Stats /> */}
       <OrbitControls />
       <fog attach="fog" args={['#9fdced', 0, 2000]} />
-      <ambientLight intensity={0.6} />
+      <ambientLight intensity={0.35} />
       <Suspense fallback={<Progress />}>
         <Environment preset="park" background={false} />
         <Skybox fog={false} />
