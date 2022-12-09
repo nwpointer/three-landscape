@@ -7,7 +7,8 @@ import { Suspense, useEffect } from "react";
 
 function Terrain() {
 
-  const [q, textures] = useProgressiveTextures([[
+  /*
+  [
     "/aomap.png",
     "/Grass_02/ground_Grass1_col.jpg",
     "/Grass_02/ground_Grass1_norm.jpg",
@@ -21,7 +22,10 @@ function Terrain() {
     `/normalmap@0.5.png`,
     `/splatmap_00@0.5.png`,
     `/splatmap_01@0.5.png`
-  ],[
+  ]
+  */
+
+  const [q, textures] = useProgressiveTextures([[
     "/aomap.png",
     "/Grass_02/ground_Grass1_col.jpg",
     "/Grass_02/ground_Grass1_norm.jpg",
@@ -34,7 +38,9 @@ function Terrain() {
     `/heightmap@0.5.png`,
     `/normalmap.png`,
     `/splatmap_00.png`,
-    `/splatmap_01.png`
+    `/splatmap_01.png`,
+    "/DebugTexture/debug.jpg",
+    "/DebugTexture/debug_norm.png",
   ]]);
 
   const t = textures[q];
@@ -56,11 +62,14 @@ function Terrain() {
 
   // TODO: figure out why grass normal is whack
 
+  const debugDiffuse = false;
+  const debugNormal = false;
+
   const grass2 = {
-    diffuse: t[1],
-    normal: t[2],
+    diffuse: debugDiffuse ? t[13] : t[1],
+    normal: debugNormal ? t[14] : t[2],
     normalStrength: 0.0,
-    repeat: 300,
+    repeat: 200,
     gridless: true,
     saturation: 0.60,
     tint: new Vector4(0.8,1.0,0.8,1),
@@ -71,10 +80,10 @@ function Terrain() {
   };
 
   const grass1 = {
-    diffuse: t[1],
-    normal: t[2],
+    diffuse: debugDiffuse ? t[13] : t[1],
+    normal: debugNormal ? t[14] : t[2],
     normalStrength: 0.0,
-    repeat: 300,
+    repeat: 200,
     saturation: 0.50,
     gridless: true,
     tint: new Vector4(0.8,1.0,0.8,1),
@@ -85,32 +94,32 @@ function Terrain() {
   };
 
   const mud = {
-    diffuse: t[3],
-    normal: t[4],
+    diffuse: debugDiffuse ? t[13] : t[3],
+    normal: debugNormal ? t[14] : t[4],
     normalStrength: 0.45,
     repeat: 200,
     saturation: 0.5,
   };
 
   const clif = {
-    diffuse: t[7],
-    normal: t[8],
+    diffuse: debugDiffuse ? t[13] : t[7],
+    normal: debugNormal ? t[14] : t[8],
     normalStrength: 0.5,
     tint: new Vector4(1.5,1.5,1.5,1),
     trilinear: true,
     gridless: true,
-    repeat: 200,
+    repeat: 150,
     saturation: 0.5,
   };
 
   const rock = {
-    diffuse: t[5],
-    normal: t[6],
+    diffuse: debugDiffuse ? t[13] : t[5],
+    normal: debugNormal ? t[14] : t[6],
     normalStrength: 0.5,
     tint: new Vector4(1.5,1.5,1.5,1),
     trilinear: true,
     gridless: true,
-    repeat: 100,
+    repeat: 150,
     saturation: 0.5,
   };
 
@@ -132,7 +141,7 @@ function Terrain() {
         displacementScale={100.0 }
         // normalScale={[1,1]}
         // orientation={[-1,1]}
-        envMapIntensity={0.5}
+        envMapIntensity={0.4}
         metalness={0.5}
         aoMap = {t[0]}
         aoMapIntensity={0.5}
@@ -149,7 +158,7 @@ function App() {
       {/* <Stats /> */}
       <OrbitControls />
       <fog attach="fog" args={['#9fdced', 0, 2000]} />
-      <ambientLight intensity={0.4} />
+      <ambientLight intensity={0.6} />
       <Suspense fallback={<Progress />}>
         <Environment preset="park" background={false} />
         <Skybox fog={false} />

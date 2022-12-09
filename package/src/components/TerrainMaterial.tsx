@@ -269,10 +269,14 @@ export default function TerrainMaterial(props: MeshStandardMaterialProps & {
         vec3 LinearMix(vec3 c0, vec3 c1, vec3 c2, vec3 weights){
           // color normalize (works better than normalize)
           weights /= sum(weights);
+          // c0.r = 1.0;
+          // c1.b = 1.0;
+          // c2.g = 1.0;
           return (c0 * weights.x + c1 * weights.y + c2 * weights.z);
         }
 
         vec3 NormalMix(vec3 c0, vec3 c1, float weight){
+          // return c1;
           return blend_rnm(
             vec4(c0, 1.0),
             slerp(zeroN, vec4(c1, 1.0), weight) // mix also works but is slightly wrong
@@ -285,11 +289,27 @@ export default function TerrainMaterial(props: MeshStandardMaterialProps & {
 
           // return c2;
 
-          // skiping colora is cool and leads to this sedementary rock vibe but probably just want to reutrn the top two
+          // TODO: figure out proper blend
+
+          // mix two most dominant 
+          // if(weights[1] < weights[0] && weights[1] < weights[2]){
+          //   float ratio = weights[0] / (weights[0] + weights[2]);
+          //   return NormalMix(c0, c2, ratio);
+          // }
+          // if(weights[0] < weights[0] && weights[0] < weights[2]){
+          //   float ratio = weights[1] / (weights[1] + weights[2]);
+          //   return NormalMix(c1, c2, ratio);
+          // }
+          // if(weights[2] < weights[0] && weights[2] < weights[1]){
+          //   float ratio = weights[0] / (weights[0] + weights[1]);
+          //   return NormalMix(c0, c1, ratio);
+          // }
+
+          // mixing all three just looks messy most of the time
           vec3 colora = slerp(zeroN, vec4(c0, 1.0), weights.z).xyz;
-          vec3 colorb = NormalMix(c1, zeroN.xyz, 1.0-weights.y);
+          vec3 colorb = NormalMix(c1, colora, 1.0-weights.y);
           vec3 colorc = NormalMix(c0, colorb, 1.0-weights.x);
-          return colorb;
+          return colorc;
         }
 
         // SAMPLERS ----------------------------------------------------------------
@@ -338,11 +358,11 @@ export default function TerrainMaterial(props: MeshStandardMaterialProps & {
         ${cartesian([['GridlessSample', 'Sample'], ['Linear', 'Normal']]).map(([sampler, mixer])=>{
           return glsl`
           vec4 Tri${sampler}${mixer}(sampler2D map, vec2 uv, float scale){
-            float sharpness = 10.0;
+            float sharpness = 15.0;
             vec3 weights = abs(pow3(vGeometryNormal, sharpness * 2.0));
 
             // cheap 1 channel sample
-            float cutoff = 10.5;
+            float cutoff = ${(mixer == 'Normal' ? 1.0 : 10.0).toFixed(2)};
             if(weights.z >cutoff*weights.x && weights.z > cutoff*weights.y){
               return ${sampler}${mixer}(map, csm_vWorldPosition.xy, scale);
             }
@@ -406,6 +426,9 @@ export default function TerrainMaterial(props: MeshStandardMaterialProps & {
             csm_NormalMap = n;
             
           `}
+
+          // Normal debug
+          // csm_DiffuseColor = vec4(csm_NormalMap, 1.0);
         }
       `}
       patchMap={{
