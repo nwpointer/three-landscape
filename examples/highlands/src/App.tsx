@@ -95,7 +95,7 @@ function Terrain() {
   const clif = {
     diffuse: t[7],
     normal: t[8],
-    normalStrength: 0.75,
+    normalStrength: 0.5,
     tint: new Vector4(1.5,1.5,1.5,1),
     trilinear: true,
     gridless: true,
@@ -106,7 +106,7 @@ function Terrain() {
   const rock = {
     diffuse: t[5],
     normal: t[6],
-    normalStrength: 0.75,
+    normalStrength: 0.5,
     tint: new Vector4(1.5,1.5,1.5,1),
     trilinear: true,
     gridless: true,
@@ -149,7 +149,7 @@ function App() {
       {/* <Stats /> */}
       <OrbitControls />
       <fog attach="fog" args={['#9fdced', 0, 2000]} />
-      <ambientLight intensity={0.5} />
+      <ambientLight intensity={0.4} />
       <Suspense fallback={<Progress />}>
         <Environment preset="park" background={false} />
         <Skybox fog={false} />
