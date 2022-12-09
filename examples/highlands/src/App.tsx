@@ -8,7 +8,11 @@ import { useControls } from 'leva'
 
 function Terrain() {
 
-  const { trilinear, gridless, noiseBlend } = useControls({ trilinear: false, gridless: false, noiseBlend:true })
+  const { trilinear, gridless, noiseBlend, ao } = useControls({ trilinear: false, gridless: false, noiseBlend:false, ao: {
+    value: 0.5,
+    min:0,
+    max: 2.0
+  } })
 
   /*
   [
@@ -152,7 +156,7 @@ function Terrain() {
         envMapIntensity={0.35}
         metalness={0.125}
         aoMap = {t[0]}
-        aoMapIntensity={0.4}
+        aoMapIntensity={ao}
         roughness={0.8}
       />
     </mesh>
@@ -163,7 +167,7 @@ function Terrain() {
 function App() {
   return (
     <Canvas camera={{fov:30, far: 2000, near:0.01, position:[0,200,200] }}>
-      {/* <Stats /> */}
+      <Stats />
       <OrbitControls />
       <fog attach="fog" args={['#9fdced', 0, 2000]} />
       <ambientLight intensity={0.35} />
