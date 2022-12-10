@@ -1,17 +1,22 @@
 {
-  "name": "three-landscape-project",
-  "description": "see contents of the package directory for actual source code",
-  "private": "true",
-  "version": "0.0.0",
-  "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
-  },
+  "name": "three-landscape",
+  "description": "r3f custom terrain component for rendering high quality 3d landscapes",
+  "license": "MIT",
   "workspaces": [
     "package",
     "examples/highlands"
   ],
-  "dependencies": {
-    "leva": "^0.9.34",
-    "r3f-perf": "^6.6.0"
-  }
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/nwpointer/three-landscape"
+  },
+  "keywords": [
+    "r3f",
+    "react",
+    "three.js",
+    "landscape",
+    "terrain",
+    "material",
+    "shader"
+  ]
 }

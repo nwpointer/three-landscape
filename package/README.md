@@ -30,7 +30,7 @@ Custom material that extends the meshStandardMaterial with additional properties
 - Texture saturation and tint
 - Stochastic sampling
 - Trilinear mapping
-- Multiple material blending options
+- Mutltiple material blending options
 
 ```js
 function MySuperCoolTerrain() {

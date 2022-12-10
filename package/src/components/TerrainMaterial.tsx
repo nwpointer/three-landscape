@@ -353,18 +353,18 @@ export default function TerrainMaterial(props: MeshStandardMaterialProps & {
             // vec3 weights = abs(pow3(n2, sharpness));
 
             // cheap 1 channel sample
-            // float cutoff = pow(sharpness, 4.0);
-            // if(weights.z >cutoff*weights.x && weights.z > cutoff*weights.y){
-            //   return ${sampler}${mixer}(map, csm_vWorldPosition.xy, scale);
-            // }
+            float cutoff = pow(sharpness, 4.0);
+            if(weights.z >cutoff*weights.x && weights.z > cutoff*weights.y){
+              return ${sampler}${mixer}(map, csm_vWorldPosition.xy, scale);
+            }
 
-            // if(weights.x >cutoff*weights.z && weights.x > cutoff*weights.y){
-            //   return ${sampler}${mixer}(map, csm_vWorldPosition.yz, scale);
-            // }
+            if(weights.x >cutoff*weights.z && weights.x > cutoff*weights.y){
+              return ${sampler}${mixer}(map, csm_vWorldPosition.yz, scale);
+            }
 
-            // if(weights.y >cutoff*weights.z && weights.y > cutoff*weights.x){
-            //   return ${sampler}${mixer}(map, csm_vWorldPosition.xz, scale);
-            // }
+            if(weights.y >cutoff*weights.z && weights.y > cutoff*weights.x){
+              return ${sampler}${mixer}(map, csm_vWorldPosition.xz, scale);
+            }
             
             // expensive 3 channel blend
             vec3 xDiff = ${sampler}${mixer}(map, csm_vWorldPosition.zy * vec2(-1.0, 1.0), scale).xyz;
