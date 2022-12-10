@@ -4,7 +4,7 @@ A growing collection of React-three-fiber compatible abstractions for rendering 
 
 [<img src="/thumbnail.png">](https://three-landscape.vercel.app/)
 
-Note: this package is not capable of procedurally generating terrain. Height maps and other textures must be authored offline in programs such as [WorldCreator](https://www.world-creator.com/) or generated at run time with custom logic. This is something I'm interested in for its potential to reduce bundle sizes but is out of scope for this module.
+Note: this package is not capable of procedurally generating terrain. Height maps and other textures must be authored offline in programs such as [WorldCreator](https://www.world-creator.com/) or [Blender](https://www.blender.org/).
 
 ### Demo:
 
@@ -20,7 +20,7 @@ Source code for example is available in the /examples/highland@latest directory
 
 ## TerrainMaterial
 
-Custom material that extends the meshStandardMaterial with additional properties for splat mapping. Splat mapping makes it possible to render terrains with much higher texture detail while reducing memory usage and bundle size: http://wiki.polycount.com/wiki/Splat
+Custom material that extends the meshStandardMaterial with additional properties for splat mapping. Splat mapping lets you blend and combine multiple surfacess(grass, rocks, sand etc) into one higher resolution material: http://wiki.polycount.com/wiki/Splat
 
 
 ### Features:
@@ -141,64 +141,6 @@ To get performance benefits, resource batches should be of ordered by ascending 
 Note: as long as you serve provide a /basis_transcoder.js and /basis_transcoder.wasm useProgressiveTexture can also auto resolve highly compressed basis textures.
 
 See the BasisTextureLoader and Basisu project for more details: https://github.com/BinomialLLC/basis_universal
-
-<!--
-
-### Anti terracing hightlmaps
-when the mesh density of a terrain is high and height differece exceeds > 255 can look terraced.
-
-this shader averages the the contributions of connected vertex, reducing/removing the terracing effect
-
-###RayleighFog
-more realistic implementation of Rayleigh scattering, also known as atmostpheric scattering
-
-###Globe
-takes grid of children and wraps geometry arround a sphere of size R
-
-### Mirror grid
-creates a grid with repeating, mirrored instances of a child mesh. Usefull for artifitially creating the appearence of infinite terrain from certain viewpoints. Works best with self similar terrains like moutain ranges or sand dunes.
-
-<MirrorGrid>
-  <Terrain />
-</MirrorGrid>
-
-### vector field material
-Like height maps that displace allong the y but allow x,y and z vector values for displacement. Allows for things like overhangs ect.
-https://www.youtube.com/watch?v=In1wzUDopLM&t=2586s&ab_channel=GDC
-
-
-### MaterialTransition
-
-Animates transitions between materials. This pairs well with useProgressiveTexture allowing you to fade in new textures quality levels as they are resolved.
-
-#### props:
-
-- speed: float seconds
-  duration in seconds taken to transition to the next highest quality level.
-
-- mesh: ref
-  react ref of the containing mesh
-
-```js
-function Terrain(){
-    const ref = useRef();
-    const [SD, HD] = useProgressiveTextures(
-        [t1, t1],
-        [t2, t3]
-    )
-    return (
-        <mesh ref={ref}>
-            <plane>
-            <MaterialTransition mesh={ref} speed={0.4}>
-                <splatStandardMaterial {...SD}>
-                <splatStandardMaterial {...HD}>
-            </MaterialTransition>
-        </mesh>
-    )
-}
-
-```
--->
 
 ## Roadmap:
 
