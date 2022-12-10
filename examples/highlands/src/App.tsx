@@ -10,7 +10,7 @@ import { Perf } from 'r3f-perf';
 function Terrain() {
 
   const { debugTextures, trilinear, gridless, noiseBlend, ao } = useControls({debugTextures:false, trilinear: true, gridless: true, noiseBlend:false, ao: {
-    value: 0.5,
+    value: 0.62,
     min:0,
     max: 2.0
   } })
@@ -76,19 +76,19 @@ function Terrain() {
   const grass2 = {
     diffuse: debugDiffuse ? t[13] : t[1],
     normal: debugNormal ? t[14] : t[2],
-    normalStrength: 0.0,
+    normalStrength: 0.4,
     repeat: 200,
     gridless: gridless,
-    saturation: 0.60,
+    saturation: 0.7,
     tint: new Vector4(0.8,1.0,0.8,1),
   };
 
   const grass1 = {
     diffuse: debugDiffuse ? t[13] : t[1],
     normal: debugNormal ? t[14] : t[2],
-    normalStrength: 0.0,
+    normalStrength: 0.4,
     repeat: 200,
-    saturation: 0.50,
+    saturation: 0.6,
     gridless: gridless,
     tint: new Vector4(0.8,1.0,0.8,1),
   };
@@ -109,7 +109,7 @@ function Terrain() {
   const mud = {
     diffuse: debugDiffuse ? t[13] : t[3],
     normal: debugNormal ? t[14] : t[4],
-    normalStrength: 0.125,
+    normalStrength: 0.5,
     repeat: 200,
     saturation: 0.5,
   };
@@ -117,7 +117,7 @@ function Terrain() {
   const clif = {
     diffuse: debugDiffuse ? t[13] : t[7],
     normal: debugNormal ? t[14] : t[8],
-    normalStrength: 0.5,
+    normalStrength: 0.35,
     tint: new Vector4(1.5,1.5,1.5,1),
     trilinear: trilinear,
     gridless: gridless,
@@ -128,12 +128,12 @@ function Terrain() {
   const rock = {
     diffuse: debugDiffuse ? t[13] : t[5],
     normal: debugNormal ? t[14] : t[6],
-    normalStrength: 0.5,
+    normalStrength: 0.75,
     tint: new Vector4(1.5,1.5,1.5,1),
     trilinear: trilinear,
     gridless: gridless,
     repeat: 150,
-    saturation: 0.5,
+    saturation: 0.5
   };
 
   // TODO PRE RELEASE: Add AO map!!!!!!!!!!!!!!!!
@@ -162,9 +162,9 @@ function Terrain() {
         normalMap={t[10]}
         displacementMap={t[9]}
         displacementScale={100.0 }
-        // normalScale={[1,1]}
+        normalScale={[1.5,1.5]}
         // orientation={[-1,1]}
-        envMapIntensity={0.5}
+        envMapIntensity={0.75}
         metalness={0.125}
         aoMap = {t[0]}
         aoMapIntensity={ao}
@@ -181,8 +181,10 @@ function App() {
       <Stats />
       <Perf position="bottom-left" deepAnalyze={true} />
       <OrbitControls />
-      <fog attach="fog" args={['#9fdced', 0, 2000]} />
-      <ambientLight intensity={0.35} />
+      {/* <fog attach="fog" args={['#9fdced', 0, 2000]} /> */}
+      <fog attach="fog" args={['#6dd1ed', 0, 2000]} />
+      {/* <ambientLight intensity={0.15} color="yellow" /> */}
+      <ambientLight intensity={0.15} />
       <Suspense fallback={<Progress />}>
         <Environment preset="park" background={false} />
         <Skybox fog={false} />

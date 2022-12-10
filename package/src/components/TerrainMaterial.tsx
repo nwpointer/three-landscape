@@ -368,7 +368,7 @@ export default function TerrainMaterial(props: MeshStandardMaterialProps & {
             // }
             
             // expensive 3 channel blend
-            vec3 xDiff = ${sampler}${mixer}(map, csm_vWorldPosition.zy, scale).xyz;
+            vec3 xDiff = ${sampler}${mixer}(map, csm_vWorldPosition.zy * vec2(-1.0, 1.0), scale).xyz;
             vec3 yDiff = ${sampler}${mixer}(map, csm_vWorldPosition.xz * vec2(1.0, -1.0) , scale).xyz;
             vec3 zDiff = ${sampler}${mixer}(map, csm_vWorldPosition.xy * vec2(1.0, 1.0), scale).xyz;
 
