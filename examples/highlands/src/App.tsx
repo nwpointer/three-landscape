@@ -117,7 +117,7 @@ function Terrain() {
   const clif = {
     diffuse: debugDiffuse ? t[13] : t[7],
     normal: debugNormal ? t[14] : t[8],
-    normalStrength: 0.35,
+    normalStrength: 0.40,
     tint: new Vector4(1.5,1.5,1.5,1),
     trilinear: trilinear,
     gridless: gridless,
@@ -128,12 +128,12 @@ function Terrain() {
   const rock = {
     diffuse: debugDiffuse ? t[13] : t[5],
     normal: debugNormal ? t[14] : t[6],
-    normalStrength: 0.75,
+    normalStrength: 0.5,
     tint: new Vector4(1.5,1.5,1.5,1),
     trilinear: trilinear,
     gridless: gridless,
     repeat: 150,
-    saturation: 0.5
+    saturation: 0.3
   };
 
   // TODO PRE RELEASE: Add AO map!!!!!!!!!!!!!!!!

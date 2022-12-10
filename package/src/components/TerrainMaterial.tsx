@@ -59,7 +59,6 @@ function toObject(arr) {
 }
 
 export default function TerrainMaterial(props: MeshStandardMaterialProps & {
-  wireframe?: boolean;
   surfaces: Surface[];
   map?: Texture;
   splats: Texture[];

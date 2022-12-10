@@ -18,105 +18,114 @@ Source code for example is available in the /examples/highland@latest directory
 
 # Documentation
 
-### SplatStandardMaterial
+## TerrainMaterial
 
 Custom material that extends the meshStandardMaterial with additional properties for splat mapping. Splat mapping makes it possible to render terrains with much higher texture detail while reducing memory usage and bundle size: http://wiki.polycount.com/wiki/Splat
 
-Can be used in vanilla (non react) Three.js projects by importing from the /three directory `import SplatStandardMaterial from three-lanscape/three`
 
-#### supports:
+### Features:
 
 - all the props & behaviors of meshStandardMaterial
-- seamless tile blending (aka texture bombing)
-- terrain and detail normal maps
-- texture saturation and brightness filters for additional creative control
-
-#### new props:
-
-- splats\*: [Texture] (expects splat data in rgb and a channels)
-- normalMaps: [Texture]
-- normalWeights: [float]
-- diffuseMaps\*: [Texture]
-- scale\*: [float] (size of terrain tiles)
-- saturation: [float]
-- brightness: [float]
-- noise\*: Texture
-
-\* required prop
+- Splatmaps
+- Texture saturation and tint
+- Stochastic sampling
+- Trilinear mapping
+- Mutltiple material blending options
 
 ```js
 function MySuperCoolTerrain() {
-  const [
-    displacement,
-    normal,
-    noise,
-    d1,
-    n1,
-    d2,
-    n2,
-    d3,
-    n3,
-    d4,
-    splat1,
-    splat2,
-  ] = useTexture([
-    "/hd/heightmap.png",
-    "/hd/normalmap.png",
-    "/simplex-noise.png",
-    "/Assets/Cliffs_02/Rock_DarkCrackyCliffs_col.jpg",
-    "/Assets/Cliffs_02/Rock_DarkCrackyCliffs_norm.jpg",
-    "/Assets/Rock_04/Rock_sobermanRockWall_col.jpg",
-    "/Assets/Rock_04/Rock_sobermanRockWall_norm.jpg",
-    "/Assets/Mud_03/Ground_WetBumpyMud_col.jpg",
-    "/Assets/Mud_03/Ground_WetBumpyMud_norm.jpg",
-    "/Assets/Grass_020/ground_Grass1_col.jpg",
-    "/hd/splatmap_00.png",
-    "/hd/splatmap_01.png",
+  const textures = useTexture([
+    ... list of up to 16* textures
   ]);
 
-  const { width, height } = displacement.image;
-
   return (
-    <mesh position={[0, 0, 0]} rotation={[-Math.PI / 2, 0, 0]}>
-      <planeBufferGeometry args={[100, 100, width, height]} />
-      <SplatStandardMaterial
-        splats={[splat1, splat2]}
-        normalMap={normal}
-        normalMaps={[n1, n2, n3]} // note there are less normals than diffuse maps - normals are not required for each tile type
-        diffuseMaps={[d1, d2, d3, d4, d4, d3]}
-        scale={[128 / 4, 128 / 2, 128, 128 * 2, 128, 128, 10]}
-        noise={noise}
-        displacementMap={displacement}
-        displacementScale={10}
-        displacementBias={-10}
+    <mesh>
+      <planeBufferGeometry args={[1024, 1024, 1024, 1024]} ref={geometry => {
+        if(geometry){
+          geometry.attributes.uv2 = geometry.attributes.uv.clone();
+          geometry.needsUpdate = true;
+        }
+      }} />
+      <TerrainMaterial
+        splats={[textures[1]}
+        surfaces={[rock, clif, mud, grass]}
+        normalMap={textures[2]}
+        displacementMap={textures[3]}
+        displacementScale={100.0}
       />
     </mesh>
   );
 }
 ```
 
-See example directory for advanced usage and example textures but
+#### New props:
+
+- splats: Texture[] (expects 4 channel splat data in rgba)
+- noise: Texture; used for stocastic sampling
+- Surfaces: Surface[];
+
+Most of the new features are configured by modifying surface properties.
+
+### Surfaces:
+Surfaces are related groups of textures and properties that define how to render part of the terrain. Rock, grass, sand etc would all be seperate surfaces.
+
+example:
+```
+const grass = {
+    diffuse: texture[1],
+    normal: texture[2],
+    normalStrength: 0.4,
+    repeat: 200,
+    gridless: true,
+    saturation: 0.7,
+    tint: new Vector4(0.8,1.0,0.8,1),
+};
+```
+
+### Blend Modes:
+by default all surfaces will be alpha blended based on the wieghts defined in the provided spatmap(s). This generally looks fine from a distance but you may want to try a differnt blend mode if the camera is likely to be near the grownd. blend mode are a surface spesific setting.
+
+### noise blending:
+uses randon noise and splat weights to create a detailed edge. To fully controll the shape, you can optionally provide one or more octaves of noise.
+```
+grass.blend = {
+  mode: "noise",
+  octaves: {
+    blur:0.5,
+    amplitude: 1.25,
+    wavelength: 1024.0 * 16.0,
+    accuracy: 1.25
+  }
+}
+```
+To get a better understanding of how each noise parameter effects the edge check out this interactive demo: https://www.redblobgames.com/x/1730-terrain-shader-experiments/noisy-hex-rendering.html
+
+Please see the example directory for advanced usage and example textures.
 
 Note: The textures are not covered by the MIT license and should not be used with out first acquiring the rights to do so.
 
 ---
 
-### useProgressiveTexture
+## useProgressiveTexture
 
 Similar to useTexture from [drie](https://github.com/pmndrs/drei) but progressively loads higher quality textures over time.
 
 ```js
 function Terrain(){
     const [quality, textures] = useProgressiveTextures([
-      ['/heightmap.png','/normalmap.png'],
-      ['/hd/heightmap.png','/hd/normalmap.png']
+      ['/heightmap.png','/normalmap.png'], // batch 1
+      ['/hd/heightmap.png','/hd/normalmap.png'] // batch 2
     ])
 
     const [displacement, normal] = textures[quality]
     return(
       <mesh>
         <planeBufferGeometry/>
-        <meshStandardMaterial color="green" normalMap={normal} displacementMap={displacement} />
+        <meshStandardMaterial 
+          color="green" 
+          normalMap={normal} 
+          displacementMap={displacement} 
+        />
       </mesH>
     )
 }
@@ -127,7 +136,10 @@ It is a texture loader that accepts an array of url arrays and returns: Array of
 All textures in a batch (['/hd/heightmap.png','/hd/normalmap@0.5.png']) are resolved before moving on to the next highest quality level
 To get performance benefits, resource batches should be of ordered by ascending quality.
 
-Note: as long as you serve a /basis_transcoder.js and /basis_transcoder.wasm useProgressiveTexture can also auto resolve highly compressed basis textures.
+### Basis textures:
+
+Note: as long as you serve provide a /basis_transcoder.js and /basis_transcoder.wasm useProgressiveTexture can also auto resolve highly compressed basis textures.
+
 See the BasisTextureLoader and Basisu project for more details: https://github.com/BinomialLLC/basis_universal
 
 <!--
@@ -193,10 +205,6 @@ function Terrain(){
 Thought it might be fun to let people vote on new feature ideas! If you're interested in a particular feature leave a thumbs up on the assosiated issue:
 
 [view issues sorted by most votes](https://github.com/nwpointer/three-landscape/issues?q=is%3Aissue+is%3Aopen+sort%3Areactions-%2B1-desc)
-
-## Contributing
-
-In lieu of a formal style guide, take care to maintain the existing coding style. Please Lint and test your code before submitting.
 
 ## License
 
