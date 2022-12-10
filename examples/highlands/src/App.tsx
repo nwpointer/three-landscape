@@ -179,7 +179,7 @@ function App() {
   return (
     <Canvas camera={{fov:30, far: 2000, near:0.01, position:[0,200,200] }}>
       <Stats />
-      <Perf position="bottom-left" deepAnalyze={true} />
+      {/* <Perf position="bottom-left" deepAnalyze={true} /> */}
       <OrbitControls />
       {/* <fog attach="fog" args={['#9fdced', 0, 2000]} /> */}
       <fog attach="fog" args={['#6dd1ed', 0, 2000]} />
