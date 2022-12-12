@@ -136,8 +136,6 @@ function Terrain() {
     saturation: 0.3
   };
 
-  // TODO PRE RELEASE: Add AO map!!!!!!!!!!!!!!!!
-
   return textures ? (
     <mesh rotation={[-1*Math.PI/2,0,-3.35*Math.PI/2]} position={[0,0,0]}>
       <planeBufferGeometry args={[1024, 1024, 1024 * 1.0, 1024 * 1.0]} ref={geometry => {
