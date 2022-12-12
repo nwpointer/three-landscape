@@ -3,7 +3,7 @@ import CustomShaderMaterial from "three-custom-shader-material";
 import { Material, MeshStandardMaterial, RepeatWrapping, Texture, sRGBEncoding } from "three";
 import glsl from "glslify";
 import noise from "./noise";
-import { option, repeatTextures, defined, colorFunctions, glslNoise, edgeBlend, luma, normalFunctions  } from './util.js'
+import { option, repeatTextures, srgbTextures, defined, colorFunctions, glslNoise, edgeBlend, luma, normalFunctions  } from './util.js'
 import { Vector4 } from 'three';
 import TextureMerger from '../textureMerger'
 import { useThree, MeshStandardMaterialProps } from "@react-three/fiber";
@@ -112,6 +112,7 @@ export default function TerrainMaterial(props: MeshStandardMaterialProps & {
   // const nids = (props.surfaces.map(surface => tid.indexOf())
   // apply repetition option to all textures
   repeatTextures(textures)
+  srgbTextures([props.displacementMap, ...surfaceTextures, props.normalMap])
 
   const numSplats = props.splats.length;
   const numSplatChannels = props.splats.length * 4.0;
@@ -359,7 +360,7 @@ export default function TerrainMaterial(props: MeshStandardMaterialProps & {
             }
 
             if(weights.x >cutoff*weights.z && weights.x > cutoff*weights.y){
-              return ${sampler}${mixer}(map, csm_vWorldPosition.yz, scale);
+              return ${sampler}${mixer}(map, csm_vWorldPosition.zy, scale);
             }
 
             if(weights.y >cutoff*weights.z && weights.y > cutoff*weights.x){
@@ -367,9 +368,9 @@ export default function TerrainMaterial(props: MeshStandardMaterialProps & {
             }
             
             // expensive 3 channel blend
-            vec3 xDiff = ${sampler}${mixer}(map, csm_vWorldPosition.zy * vec2(-1.0, 1.0), scale).xyz;
-            vec3 yDiff = ${sampler}${mixer}(map, csm_vWorldPosition.xz * vec2(1.0, -1.0) , scale).xyz;
-            vec3 zDiff = ${sampler}${mixer}(map, csm_vWorldPosition.xy * vec2(1.0, 1.0), scale).xyz;
+            vec3 xDiff = ${sampler}${mixer}(map, csm_vWorldPosition.zy , scale).xyz;
+            vec3 yDiff = ${sampler}${mixer}(map, csm_vWorldPosition.xz  , scale).xyz;
+            vec3 zDiff = ${sampler}${mixer}(map, csm_vWorldPosition.xy , scale).xyz;
 
             // weights[0] = 0.0;
 

@@ -1,4 +1,4 @@
-import { RepeatWrapping, NearestFilter, LinearMipmapNearestFilter } from "three";
+import { RepeatWrapping, NearestFilter, LinearMipmapNearestFilter, LinearEncoding, sRGBEncoding } from "three";
 import glsl from "glslify";
 
 export function getDimensions(texture) {
@@ -19,6 +19,12 @@ export const repeatTexture = (t) => {
   t.wrapS = t.wrapT = RepeatWrapping;
   t.needsUpdate = true;
 }
+export const srgbTexture = (t) => {
+	t.encoding = sRGBEncoding;
+	console.log('hia');
+	// t.encoding = LinearEncoding;
+	t.needsUpdate = true;
+  }
 export const pixelateTexture = (t) => {
   t.magFilter = NearestFilter;
   t.minFilter = LinearMipmapNearestFilter
@@ -26,6 +32,7 @@ export const pixelateTexture = (t) => {
 }
   
 export const repeatTextures = map(repeatTexture);
+export const srgbTextures = map(srgbTexture);
 export const pixelateTextures = map(pixelateTexture);
 export const option = (arr, key, defaultValue?) => pipe(
   pluck(key),

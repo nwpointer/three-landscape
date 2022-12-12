@@ -162,7 +162,7 @@ function Terrain() {
         normalMap={t[10]}
         displacementMap={t[9]}
         displacementScale={100.0 }
-        normalScale={[1.5,1.5]}
+        // normalScale={[1.5,1.5]}
         // orientation={[-1,1]}
         envMapIntensity={0.75}
         metalness={0.125}
