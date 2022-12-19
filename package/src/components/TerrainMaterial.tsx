@@ -6,7 +6,7 @@ import noise from "./noise";
 import { option, repeatTextures, srgbTextures, defined, colorFunctions, glslNoise, edgeBlend, luma, normalFunctions  } from './util.js'
 import { Vector4 } from 'three';
 import TextureMerger from '../textureMerger'
-import { useThree, MeshStandardMaterialProps } from "@react-three/fiber";
+import { useThree, MeshStandardMaterialProps, Vector2 } from "@react-three/fiber";
 
 function cartesian(args) {
   var r = [], max = args.length-1;
@@ -58,15 +58,31 @@ function toObject(arr) {
   return rv;
 }
 
+// insertion sort from highest to lowest
+function sort(arr="A"){
+  return glsl`
+    for(int i=1; i<${arr}.length(); i++){
+      int j = i;
+      // sorts vec2 by weight value [1]
+      while(j > 0 && ${arr}[j-1][1] < ${arr}[j][1]){
+        vec2 a = ${arr}[j]; 
+        ${arr}[j] = ${arr}[j-1];
+        ${arr}[j-1] = a; 
+        j = j-1;
+      }
+    }
+  `;
+}
+
+// TODO memoize shader compilation so it does not have to be done constantly
+
 export default function TerrainMaterial(props: MeshStandardMaterialProps & {
   surfaces: Surface[];
-  map?: Texture;
   splats: Texture[];
   noise?: Texture;
-  displacementMap?: Texture;
-  normalMap?: Texture;
-  normalScale?: [Number, Number];
-  displacementScale: Number;
+  saturation?: Number;
+  tint?: Vector4;
+  limit?: [Number, Number] 
 }) {
   const {gl} = useThree();
   const diffuse = option(props.surfaces, 'diffuse')
@@ -101,7 +117,7 @@ export default function TerrainMaterial(props: MeshStandardMaterialProps & {
   })
 
 
-  // TODO: only create atlas if nessisary?
+  // TODO: only create atlas if necessary?
   if(createAtlas){
     var textureMerger = new TextureMerger( toObject(tx), gl.capabilities.maxTextureSize);
     var atlas = [textureMerger.mergedTexture];
@@ -112,7 +128,7 @@ export default function TerrainMaterial(props: MeshStandardMaterialProps & {
   // const nids = (props.surfaces.map(surface => tid.indexOf())
   // apply repetition option to all textures
   repeatTextures(textures)
-  srgbTextures([props.displacementMap, ...surfaceTextures, props.normalMap])
+  srgbTextures([props.map, ...surfaceTextures, props.normalMap])
 
   const numSplats = props.splats.length;
   const numSplatChannels = props.splats.length * 4.0;
@@ -141,12 +157,25 @@ export default function TerrainMaterial(props: MeshStandardMaterialProps & {
     return color
   }
 
+  const simpleSample = (i, mixer="Linear", map="diffuse")=>{
+    let color;
+    const index = i.toString();
+    const textureIndex = textureMap[i][map].id.toString();
+    var map = `uTextures[${textureIndex}]`
+    var uv = `vUv`
+
+    // todo handle index -1?
+    color = glsl`Sample${mixer}(${map}, ${uv}, uRepeat[${index}] )`
+    color = glsl`saturation(${color}, uSaturation[${index}])`
+    color = glsl`${color} * uTint[${index}]`
+    return color
+  }
+
   return (
     
     <CustomShaderMaterial
       baseMaterial={MeshStandardMaterial}
       {...props}
-      map={diffuse[0]}
       uniforms={{
         uNoise: { value: props.noise || noise },
         uSplats: { value: props.splats },
@@ -164,6 +193,7 @@ export default function TerrainMaterial(props: MeshStandardMaterialProps & {
       vertexShader={glsl`
         varying vec4 csm_vWorldPosition;
         varying vec3 vGeometryNormal;
+        varying float vDepth;
 
         vec3 pow3(vec3 n, float x){
           return vec3(pow(n.x,x),pow(n.y,x),pow(n.z,x));
@@ -188,9 +218,14 @@ export default function TerrainMaterial(props: MeshStandardMaterialProps & {
           // realPosition /= 1024.0;
           // csm_vWorldPosition = modelMatrix * vec4((realPosition), 1.0);
 
+          
+
           vec3 realPosition = vec3(uv.xy, 1.0) ;
           realPosition.z = (texture2D( displacementMap, uv ).x * displacementScale) / 1024.0 ;
           csm_vWorldPosition = vec4((realPosition), 1.0);
+
+          vec4 p = projectionMatrix * modelViewMatrix * vec4( realPosition, 1.0 );
+          vDepth = - p.z;
 
           vGeometryNormal = calculateNormalsFromHeightMap();
         }
@@ -200,7 +235,9 @@ export default function TerrainMaterial(props: MeshStandardMaterialProps & {
         varying vec3 csm_vNormal;
         varying vec3 vGeometryNormal;
         vec3 csm_NormalMap;
-        
+
+        varying float vDepth;
+
         // precision highp float;
         uniform float uRepeat[${repeat.length}];
         uniform float uSaturation[${saturation.length}];
@@ -396,43 +433,115 @@ export default function TerrainMaterial(props: MeshStandardMaterialProps & {
         void main(){
           float splatWeights[${numSplatChannels}] = splat();
 
+          vec4 u = gl_FragCoord;
+
+          csm_DiffuseColor =  vec4(1.0,1.0,1.0,1.0);
+          csm_NormalMap = texture2D(normalMap, vUv).xyz;
+
+          // return;
+
           n2 = calculateNormalsFromHeightMap();
-          
-          // Diffuse 
-          csm_DiffuseColor = ${props.surfaces.map((surface, i)=>{
-            const index = i.toString();
-            if(blend[i].mode === 'noise'){
-              return blend[i].octaves.map((octaves) => {
-                const octavesParams = Object.values(octaves).map((v:Number)=>v.toFixed(8)).join(',')
-                return glsl`(${sample(i)} * edgeBlend(splatWeights[${index}], ${octavesParams}))`
-              })
-              .join("+")
-            }
-            if(blend[i].mode === 'linear') return glsl`${sample(i)} * splatWeights[${index}]`
-            else return glsl`${sample(i)} * splatWeights[${index}]`
-          }).join("+")};
 
-          csm_DiffuseColor = normalize(csm_DiffuseColor);
+          float maxDraw = 1.125;
 
-          // csm_DiffuseColor = texture2D(displacementMap, vUv);
+          float depth = gl_FragCoord.z / gl_FragCoord.w;
+          float fFactor = smoothstep(${props.limit[0].toFixed(20)},${props.limit[1].toFixed(20)}, depth );
+          // float fFactor = 1.0;
 
-          
-          // Normal
-          ${props.normalMap && glsl`
-            csm_NormalMap = texture2D(normalMap, vUv).xyz;
-            vec3 n = csm_NormalMap;
-
+          if(fFactor >= 1.0){
+            // csm_DiffuseColor =  vec4(fFactor,0.0,0.0,1.0);
+            csm_DiffuseColor = saturation(texture2D(map, vUv), ${props.saturation.toFixed(20) || "1.0"}) * vec4(${props.tint.x},${props.tint.y},${props.tint.z},1.0);
+            vec3 n = texture2D(normalMap, vUv).xyz;
             ${props.surfaces.map((surface, i)=>{
               const index = i.toString();
               const normalStrength = (typeof surface.normalStrength === undefined ? 1 : surface.normalStrength).toFixed(8);
               if(normalStrength === (0).toFixed(8)) return null; // don't sample if strength is 0
-              return glsl`n = NormalMix(n,  (${sample(i, 'Normal', 'normal' )}).xyz, splatWeights[${index}] * ${normalStrength});`
+              return glsl`n = NormalMix(n,  (${simpleSample(i, 'Normal', 'normal' )}).xyz, splatWeights[${index}] * ${normalStrength});`
             }).filter(v=>v).join("\n")}
-
             csm_NormalMap = n;
-            
-          `}
 
+          } else {
+            // Diffuse 
+            csm_DiffuseColor = ${props.surfaces.map((surface, i)=>{
+              const index = i.toString();
+              if(blend[i].mode === 'noise'){
+                return blend[i].octaves.map((octaves) => {
+                  const octavesParams = Object.values(octaves).map((v:Number)=>v.toFixed(8)).join(',')
+                  return glsl`(${sample(i)} * edgeBlend(splatWeights[${index}], ${octavesParams}))`
+                })
+                .join("+")
+              }
+              if(blend[i].mode === 'linear') return glsl`${sample(i)} * splatWeights[${index}]`
+              else return glsl`${sample(i)} * splatWeights[${index}]`
+            }).join("+")};
+
+            // create a surface array vec2(index, weight)
+            vec2[${numSufaces}] surfaces = vec2[${numSufaces}](${
+              props.surfaces.map((s,i)=>{
+                const index = i.toString();
+                return glsl`vec2(${index}, splatWeights[${index}])`
+              })
+              .join(",")
+            });
+            // sort array by weight
+            // problem: only glsl knows the weights - may still need if statement or switch to skip code
+            // solution: create a switch w/js for reach
+
+            csm_DiffuseColor = normalize(csm_DiffuseColor);
+
+            if(fFactor < 1.0){
+              csm_DiffuseColor = mix(
+                csm_DiffuseColor,
+                saturation(texture2D(map, vUv), ${props.saturation.toFixed(20) || "1.0"}) * vec4(${props.tint.x},${props.tint.y},${props.tint.z},1.0),
+                // vec4(1.0,0.0,0.0,1.0),
+                // vec4(1.0,0.0,1.0,1.0),
+                fFactor
+                // pow(distance(vUv, vec2(0.5,0.5)) /maxDraw, 10.0)
+              );
+            }
+
+            // Normal
+            ${props.normalMap && glsl`
+              csm_NormalMap = texture2D(normalMap, vUv).xyz;
+              vec3 n = csm_NormalMap;
+
+              ${props.surfaces.map((surface, i)=>{
+                const index = i.toString();
+                const normalStrength = (typeof surface.normalStrength === undefined ? 1 : surface.normalStrength).toFixed(8);
+                if(normalStrength === (0).toFixed(8)) return null; // don't sample if strength is 0
+                return glsl`n = NormalMix(n,  (${sample(i, 'Normal', 'normal' )}).xyz, splatWeights[${index}] * ${normalStrength});`
+              }).filter(v=>v).join("\n")}
+
+              csm_NormalMap = n;
+
+              if(fFactor < 1.0){
+
+                vec3 n2 = texture2D(normalMap, vUv).xyz;
+                ${props.surfaces.map((surface, i)=>{
+                  const index = i.toString();
+                  const normalStrength = (typeof surface.normalStrength === undefined ? 1 : surface.normalStrength).toFixed(8);
+                  if(normalStrength === (0).toFixed(8)) return null; // don't sample if strength is 0
+                  return glsl`n2 = NormalMix(n2,  (${simpleSample(i, 'Normal', 'normal' )}).xyz, splatWeights[${index}] * ${normalStrength});`
+                }).filter(v=>v).join("\n")}
+                
+
+                // todo should probably still mix in simple tiled normals 
+
+                csm_NormalMap = NormalMix(
+                  n,
+                  n2,
+                  fFactor
+                ).xyz;
+              }
+              
+            `}
+          }
+
+   
+          // csm_DiffuseColor =  vec4(fFactor,0.0,0.0,1.0);
+          // csm_NormalMap = zeroN.xyz;
+
+    
           // Normal debug
           // csm_DiffuseColor = vec4(csm_NormalMap, 1.0);
         }

@@ -21,7 +21,6 @@ export const repeatTexture = (t) => {
 }
 export const srgbTexture = (t) => {
 	t.encoding = sRGBEncoding;
-	console.log('hia');
 	// t.encoding = LinearEncoding;
 	t.needsUpdate = true;
   }

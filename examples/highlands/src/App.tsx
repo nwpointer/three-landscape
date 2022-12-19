@@ -1,19 +1,37 @@
 import { Canvas, useThree } from "@react-three/fiber";
-import { TerrainMaterial, useProgressiveTextures } from "three-landscape";
+import { TerrainMaterial, useProgressiveTextures, MartiniGeometry } from "three-landscape";
 import { OrbitControls, useTexture, Environment, FlyControls, FirstPersonControls, PointerLockControls, PerformanceMonitor, Stats, useProgress, Html } from "@react-three/drei";
 import { Skybox } from './Skybox'
-import { MeshStandardMaterial, Vector4 } from 'three';
-import { Suspense, useEffect } from "react";
+import { MeshStandardMaterial, Vector3, Vector4, DoubleSide } from 'three';
+import { Suspense, useEffect, useMemo } from "react";
 import { useControls } from 'leva'
-import { Perf } from 'r3f-perf';
+// import { Perf } from 'r3f-perf';
 
 function Terrain() {
 
-  const { debugTextures, trilinear, gridless, noiseBlend, ao } = useControls({debugTextures:false, trilinear: true, gridless: true, noiseBlend:false, ao: {
-    value: 0.62,
+  const { debugTextures, trilinear, gridless, noiseBlend, ao, limit, tint, saturation, error } = useControls({debugTextures:false, trilinear: false, gridless: false, noiseBlend:false, ao: {
+    value: 0.75,
     min:0,
     max: 2.0
-  } })
+  },
+  limit: {
+    min: 0,
+    max: 2000,
+    // initial value of 4, 5
+    value: [0, 500],
+  },
+  tint: {
+    x: 1.0,
+    y: 1.0,
+    z: 1.0,
+  },
+  saturation: { value: 0.62, min: 0, max:2},
+  error: {
+    min:0,
+    max: 1000,
+    value: 0,
+  }
+ })
 
   /*
   [
@@ -49,6 +67,7 @@ function Terrain() {
     `/splatmap_01.png`,
     "/DebugTexture/debug.jpg",
     "/DebugTexture/debug_norm.png",
+    "/colormap.png"
   ]]);
 
   const t = textures[q];
@@ -76,19 +95,19 @@ function Terrain() {
   const grass2 = {
     diffuse: debugDiffuse ? t[13] : t[1],
     normal: debugNormal ? t[14] : t[2],
-    normalStrength: 0.4,
+    normalStrength: 0.1,
     repeat: 200,
     gridless: gridless,
-    saturation: 0.7,
-    tint: new Vector4(0.8,1.0,0.8,1),
+    saturation,
+    tint: new Vector4(0.6,0.6,0.6,1),
   };
 
   const grass1 = {
     diffuse: debugDiffuse ? t[13] : t[1],
     normal: debugNormal ? t[14] : t[2],
-    normalStrength: 0.4,
+    normalStrength: 0.1,
     repeat: 200,
-    saturation: 0.6,
+    saturation,
     gridless: gridless,
     tint: new Vector4(0.8,1.0,0.8,1),
   };
@@ -138,12 +157,15 @@ function Terrain() {
 
   return textures ? (
     <mesh rotation={[-1*Math.PI/2,0,-3.35*Math.PI/2]} position={[0,0,0]}>
-      <planeBufferGeometry args={[1024, 1024, 1024 * 1.0, 1024 * 1.0]} ref={geometry => {
+      {/* <planeBufferGeometry args={[1024, 1024, 1024 * 1.0, 1024 * 1.0]} ref={geometry => {
         if(geometry){
           geometry.attributes.uv2 = geometry.attributes.uv.clone();
+          console.log(geometry.attributes.uv2 );
+          
           geometry.needsUpdate = true;
         }
-      }} />
+      }} /> */}
+      <MartiniGeometry displacementMap={t[9]} args={[1024, 1024, 1024 * 1.0, 1024 * 1.0]} error={error} />
       {/* <meshStandardMaterial
         normalMap={t[10]}
         displacementMap={t[9]}
@@ -167,15 +189,41 @@ function Terrain() {
         aoMap = {t[0]}
         aoMapIntensity={ao}
         roughness={0.8}
+        map={t[15]} // fallback
+        limit={limit}
+        tint={new Vector4(...Object.values(tint), 1.0)}
+        saturation={saturation}
+        // side={DoubleSide}
       />
     </mesh>
   ) : null;
 }
 
+function MartiniTerrain(){
+  const {error} = useControls({error: {
+    min:0,
+    max: 1000,
+    value: 0,
+  }})
+  const [q, textures] = useProgressiveTextures([[
+    "/heightmap@0.5.png",
+    "/aomap.png",
+  ]]);
+  return (
+    <mesh rotation={[-1*Math.PI/2,0,-3.35*Math.PI/2]} scale={new Vector3(1,1,1)}>
+      {/* <planeBufferGeometry></planeBufferGeometry> */}
+      <MartiniGeometry displacementMap={textures[q][0]} args={[1024, 1024, 1024 * 1.0, 1024 * 1.0]} error={error} />
+      <meshStandardMaterial side={DoubleSide} map={textures[q][0]} wireframe displacementMap={textures[q][0]} displacementScale={-200} />
+    </mesh>
+  )
+}
+
+
+
 
 function App() {
   return (
-    <Canvas camera={{fov:30, far: 2000, near:0.01, position:[0,200,200] }}>
+    <Canvas camera={{fov:30, far: 2000, near:10, position:[0,200,200] }}>
       <Stats />
       {/* <Perf position="bottom-left" deepAnalyze={true} /> */}
       <OrbitControls />
@@ -183,10 +231,12 @@ function App() {
       <fog attach="fog" args={['#6dd1ed', 0, 2000]} />
       {/* <ambientLight intensity={0.15} color="yellow" /> */}
       <ambientLight intensity={0.15} />
+      {/* <ambientLight intensity={1} /> */}
       <Suspense fallback={<Progress />}>
         <Environment preset="park" background={false} />
         <Skybox fog={false} />
         <Terrain />
+        {/* <MartiniTerrain /> */}
       </Suspense>
     </Canvas>
   );

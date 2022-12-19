@@ -18,5 +18,8 @@
     "terrain",
     "material",
     "shader"
-  ]
+  ],
+  "dependencies": {
+    "@mapbox/martini": "^0.2.0"
+  }
 }

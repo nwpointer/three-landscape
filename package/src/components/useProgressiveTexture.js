@@ -61,7 +61,7 @@ class PolymorphicLoader extends TextureLoader {
   }
 
   fileType(f) {
-    return f.split('.').pop().toLowerCase();
+    return f.split(/[#?]/)[0].split('.').pop().trim();
   }
 
   load(input, ...rest) {
