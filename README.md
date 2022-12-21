@@ -140,11 +140,24 @@ Note: as long as you serve provide a /basis_transcoder.js and /basis_transcoder.
 
 See the BasisTextureLoader and Basisu project for more details: https://github.com/BinomialLLC/basis_universal
 
+## MartiniMesh
+Creates a non uniform error minimizing mesh with less geometry than a standard planeBufferGeometry. Acceptable error is measured in world units. Eg error 0 mesh will be nearly identical, a Error 10 mesh will be allowed to differ at most 10 world units at any point from the standard plane. 
+```
+<mesh>
+  <MartiniGeometry displacementMap={displacement} error={10} />
+  <meshStandardMaterial color="red" wireframe>
+</mesh>
+```
+
+
 ## Roadmap:
 
 Thought it might be fun to let people vote on new feature ideas! If you're interested in a particular feature leave a thumbs up on the associated issue:
 
 [view issues sorted by most votes](https://github.com/nwpointer/three-landscape/issues?q=is%3Aissue+is%3Aopen+sort%3Areactions-%2B1-desc)
+
+[<img src="/martini-low.png">](https://three-landscape.vercel.app/)
+[<img src="/martini-high.png">](https://three-landscape.vercel.app/)
 
 ## License
 
