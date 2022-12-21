@@ -148,7 +148,8 @@ Creates a non uniform error minimizing mesh with less geometry than a standard p
   <meshStandardMaterial color="red" wireframe>
 </mesh>
 ```
-
+[<img width="50%" src="/martini-low.png">](https://three-landscape.vercel.app/)
+[<img width="50%" src="/martini-high.png">](https://three-landscape.vercel.app/)
 
 ## Roadmap:
 
@@ -156,8 +157,7 @@ Thought it might be fun to let people vote on new feature ideas! If you're inter
 
 [view issues sorted by most votes](https://github.com/nwpointer/three-landscape/issues?q=is%3Aissue+is%3Aopen+sort%3Areactions-%2B1-desc)
 
-[<img src="/martini-low.png">](https://three-landscape.vercel.app/)
-[<img src="/martini-high.png">](https://three-landscape.vercel.app/)
+
 
 ## License
 
