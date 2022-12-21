@@ -148,8 +148,8 @@ Creates a non uniform error minimizing mesh with less geometry than a standard p
   <meshStandardMaterial color="red" wireframe>
 </mesh>
 ```
-[<img width="50%" src="/martini-low.png">](https://three-landscape.vercel.app/)
-[<img width="50%" src="/martini-high.png">](https://three-landscape.vercel.app/)
+[<img width="45%" src="/martini-low.png">](https://three-landscape.vercel.app/)
+[<img width="45%" src="/martini-high.png">](https://three-landscape.vercel.app/)
 
 ## Roadmap:
 
