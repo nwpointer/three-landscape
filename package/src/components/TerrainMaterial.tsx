@@ -396,7 +396,8 @@ export default function TerrainMaterial(props: MeshStandardMaterialProps & {
         void main(){
           float splatWeights[${numSplatChannels}] = splat();
 
-          n2 = calculateNormalsFromHeightMap();
+          // n2 = calculateNormalsFromHeightMap();
+          n2 = texture2D(normalMap, vUv).xyz;
           
           // Diffuse 
           csm_DiffuseColor = ${props.surfaces.map((surface, i)=>{

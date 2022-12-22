@@ -4,3 +4,27 @@ html, Body, #root, canvas{
     margin:0px;
     background: black;
 }
+
+.canvas {
+    pointer-events: none;
+    position: absolute !important;
+    top: 0px;
+    left: 0px;
+    width: 100vw;
+    height: 100vh;
+  }
+
+.view1 {
+    position: absolute;
+    width: 100%;
+    height: 100%;
+  }
+  
+
+.view2 {
+    position: absolute;
+    bottom: 2em;
+    right: 2em;
+    width: calc(30vw - 2em);
+    height: calc(30vh - 2em);
+  }

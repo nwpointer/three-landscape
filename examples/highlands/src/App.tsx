@@ -2,6 +2,7 @@ import { Canvas, useThree } from "@react-three/fiber";
 import {
   MartiniGeometry,
   TerrainMaterial,
+  BasicMaterial,
   useProgressiveTextures,
 } from "three-landscape";
 import {
@@ -15,33 +16,46 @@ import {
   Stats,
   useProgress,
   Html,
+  Hud,
+  Billboard,
+  Cloud,
+  Center,
+  OrthographicCamera,
+  View,
 } from "@react-three/drei";
 import { Skybox } from "./Skybox";
-import { MeshStandardMaterial, Vector4 } from "three";
-import { Suspense, useEffect } from "react";
+import { MeshStandardMaterial, Vector3, Vector4 } from "three";
+import { Suspense, useEffect, useReducer, useRef } from "react";
 import { useControls } from "leva";
 import { Perf } from "r3f-perf";
 
 function Terrain() {
-  const { debugTextures, trilinear, gridless, noiseBlend, ao, meshError, wireframe } =
-    useControls({
-      debugTextures: false,
-      trilinear: true,
-      gridless: true,
-      noiseBlend: false,
-      ao: {
-        value: 0.62,
-        min: 0,
-        max: 2.0,
-      },
-      meshError: {
-        value: 10,
-        min: 0,
-        max: 300,
-        description: "mesh error"
-      },
-      wireframe: false
-    });
+  const {
+    debugTextures,
+    trilinear,
+    gridless,
+    noiseBlend,
+    ao,
+    meshError,
+    wireframe,
+  } = useControls({
+    debugTextures: false,
+    trilinear: false,
+    gridless: false,
+    noiseBlend: false,
+    ao: {
+      value: 0.62,
+      min: 0,
+      max: 2.0,
+    },
+    meshError: {
+      value: 10,
+      min: 0,
+      max: 300,
+      description: "mesh error",
+    },
+    wireframe: false,
+  });
 
   /*
   [
@@ -210,24 +224,89 @@ function Terrain() {
   ) : null;
 }
 
-function App() {
+function cloudBank() {
   return (
-    <Canvas
-      camera={{ fov: 30, far: 2000, near: 10.0, position: [0, 200, 200] }}
+    <>
+      {" "}
+      <group position={[0, 200, 0]}>
+        <Cloud position={[-4, -2, -25]} speed={0.2} opacity={1} />
+        <Cloud position={[4, 2, -15]} speed={0.2} opacity={0.5} />
+        <Cloud position={[-4, 2, -10]} speed={0.2} opacity={1} />
+        <Cloud position={[4, -2, -5]} speed={0.2} opacity={0.5} />
+        <Cloud position={[4, 2, 0]} speed={0.2} opacity={0.75} />
+      </group>
+      <group position={[30, 190, 0]}>
+        <Cloud position={[-4, -2, -25]} speed={0.2} opacity={1} />
+        <Cloud position={[4, 2, -15]} speed={0.2} opacity={0.5} />
+        <Cloud position={[-4, 2, -10]} speed={0.2} opacity={1} />
+        <Cloud position={[4, -2, -5]} speed={0.2} opacity={0.5} />
+        <Cloud position={[4, 2, 0]} speed={0.2} opacity={0.75} />
+      </group>
+      <group position={[27.5, 210, 35]}>
+        <Cloud position={[-4, -2, -25]} speed={0.2} opacity={1} />
+        <Cloud position={[4, 2, -15]} speed={0.2} opacity={0.5} />
+        <Cloud position={[-4, 2, -10]} speed={0.2} opacity={1} />
+        <Cloud position={[4, -2, -5]} speed={0.2} opacity={0.5} />
+        <Cloud position={[4, 2, 0]} speed={0.2} opacity={0.75} />
+      </group>
+    </>
+  );
+}
+
+function VirtualPreview() {
+  const displacement = useTexture(`/heightmap@0.5.png`);
+  return (
+    <mesh
+      rotation={[(-1 * Math.PI) / 2, 0, (-3.35 * Math.PI) / 2]}
+      position={[0, 0, 0]}
     >
-      <Stats />
-      {/* <Perf position="bottom-left" deepAnalyze={true} /> */}
-      <OrbitControls />
-      {/* <fog attach="fog" args={['#9fdced', 0, 2000]} /> */}
-      <fog attach="fog" args={["#6dd1ed", 0, 2000]} />
-      {/* <ambientLight intensity={0.15} color="yellow" /> */}
-      <ambientLight intensity={0.15} />
-      <Suspense fallback={<Progress />}>
-        <Environment preset="park" background={false} />
-        <Skybox fog={false} />
-        <Terrain />
-      </Suspense>
-    </Canvas>
+      {/* <planeBufferGeometry args={[3,3,1,1]} /> */}
+      <MartiniGeometry displacementMap={displacement} error={0} />
+      <BasicMaterial
+        wireframe
+        displacementMap={displacement}
+        displacementScale={100.0}
+      />
+      {/* <meshStandardMaterial
+        color="red"
+        wireframe={true}
+        displacementMap={displacement}
+        displacementScale={100.0}
+      /> */}
+    </mesh>
+  );
+}
+
+function App() {
+  const view2 = useRef();
+  const view1 = useRef();
+  return (
+    <>
+      <div className="view2" ref={view2} />
+      <div className="view1" ref={view1} />
+      <Canvas
+        camera={{ fov: 30, far: 2000, near: 10.0, position: [0, 200, 200] }}
+      >
+        <Stats />
+        {/* <Perf position="bottom-left" deepAnalyze={true} /> */}
+
+        <OrbitControls />
+        <ambientLight intensity={0.15} />
+        <Suspense fallback={<Progress />}>
+          {/* <View index={2} track={view2}>
+            <color attach="background" args={['#d6edf3']} />
+            <ambientLight intensity={1.0} />
+            <VirtualPreview />
+          </View> */}
+          <View index={1} track={view1}>
+            <fog attach="fog" args={["#6dd1ed", 0, 2000]} />
+            <Environment preset="park" background={false} />
+            <Skybox fog={false} />
+            <Terrain />
+          </View>
+        </Suspense>
+      </Canvas>
+    </>
   );
 }
 
