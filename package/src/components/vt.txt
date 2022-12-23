@@ -1,0 +1,14 @@
+- need to render a shader output to a texture / FBO [*]
+    -> drei Render texture 
+
+- need to identity what pages, and mips in use
+    - for each texel in 1/16th screenspace
+        render a page & mip level 
+    - use glReadPixels to get list of unique pages
+    - update cache and lookup table
+        - ideally figure out how to render updates instead of re-rendering every page
+    - maintain base level mip so we know there will always be at least one mip level available
+    - if visible pages exceeds available memory, replace via LRU
+    - update every 4 frames if camera moved
+
+- use vt texture lookup when rendering

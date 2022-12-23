@@ -117,6 +117,9 @@ export default function TerrainMaterial(props: MeshStandardMaterialProps & {
   const numSplats = props.splats.length;
   const numSplatChannels = props.splats.length * 4.0;
   const numSufaces = props.surfaces.length
+  const displacementWidth = props.displacementMap.image.width;
+  
+  
 
   // TODO: modify sampler to use the generated atlas
 
@@ -236,14 +239,16 @@ export default function TerrainMaterial(props: MeshStandardMaterialProps & {
         // TODO: proper handling of variable numbers of channels w/ forloop
         float[${numSplatChannels}] splat(){
           float splatWeights[${numSplatChannels}];
-          splatWeights[0] = texture2D(uSplats[0], vUv).r;
-          splatWeights[1] = texture2D(uSplats[0], vUv).g;
-          splatWeights[2] = texture2D(uSplats[0], vUv).b;
-          splatWeights[3] = texture2D(uSplats[0], vUv).a;
-          splatWeights[4] = texture2D(uSplats[1], vUv).r;
-          splatWeights[5] = texture2D(uSplats[1], vUv).g;
-          splatWeights[6] = texture2D(uSplats[1], vUv).g;
-          splatWeights[7] = 1.0;
+          vec4 t0 = texture2D(uSplats[0], vUv);
+          vec4 t1 = texture2D(uSplats[1], vUv);
+          splatWeights[0] = t0.r;
+          splatWeights[1] = t0.g;
+          splatWeights[2] = t0.b;
+          splatWeights[3] = t0.a;
+          splatWeights[4] = t1.r;
+          splatWeights[5] = t1.g;
+          splatWeights[6] = t1.b;
+          splatWeights[7] = t1.a;
           return splatWeights;
         }
 
@@ -347,25 +352,28 @@ export default function TerrainMaterial(props: MeshStandardMaterialProps & {
         ${cartesian([['GridlessSample', 'Sample'], ['Linear', 'Normal']]).map(([sampler, mixer])=>{
           return glsl`
           vec4 Tri${sampler}${mixer}(sampler2D map, vec2 uv, float scale){
-            float sharpness = 10.0;
-            vec3 weights = abs(pow3(n2, sharpness));
+            float sharpness = 8.0;
+            vec3 weights = n2;
+            weights.x = pow(n2.x, sharpness);
+            weights.y = pow(n2.y, sharpness);
+            weights.z = pow(n2.z, sharpness);
 
             // float sharpness = 18.0;
             // vec3 weights = abs(pow3(n2, sharpness));
 
-            // cheap 1 channel sample
-            float cutoff = pow(sharpness, 4.0);
-            if(weights.z >cutoff*weights.x && weights.z > cutoff*weights.y){
-              return ${sampler}${mixer}(map, csm_vWorldPosition.xy, scale);
-            }
+            // cheap 1 channel sample - creates some artifacts at cutoff zone
+            // float cutoff = pow(sharpness, 1.0);
+            // if(weights.z >cutoff*weights.x && weights.z > cutoff*weights.y){
+            //   return ${sampler}${mixer}(map, csm_vWorldPosition.xy, scale);
+            // }
 
-            if(weights.x >cutoff*weights.z && weights.x > cutoff*weights.y){
-              return ${sampler}${mixer}(map, csm_vWorldPosition.zy, scale);
-            }
+            // if(weights.x >cutoff*weights.z && weights.x > cutoff*weights.y){
+            //   return ${sampler}${mixer}(map, csm_vWorldPosition.zy, scale);
+            // }
 
-            if(weights.y >cutoff*weights.z && weights.y > cutoff*weights.x){
-              return ${sampler}${mixer}(map, csm_vWorldPosition.xz, scale);
-            }
+            // if(weights.y >cutoff*weights.z && weights.y > cutoff*weights.x){
+            //   return ${sampler}${mixer}(map, csm_vWorldPosition.xz, scale);
+            // }
             
             // expensive 3 channel blend
             vec3 xDiff = ${sampler}${mixer}(map, csm_vWorldPosition.zy , scale).xyz;
@@ -382,11 +390,11 @@ export default function TerrainMaterial(props: MeshStandardMaterialProps & {
         }).join("\n")}
 
         vec3 calculateNormalsFromHeightMap(){
-          float o = 1.0/1024.0;
+          float o = 0.5/${displacementWidth.toFixed(1)}; // step size
           float h = dot(texture2D(displacementMap, vUv),  vec4(1,0,0,1));
           float hx = dot(texture2D(displacementMap, vUv + vec2( o, 0.0 )), vec4(1,0,0,1));
           float hy = dot(texture2D(displacementMap, vUv + vec2( 0.0, o )),  vec4(1,0,0,1));
-          float dScale = 150.0;
+          float dScale = ${(props.displacementScale || 0).toFixed(20)};
           float dx = (hx - h) * dScale;
           float dy = (hy - h) * dScale;
           return (cross(vec3(1.0,0.0,dx), vec3(0.0,1.0,dy)));
@@ -396,9 +404,8 @@ export default function TerrainMaterial(props: MeshStandardMaterialProps & {
         void main(){
           float splatWeights[${numSplatChannels}] = splat();
 
-          // n2 = calculateNormalsFromHeightMap();
-          n2 = texture2D(normalMap, vUv).xyz;
-          
+          n2 = calculateNormalsFromHeightMap();
+
           // Diffuse 
           csm_DiffuseColor = ${props.surfaces.map((surface, i)=>{
             const index = i.toString();

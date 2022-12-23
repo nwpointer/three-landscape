@@ -13,7 +13,7 @@ const filter = f => arr => arr.filter(f);
 const pipe = (...fns) => (x) => fns.reduce((v, f) => f(v), x);
 
 export const pluck = key => map(v=>v[key])
-export const defined = filter(v=>typeof v != undefined);
+export const defined = filter(v=>typeof v != 'undefined' && v != null && v != 'undefined');
 export const standard = defaultValue => map(v=>v||defaultValue);
 export const repeatTexture = (t) => {
   t.wrapS = t.wrapT = RepeatWrapping;
@@ -31,7 +31,15 @@ export const pixelateTexture = (t) => {
 }
   
 export const repeatTextures = map(repeatTexture);
-export const srgbTextures = map(srgbTexture);
+export const srgbTextures = pipe(
+	defined,
+	(v)=>{
+		console.log({v});
+		return [];
+	},
+	map(srgbTexture),
+	
+);
 export const pixelateTextures = map(pixelateTexture);
 export const option = (arr, key, defaultValue?) => pipe(
   pluck(key),
