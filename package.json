@@ -4,7 +4,8 @@
   "license": "MIT",
   "workspaces": [
     "package",
-    "examples/highlands"
+    "examples/highlands",
+    "examples/hello-world"
   ],
   "repository": {
     "type": "git",

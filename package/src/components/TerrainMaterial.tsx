@@ -144,6 +144,8 @@ export default function TerrainMaterial(props: MeshStandardMaterialProps & {
     return color
   }
 
+  console.log({numSplatChannels})
+
   return (
     
     <CustomShaderMaterial
@@ -240,15 +242,19 @@ export default function TerrainMaterial(props: MeshStandardMaterialProps & {
         float[${numSplatChannels}] splat(){
           float splatWeights[${numSplatChannels}];
           vec4 t0 = texture2D(uSplats[0], vUv);
-          vec4 t1 = texture2D(uSplats[1], vUv);
           splatWeights[0] = t0.r;
           splatWeights[1] = t0.g;
           splatWeights[2] = t0.b;
           splatWeights[3] = t0.a;
-          splatWeights[4] = t1.r;
-          splatWeights[5] = t1.g;
-          splatWeights[6] = t1.b;
-          splatWeights[7] = t1.a;
+          
+          // optional second splat image
+          ${numSplatChannels <= 4 ? '' : glsl`
+            vec4 t1 = texture2D(uSplats[1], vUv);
+            splatWeights[4] = t1.r;
+            splatWeights[5] = t1.g;
+            splatWeights[6] = t1.b;
+            splatWeights[7] = t1.a;
+          `}
           return splatWeights;
         }
 
