@@ -26,8 +26,8 @@ function Terrain() {
   const { debugTextures, trilinear, gridless, noiseBlend, ao, meshError, wireframe } =
     useControls({
       debugTextures: false,
-      trilinear: true,
-      gridless: true,
+      trilinear: false,
+      gridless: false,
       noiseBlend: false,
       ao: {
         value: 0.62,
@@ -106,7 +106,7 @@ function Terrain() {
   const grass2 = {
     diffuse: debugDiffuse ? t[13] : t[1],
     normal: debugNormal ? t[14] : t[2],
-    normalStrength: 0.4,
+    normalStrength: 0.2,
     repeat: 200,
     gridless: gridless,
     saturation: 0.7,
@@ -116,7 +116,7 @@ function Terrain() {
   const grass1 = {
     diffuse: debugDiffuse ? t[13] : t[1],
     normal: debugNormal ? t[14] : t[2],
-    normalStrength: 0.4,
+    normalStrength: 0.2,
     repeat: 200,
     saturation: 0.6,
     gridless: gridless,
