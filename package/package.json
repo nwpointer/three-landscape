@@ -1,6 +1,6 @@
 {
   "name": "three-landscape",
-  "version": "0.8.2",
+  "version": "0.8.3",
   "description": "",
   "main": "dist/index",
   "types": "dist/index",
