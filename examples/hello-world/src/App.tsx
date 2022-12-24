@@ -22,8 +22,8 @@ function Terrain() {
     mudNormal
   ] = useTexture([
     `/HeightMap.jpg`,
-    `/SplatMap_02.jpg`,
-    `/NormalMap (4).png`,
+    `/SplatMap.jpg`,
+    `/NormalMap.png`,
     "/Grass_02/ground_Grass1_col.jpg",
     "/Grass_02/ground_Grass1_norm.jpg",
     "/Rock_04/Rock_sobermanRockWall_col.jpg",
