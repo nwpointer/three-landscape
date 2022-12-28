@@ -67,6 +67,7 @@ export default function TerrainMaterial(props: MeshStandardMaterialProps & {
   normalMap?: Texture;
   normalScale?: [Number, Number];
   displacementScale: Number;
+  anisotropy:  Number | 'max'
 }) {
   const {gl} = useThree();
   const diffuse = option(props.surfaces, 'diffuse')
@@ -76,7 +77,7 @@ export default function TerrainMaterial(props: MeshStandardMaterialProps & {
   const tint = option(props.surfaces, 'tint', new Vector4(1,1,1,1))
   const gridless = option(props.surfaces, 'gridless', false)
   const blend = option(props.surfaces, 'blend', { mode: 'linear'})
-  const trilinear = option(props.surfaces, 'trilinear', false)
+  const triplanar = option(props.surfaces, 'triplanar', false)
   const surfaceTextures = [...diffuse, ...normal];
   const textures = defined([...props.splats, ...surfaceTextures, noise])
   const createAtlas = false;
@@ -99,6 +100,13 @@ export default function TerrainMaterial(props: MeshStandardMaterialProps & {
       }
     }
   })
+
+  let anisotropy = props.anisotropy === 'max' ? gl.capabilities.getMaxAnisotropy() : props.anisotropy || 1
+  tx.map(t => {
+    t.anisotropy = anisotropy;
+    t.needsUpdate = true;
+  })
+
 
 
   // TODO: only create atlas if nessisary?
@@ -138,7 +146,7 @@ export default function TerrainMaterial(props: MeshStandardMaterialProps & {
       var uv = `vUv`
     }
     // todo handle index -1?
-    color = glsl`${trilinear[i] ? 'Tri':''}${gridless[i] ? 'Gridless':''}Sample${mixer}(${map}, ${uv}, uRepeat[${index}] )`
+    color = glsl`${triplanar[i] ? 'Tri':''}${gridless[i] ? 'Gridless':''}Sample${mixer}(${map}, ${uv}, uRepeat[${index}] )`
     color = glsl`saturation(${color}, uSaturation[${index}])`
     color = glsl`${color} * uTint[${index}]`
     return color

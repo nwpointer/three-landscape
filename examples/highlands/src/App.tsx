@@ -23,10 +23,10 @@ import { useControls } from "leva";
 import { Perf } from "r3f-perf";
 
 function Terrain() {
-  const { debugTextures, trilinear, gridless, noiseBlend, ao, meshError, wireframe } =
+  const { debugTextures, triplanar, gridless, noiseBlend, ao, meshError, wireframe, anisotropy } =
     useControls({
       debugTextures: false,
-      trilinear: false,
+      triplanar: false,
       gridless: false,
       noiseBlend: false,
       ao: {
@@ -39,6 +39,12 @@ function Terrain() {
         min: 0,
         max: 300,
         description: "mesh error"
+      },
+      anisotropy: {
+        value: 1,
+        min: 1,
+        max: 16,
+        step: 1.0,
       },
       wireframe: false
     });
@@ -149,7 +155,7 @@ function Terrain() {
     normal: debugNormal ? t[14] : t[8],
     normalStrength: 0.4,
     tint: new Vector4(1.5, 1.5, 1.5, 1),
-    trilinear: trilinear,
+    triplanar: triplanar,
     gridless: gridless,
     repeat: 150,
     saturation: 0.5,
@@ -160,7 +166,7 @@ function Terrain() {
     normal: debugNormal ? t[14] : t[6],
     normalStrength: 0.5,
     tint: new Vector4(1.5, 1.5, 1.5, 1),
-    trilinear: trilinear,
+    triplanar: triplanar,
     gridless: gridless,
     repeat: 150,
     saturation: 0.3,
@@ -205,6 +211,7 @@ function Terrain() {
         aoMapIntensity={ao}
         roughness={0.8}
         wireframe={wireframe}
+        anisotropy={anisotropy}
       />
     </mesh>
   ) : null;
