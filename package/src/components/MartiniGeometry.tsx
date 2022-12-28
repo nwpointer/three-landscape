@@ -1,4 +1,5 @@
 import React, { useMemo } from "react";
+import { Texture } from "three";
 import Martini from "@mapbox/martini";
 
 function parseRGBHeightField(image, format = GRAYSCALE) {
@@ -10,16 +11,16 @@ function parseRGBHeightField(image, format = GRAYSCALE) {
   const ctx = canvas.getContext("2d");
 
   ctx.drawImage(image, 0, 0);
-  const data = ctx.getImageData(0, 0, tileSize, tileSize).data;
+  const heightData = ctx.getImageData(0, 0, tileSize, tileSize).data;
   const terrain = new Float32Array(gridSize * gridSize);
 
   // decode terrain values
   for (let y = 0; y < tileSize; y++) {
     for (let x = 0; x < tileSize; x++) {
       const k = (y * tileSize + x) * 4;
-      const r = data[k + 0];
-      const g = data[k + 1];
-      const b = data[k + 2];
+      const r = heightData[k + 0];
+      const g = heightData[k + 1];
+      const b = heightData[k + 2];
       terrain[y * gridSize + x] = format(r, g, b);
     }
   }
@@ -42,26 +43,32 @@ function GRAYSCALE(r, g, b) {
   return r * 256;
 }
 
-export default function MartiniGeometry({ displacementMap, error, args=undefined }) {
-  const {tileSize, gridSize, tile, data} = useMemo(()=>{
-    const tileSize = displacementMap.image.width;
+
+
+export default function MartiniGeometry(props : {
+  displacementMap: Texture,
+  error?: Number
+  args?: [Number, Number]
+}) {
+  const {tileSize, gridSize, tile, heightData} = useMemo(()=>{
+    const tileSize = props.displacementMap.image.width;
     const gridSize = tileSize + 1;
-    const data = parseRGBHeightField(displacementMap.image);
+    const heightData = parseRGBHeightField(props.displacementMap.image);
 
     const martini = new Martini(gridSize);
-    const tile = martini.createTile(data);
+    const tile = martini.createTile(heightData);
 
     return {
-      tileSize, gridSize, tile, data
+      tileSize, gridSize, tile, heightData
     }
-  }, [displacementMap])
+  }, [props.displacementMap])
 
   // this does block the main thread potentially causing jank
   let { vertices, uv, indices, v } = useMemo(() => {
-    let size = args || [tileSize, tileSize];
+    let size = props.args || [tileSize, tileSize];
 
     console.time('gen')
-    var mesh = tile.getMesh(error);
+    var mesh = tile.getMesh(props.error || 0);
     var v = mesh.vertices.length;
     var mv = tile.getMesh(0).vertices.length;
   
@@ -73,7 +80,7 @@ export default function MartiniGeometry({ displacementMap, error, args=undefined
         y = mesh.vertices[i * 2 + 1];
       vertices[3 * i + 0] = (x- tileSize/2) / tileSize * size[0];
       vertices[3 * i + 1] = (y - tileSize/2) / tileSize * size[1];
-      // vertices[3 * i + 2] = data[y * gridSize + x] / tileSize;
+      // vertices[3 * i + 2] = heightData[y * gridSize + x] / tileSize;
       vertices[3 * i + 2] = 0;
 
       uv[2 * i + 0] = x / tileSize;
@@ -88,7 +95,7 @@ export default function MartiniGeometry({ displacementMap, error, args=undefined
       v,
       indices: mesh.triangles.reverse(),
     };
-  }, [tile, data, error, args]);
+  }, [tile, heightData, props.error, props.args]);
 
   return (
     <bufferGeometry

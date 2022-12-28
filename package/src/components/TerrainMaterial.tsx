@@ -66,6 +66,7 @@ export default function TerrainMaterial(props: MeshStandardMaterialProps & {
   displacementMap?: Texture;
   normalMap?: Texture;
   normalScale?: [Number, Number];
+  anisotropy: Number | 'max';
   displacementScale: Number;
 }) {
   const {gl} = useThree();
@@ -98,6 +99,12 @@ export default function TerrainMaterial(props: MeshStandardMaterialProps & {
         id: surface[textureType] ? ti.indexOf(surface[textureType].uuid) : -1
       }
     }
+  })
+
+  let anisotropy = props.anisotropy === 'max' ? gl.capabilities.getMaxAnisotropy() : props.anisotropy || 1
+  tx.map(t => {
+    t.anisotropy = anisotropy;
+    t.needsUpdate = true;
   })
 
 

@@ -33,10 +33,6 @@ export const pixelateTexture = (t) => {
 export const repeatTextures = map(repeatTexture);
 export const srgbTextures = pipe(
 	defined,
-	(v)=>{
-		console.log({v});
-		return [];
-	},
 	map(srgbTexture),
 	
 );

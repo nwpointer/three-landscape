@@ -5,13 +5,16 @@ import glsl from "glslify";
 
 import { MeshStandardMaterialProps } from "@react-three/fiber";
 
-export default function TerrainMaterial(props: MeshStandardMaterialProps) {
+export default function MipMaterial(props: MeshStandardMaterialProps) {
   return (
     
     // @ts-expect-error
     <CustomShaderMaterial
       baseMaterial={MeshStandardMaterial}
       {...props}
+      uniforms={{
+        uTextures: {value: [props.displacementMap]}
+      }}
       vertexShader={glsl`
         varying vec4 csm_vWorldPosition;
         void main(){
@@ -21,9 +24,10 @@ export default function TerrainMaterial(props: MeshStandardMaterialProps) {
       fragmentShader={glsl`
         varying vec4 csm_vWorldPosition;
         uniform sampler2D displacementMap;
+        uniform sampler2D[2] uTextures;
 
-        const float vt_dimension_pages = 128.0;
-        const float vt_dimension = 32768.0;
+        const float vt_page_size = 128.0;
+        const float vt_size = 32768.0;
         float mipmapLevel(vec2 uv, float textureSize)  {
             vec2 dx = dFdx(uv * textureSize);
             vec2 dy = dFdy(uv * textureSize);
@@ -34,9 +38,9 @@ export default function TerrainMaterial(props: MeshStandardMaterialProps) {
         // FRAGMENT OUT ----------------------------------------------------------------
         void main(){
           float depth = gl_FragCoord.z / gl_FragCoord.w;
-          // csm_DiffuseColor = texture2D(displacementMap, vUv);
-          float v = mipmapLevel(vUv, vt_dimension);
-          csm_DiffuseColor = vec4(v - mod(v, 1.0), 0.0, 0.0, 1.0);
+          // csm_DiffuseColor = texture2D(uTextures[0], vUv);
+          float v = mipmapLevel(vUv, vt_size);
+          csm_DiffuseColor = vec4(floor(vUv * vt_page_size) / 255.0, floor(v), 1.0);
         }
       `}
     />
