@@ -1,6 +1,6 @@
 {
   "name": "three-landscape",
-  "version": "0.8.2",
+  "version": "0.8.4",
   "description": "",
   "main": "dist/index",
   "types": "dist/index",
@@ -29,7 +29,9 @@
   "dependencies": {
     "@mapbox/martini": "^0.2.0",
     "glslify": "^7.1.1",
-    "three-custom-shader-material": "^4.0.0"
+    "three-custom-shader-material": "^4.0.0",
+    "uuid": "^9.0.0",
+    "zustand": "^4.1.5"
   },
   "peerDependencies": {
     "@react-three/fiber": "^8.2.0",

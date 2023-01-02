@@ -8,22 +8,6 @@ import { Vector4 } from 'three';
 import TextureMerger from '../textureMerger'
 import { useThree, MeshStandardMaterialProps } from "@react-three/fiber";
 
-function cartesian(args) {
-  var r = [], max = args.length-1;
-  function helper(arr, i) {
-      for (var j=0, l=args[i].length; j<l; j++) {
-          var a = arr.slice(0); // clone arr
-          a.push(args[i][j]);
-          if (i==max)
-              r.push(a);
-          else
-              helper(a, i+1);
-      }
-  }
-  helper([], 0);
-  return r;
-}
-
 // substance instead of material?
 export type Surface = {
   diffuse: Texture;
@@ -34,29 +18,6 @@ export type Surface = {
   tint?: Vector4
   splatId?: Number;
 };
-
-function onlyUnique(value, index, self) {
-  return self.indexOf(value) === index;
-}
-
-function removeDuplicated(values){
-  const flag = {};
-  const unique = [];
-  values.map(object => {
-    if(!flag[object.uuid]){
-      flag[object.uuid] = true;
-      unique.push(object)
-    }
-  })
-  return unique;
-}
-
-function toObject(arr) {
-  var rv = {};
-  for (var i = 0; i < arr.length; ++i)
-    rv[i] = arr[i];
-  return rv;
-}
 
 export default function TerrainMaterial(props: MeshStandardMaterialProps & {
   surfaces: Surface[];
@@ -77,7 +38,7 @@ export default function TerrainMaterial(props: MeshStandardMaterialProps & {
   const tint = option(props.surfaces, 'tint', new Vector4(1,1,1,1))
   const gridless = option(props.surfaces, 'gridless', false)
   const blend = option(props.surfaces, 'blend', { mode: 'linear'})
-  const trilinear = option(props.surfaces, 'trilinear', false)
+  const triplanar = option(props.surfaces, 'triplanar', false)
   const surfaceTextures = [...diffuse, ...normal];
   const textures = defined([...props.splats, ...surfaceTextures, noise])
   const createAtlas = false;
@@ -145,7 +106,7 @@ export default function TerrainMaterial(props: MeshStandardMaterialProps & {
       var uv = `vUv`
     }
     // todo handle index -1?
-    color = glsl`${trilinear[i] ? 'Tri':''}${gridless[i] ? 'Gridless':''}Sample${mixer}(${map}, ${uv}, uRepeat[${index}] )`
+    color = glsl`${triplanar[i] ? 'Tri':''}${gridless[i] ? 'Gridless':''}Sample${mixer}(${map}, ${uv}, uRepeat[${index}] )`
     color = glsl`saturation(${color}, uSaturation[${index}])`
     color = glsl`${color} * uTint[${index}]`
     return color
@@ -480,4 +441,44 @@ export default function TerrainMaterial(props: MeshStandardMaterialProps & {
       }}
     />
   );
+}
+
+
+function onlyUnique(value, index, self) {
+  return self.indexOf(value) === index;
+}
+
+function removeDuplicated(values){
+  const flag = {};
+  const unique = [];
+  values.map(object => {
+    if(!flag[object.uuid]){
+      flag[object.uuid] = true;
+      unique.push(object)
+    }
+  })
+  return unique;
+}
+
+function toObject(arr) {
+  var rv = {};
+  for (var i = 0; i < arr.length; ++i)
+    rv[i] = arr[i];
+  return rv;
+}
+
+function cartesian(args) {
+  var r = [], max = args.length-1;
+  function helper(arr, i) {
+      for (var j=0, l=args[i].length; j<l; j++) {
+          var a = arr.slice(0); // clone arr
+          a.push(args[i][j]);
+          if (i==max)
+              r.push(a);
+          else
+              helper(a, i+1);
+      }
+  }
+  helper([], 0);
+  return r;
 }

@@ -1,7 +1,9 @@
 import React from "react";
 import "@react-three/fiber";
 import TerrainMaterial from "./components/TerrainMaterial";
+import TerrainMesh, {useVirtualTexture} from "./components/TerrainMesh";
 import useProgressiveTextures from "./components/useProgressiveTexture";
 import MartiniGeometry from "./components/MartiniGeometry";
-import BasicMaterial from "./components/MipMaterial";
-export { TerrainMaterial, MartiniGeometry, useProgressiveTextures, BasicMaterial };
+import DeterminantMaterial from "./components/DeterminantMaterial";
+
+export { TerrainMaterial, TerrainMesh, MartiniGeometry, useProgressiveTextures, DeterminantMaterial, useVirtualTexture };

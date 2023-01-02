@@ -29,7 +29,7 @@ Custom material that extends the meshStandardMaterial with additional properties
 - Splatmaps
 - Texture saturation and tint
 - Stochastic sampling
-- Trilinear mapping
+- Triplanar mapping
 - Multiple material blending options
 
 ```js

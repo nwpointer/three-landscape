@@ -2,7 +2,8 @@ import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import {
   MartiniGeometry,
   TerrainMaterial,
-  BasicMaterial,
+  TerrainMesh,
+  useVirtualTexture,
   useProgressiveTextures,
 } from "three-landscape";
 import {
@@ -16,55 +17,66 @@ import {
   Stats,
   useProgress,
   Html,
-  Hud,
   Billboard,
   Cloud,
   Center,
-  OrthographicCamera,
   View,
   useFBO,
   RenderTexture,
+  OrthographicCamera,
 } from "@react-three/drei";
 import { Skybox } from "./Skybox";
-import { Color, MeshStandardMaterial, RGBFormat, Scene, Vector3, Vector4, WebGLRenderTarget } from "three";
-import { Suspense, useEffect, useMemo, useReducer, useRef, useState } from "react";
+import {
+  Color,
+  MeshStandardMaterial,
+  RGBFormat,
+  Scene,
+  Vector3,
+  Vector4,
+  WebGLRenderTarget,
+} from "three";
+import {
+  Suspense,
+  useEffect,
+  useMemo,
+  useReducer,
+  useRef,
+  useState,
+} from "react";
 import { useControls } from "leva";
 import { Perf } from "r3f-perf";
+import { Preview } from "./Preview";
 
-function getObjectsByProperty( object, property, value, result = [] ) {
-
+function getObjectsByProperty(object, property, value, result = []) {
   // check the current object
 
-  if ( object[ property ] === value ) result.push( object );
+  if (object[property] === value) result.push(object);
 
   // check children
 
-  for ( let i = 0, l = object.children.length; i < l; i ++ ) {
+  for (let i = 0, l = object.children.length; i < l; i++) {
+    const child = object.children[i];
+    // console.log(child.userData);
 
-      const child = object.children[ i ];
-      console.log(child.userData);
-      
-
-      getObjectsByProperty( child, property, value, result );
-
+    getObjectsByProperty(child, property, value, result);
   }
- 
-return result;
 
+  return result;
 }
 
 function Terrain() {
   const {
     debugTextures,
-    trilinear,
+    triplanar,
     gridless,
     noiseBlend,
     ao,
     meshError,
     wireframe,
+    anisotropy,
   } = useControls({
     debugTextures: false,
-    trilinear: false,
+    triplanar: false,
     gridless: false,
     noiseBlend: false,
     ao: {
@@ -77,6 +89,12 @@ function Terrain() {
       min: 0,
       max: 300,
       description: "mesh error",
+    },
+    anisotropy: {
+      value: 1,
+      min: 1,
+      max: 16,
+      step: 1.0,
     },
     wireframe: false,
   });
@@ -187,7 +205,7 @@ function Terrain() {
     normal: debugNormal ? t[14] : t[8],
     normalStrength: 0.4,
     tint: new Vector4(1.5, 1.5, 1.5, 1),
-    trilinear: trilinear,
+    triplanar: triplanar,
     gridless: gridless,
     repeat: 150,
     saturation: 0.5,
@@ -198,15 +216,15 @@ function Terrain() {
     normal: debugNormal ? t[14] : t[6],
     normalStrength: 0.5,
     tint: new Vector4(1.5, 1.5, 1.5, 1),
-    trilinear: trilinear,
+    triplanar: triplanar,
     gridless: gridless,
     repeat: 150,
     saturation: 0.3,
   };
 
   return textures ? (
-    <mesh
-      userData={{vt: 1}}
+    <TerrainMesh
+      userData={{ vt: 1 }}
       rotation={[(-1 * Math.PI) / 2, 0, (-3.35 * Math.PI) / 2]}
       position={[0, 0, 0]}
     >
@@ -217,7 +235,11 @@ function Terrain() {
           geometry.needsUpdate = true;
         }
       }} /> */}
-      <MartiniGeometry displacementMap={t[9]} error={meshError} userData={{vMesh:true}} />
+      <MartiniGeometry
+        displacementMap={t[9]}
+        error={meshError}
+        userData={{ vMesh: true }}
+      />
 
       {/* Comparable standard material */}
       {/* <meshStandardMaterial
@@ -244,9 +266,9 @@ function Terrain() {
         aoMapIntensity={ao}
         roughness={0.8}
         wireframe={wireframe}
-        anisotropy='max'
+        anisotropy={anisotropy}
       />
-    </mesh>
+    </TerrainMesh>
   ) : null;
 }
 
@@ -254,21 +276,21 @@ function CloudBank() {
   return (
     <>
       {" "}
-      <group position={[0, 200, 0]}>
+      <group scale={[10, 10, 10]} position={[0, 300, 0]}>
         <Cloud position={[-4, -2, -25]} speed={0.2} opacity={1} />
         <Cloud position={[4, 2, -15]} speed={0.2} opacity={0.5} />
         <Cloud position={[-4, 2, -10]} speed={0.2} opacity={1} />
         <Cloud position={[4, -2, -5]} speed={0.2} opacity={0.5} />
         <Cloud position={[4, 2, 0]} speed={0.2} opacity={0.75} />
       </group>
-      <group position={[30, 190, 0]}>
+      <group scale={[10, 10, 10]} position={[30, 290, 0]}>
         <Cloud position={[-4, -2, -25]} speed={0.2} opacity={1} />
         <Cloud position={[4, 2, -15]} speed={0.2} opacity={0.5} />
         <Cloud position={[-4, 2, -10]} speed={0.2} opacity={1} />
         <Cloud position={[4, -2, -5]} speed={0.2} opacity={0.5} />
         <Cloud position={[4, 2, 0]} speed={0.2} opacity={0.75} />
       </group>
-      <group position={[27.5, 210, 35]}>
+      <group scale={[10, 10, 10]} position={[27.5, 310, 35]}>
         <Cloud position={[-4, -2, -25]} speed={0.2} opacity={1} />
         <Cloud position={[4, 2, -15]} speed={0.2} opacity={0.5} />
         <Cloud position={[-4, 2, -10]} speed={0.2} opacity={1} />
@@ -279,70 +301,51 @@ function CloudBank() {
   );
 }
 
-function VirtualTerrain(){
-  
-  const [diffuseTexture] = useTexture([`/heightmap@0.5.png`]);
-
-  // would be better to get the scene, swap the mat and render 
-  return (
-    <mesh
-      userData={{vt:1}}
-      rotation={[(-1 * Math.PI) / 2, 0, (-3.35 * Math.PI) / 2]}
-      position={[0, 0, 0]}
-    >
-      <MartiniGeometry displacementMap={diffuseTexture} error={0} />
-      <BasicMaterial
-        normalMap={diffuseTexture}
-        displacementMap={diffuseTexture}
-        displacementScale={100.0}
-      />
-    </mesh>
-  )
+function DeterminatePreview() {
+  const {determinant} = useVirtualTexture();
+  return determinant && (
+    <Preview renderPriority={1} scale={4} corner={[1, -1]} padding={[60, 60]}>
+      <primitive object={determinant} attach="map" />
+      {/* <TileSnoop attach="map" /> */}
+    </Preview>
+  );
 }
 
-function TileSnoop({scale=8, frequency=4, ...props}){
-  const {size, gl, camera} = useThree();
-  const [width,height] = [Math.round(size.width/scale), Math.round(size.height/scale)];
-  const previewScene = useRef();
-  // const previewCamera = useRef();
-  let count = 0;
-  var pixels = new Uint8Array(width * height * 4);
-  const target = useMemo(() => {
-    const target = new WebGLRenderTarget(width, height, {
-      format: RGBFormat,
-      stencilBuffer: false
-    })
-    return target
-  }, [width, height])
-  useFrame(() => {      
-      if(count==0){
-        gl.setRenderTarget(target)
-        gl.render(previewScene.current, camera)
-        gl.readRenderTargetPixels(target, 0,0,width,height, pixels); // wont work
-        // to calculate page id: miplevel^4 + _(px/page_width) * _(py/page_height) * pages_in_row
+function CachePreview() {
+  const {cache} = useVirtualTexture();
+  
+  return cache && (
+    <Preview
+      renderPriority={2}
+      width={200}
+      height={200}
+      corner={[-1, -1]}
+      padding={[60, 60]}
+    >
+      <primitive object={cache} attach="map" />
+    </Preview>
+  );
+}
 
-
-        // console.log(Array.from(pixels));
-        gl.setRenderTarget(null)
-      }
-      count = (count +1) % frequency;
-  })
-  return <>
-    <scene ref={previewScene}>
-      <ambientLight intensity={0.35} />
-      <VirtualTerrain/>
-    </scene>
-    <primitive object={target.texture} {...props} />
-  </>
+function PageTablePreview() {
+  const {pageTable} = useVirtualTexture();
+  
+  return pageTable && (
+    <Preview
+      renderPriority={2}
+      width={150}
+      height={150}
+      corner={[-1, -1]}
+      padding={[290, 60]}
+    >
+      <primitive object={pageTable} attach="map" />
+    </Preview>
+  );
 }
 
 function App() {
-  const view2 = useRef();
-  const view1 = useRef();
   return (
     <>
-      <div className="view2" ref={view2} />
-      <div className="view1" ref={view1} />
       <Canvas
         camera={{ fov: 30, far: 2000, near: 10.0, position: [0, 200, 200] }}
       >
@@ -352,27 +355,20 @@ function App() {
         <OrbitControls />
         <ambientLight intensity={0.15} />
         <Suspense fallback={<Progress />}>
+          <DeterminatePreview />
+          <CachePreview />
+          <PageTablePreview />
+          <fog attach="fog" args={["#6dd1ed", 0, 2000]} />
+          <Environment preset="park" background={false} />
+          {/* <OrthographicCamera args={[-1,1,-1,1,1,1000]} zoom={1} makeDefault position={[0,0,1]} />
+          <mesh>
+            <planeBufferGeometry args={[1000,1000]} />
+            <meshBasicMaterial color="red" />
+          </mesh> */}
+          <Skybox fog={false} />
 
-          <TileSnoop attach="map" />
-          
-          <View index={2} track={view2}>
-            <ambientLight intensity={1.0} />
-            <VirtualTerrain />
-          </View>
-          <View index={1} track={view1}>
-            {/* <fog attach="fog" args={["#6dd1ed", 0, 2000]} /> */}
-            <Environment preset="park" background={false} />
-            <Skybox fog={false} />
-            <CloudBank />
-            <Terrain />
-   
-            {/* <mesh position={[0,100,0]}>
-              <planeBufferGeometry args={[100,100]} />
-              <meshStandardMaterial>
-                <TileSnoop attach="map" />
-              </meshStandardMaterial>
-            </mesh> */}
-          </View>
+          {/* <CloudBank /> */}
+          <Terrain />
         </Suspense>
       </Canvas>
     </>
