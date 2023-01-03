@@ -30,8 +30,11 @@ export default function VirtualSampleMaterial(props: MeshStandardMaterialProps &
 
         // FRAGMENT OUT ----------------------------------------------------------------
         void main(){
-          float offset  = texture2D(uPageTable, vUv).r;
-          csm_DiffuseColor = texture2D(uPageTable, vUv);
+          vec3 tableData  = texture2D(uPageTable, vUv).xyz;
+          float i = exp2(tableData.z);
+          vec2 externalOffset = tableData.xy;
+          vec2 internalOffset = (fract(vUv*4.0))/4.0;
+          csm_DiffuseColor = texture2D(map, externalOffset + internalOffset);
         }
       `}
     />

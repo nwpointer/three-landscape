@@ -34,8 +34,6 @@ class TriplanarStandardMaterialImpl extends MeshStandardMaterial {
             shaderTextureLOD: true,
         };
 
-        // console.log(this.parameters.verticalMap);
-
         // const { normalMaps, normalMap, diffuseMaps, splats, noise } = this.parameters;
         // shader.uniforms["splats"] = this._splats;
         shader.uniforms["verticalMap"] = this._verticalMap;

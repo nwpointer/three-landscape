@@ -77,7 +77,7 @@ function Terrain() {
   } = useControls({
     debugTextures: false,
     triplanar: false,
-    gridless: false,
+    gridless: true,
     noiseBlend: false,
     ao: {
       value: 0.62,
@@ -358,15 +358,9 @@ function App() {
           <DeterminatePreview />
           <CachePreview />
           <PageTablePreview />
-          <fog attach="fog" args={["#6dd1ed", 0, 2000]} />
+          {/* <fog attach="fog" args={["#6dd1ed", 0, 2000]} /> */}
           <Environment preset="park" background={false} />
-          {/* <OrthographicCamera args={[-1,1,-1,1,1,1000]} zoom={1} makeDefault position={[0,0,1]} />
-          <mesh>
-            <planeBufferGeometry args={[1000,1000]} />
-            <meshBasicMaterial color="red" />
-          </mesh> */}
           <Skybox fog={false} />
-
           {/* <CloudBank /> */}
           <Terrain />
         </Suspense>

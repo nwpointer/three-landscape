@@ -1,4 +1,4 @@
-import { createPortal, useFrame, useThree } from "@react-three/fiber";
+import { createPortal, MaterialNode, useFrame, useThree } from "@react-three/fiber";
 import React, {
   cloneElement,
   useEffect,
@@ -18,7 +18,8 @@ import {
   FramebufferTexture,
 	DataTexture,
 	LinearFilter,
-  Vector2
+  Vector2,
+	Material
 } from "three";
 import { DeterminantMaterial, TerrainMaterial } from "..";
 import VirtualSampleMaterial from "./VirtualSampleMaterial";
@@ -77,9 +78,87 @@ export const useVirtualTexture = (id) => {
   };
 };
 
-// need to start determinant
-// need to create a global context
-//
+class VirtualTexture{
+	gl: any;
+	cache: Texture;
+	cacheSize: number;
+	capacity: number;
+	width: number;
+	height: number;
+	pageTable: Texture;
+	pageSize: number;
+	pages: Number[];
+	pendingDeletion: Number[];
+	
+	constructor(gl, cache, pageTable, pageSize, cacheSize){
+		this.gl = gl;
+		this.cache = cache;
+		this.width = cacheSize / pageSize;
+		this.height = cacheSize / pageSize;
+		this.capacity = (this.width)**2;
+		this.cacheSize = cacheSize;
+		this.pageTable = pageTable;
+		this.pageSize = pageSize;
+		this.pages = new Array(this.capacity).fill(undefined);
+		this.pendingDeletion = new Array(this.capacity).fill(undefined);
+	}
+
+	// assumes data already written to frameBuffer
+	setPage(pageID){
+		if(this.hasPage(pageID)) return;
+		if(this.isPendingDeletion(pageID)) return this.revivePage(pageID);
+
+		// Use cachID of next empty slot
+		const cid = this.nextEmptySlot();
+		const [x,y] = [cid % this.width, Math.floor(cid / this.width)];
+		const [px,py] = [x * -this.pageSize, (y+1-this.width) * this.pageSize];
+		const mip = 2;
+		
+		// Write data to cache & pageTable - assumes data is already in the frameBuffer
+		this.gl.copyFramebufferToTexture(new Vector2(px, py), this.cache, 0);
+		this.updatePageTable(x,y, [x/4*255,y/4*255,mip,255]);
+		this.pages[cid] = pageID;
+	}
+
+	updatePageTable = (x,y, [r,g,b,a])=>{
+		const index = (y * this.width + x) * 4;
+		this.pageTable.image.data[index] = r;
+		this.pageTable.image.data[index + 1] = g;
+		this.pageTable.image.data[index + 2] = b;
+		this.pageTable.image.data[index + 3] = a;
+		this.pageTable.needsUpdate = true;
+	}
+
+	// tombstones pages
+	deletePage(pageID){
+		const cid = this.pages.indexOf(pageID);
+		if(cid === -1) return;
+		this.pages[cid] = undefined;
+		this.pendingDeletion[cid] = pageID;
+	}
+
+	revivePage(pageID){
+		const cid = this.pendingDeletion.indexOf(pageID);
+		if(cid === -1) return;
+		this.pendingDeletion[cid] = undefined;
+		this.pages[cid] = pageID;
+	}
+
+	nextEmptySlot(){
+		const cid = this.pages.indexOf(undefined);
+		if(cid === -1) throw new Error('Cache is full');
+		return cid;
+	}
+
+	hasPage(pageID:Number){
+		return this.pages.includes(pageID);
+	}
+
+	isPendingDeletion(pageID:Number){
+		return this.pendingDeletion.includes(pageID);
+	}
+
+}
 
 export default function TerrainMesh({
   children,
@@ -100,7 +179,7 @@ export default function TerrainMesh({
     camera.position.set(0, 0, 1);
     return camera;
   });
-  const pageMesh = useRef();
+  const pageMesh = useRef() as { current: Mesh | undefined };
 
   const mesh = useRef() as { current: Mesh | undefined };
   const id = useMemo(() => name || uuid(), [name]);
@@ -137,13 +216,13 @@ export default function TerrainMesh({
 		dataTexture.needsUpdate = true;
 
 		// initialize page table to random colors
-		for (let i = 0; i < size; i++) {
-			const index = i * 4;
-			data[index] = Math.floor(Math.random() * 255);
-			data[index + 1] = Math.floor(Math.random() * 255);
-			data[index + 2] = Math.floor(Math.random() * 255);
-			data[index + 3] = 255;
-		}
+		// for (let i = 0; i < size; i++) {
+		// 	const index = i * 4;
+		// 	data[index] = Math.floor(Math.random() * 255);
+		// 	data[index + 1] = Math.floor(Math.random() * 255);
+		// 	data[index + 2] = Math.floor(Math.random() * 255);
+		// 	data[index + 3] = 255;
+		// }
 
 		const updatePageTable = (x,y, [r,g,b,a])=>{
 			const index = (y * width + x) * 4;
@@ -165,11 +244,16 @@ export default function TerrainMesh({
     return target;
   }, [pageSize]);
 
+	const virtualTexture = useMemo(() => {
+		return new VirtualTexture(gl, cache, pageTable, pageSize, cacheSize);
+	}, [cache, pageTable, pageSize, cacheSize]);
+
+
   const renderPage = (s, x, y) => {
-    if (pageMesh?.current) {
-      pageMesh?.current?.scale?.set(s, s, s);
+    if (pageMesh.current) {
+      pageMesh.current.scale.set(s, s, s);
       //top-right origin: index e in range (0..s-1)
-      pageMesh?.current?.position?.set((s - 1) / 2 - x, (s - 1) / 2 - y, 0);
+      pageMesh.current.position.set((s - 1) / 2 - x, (s - 1) / 2 - y, 0);
       gl.setRenderTarget(pageFrameBuffer);
       gl.clear();
       gl.render(pageScene, sampleCamera);
@@ -192,21 +276,17 @@ export default function TerrainMesh({
 
       if (!initialized) {
         // initialize cache
-        let i = 0;
-        let n = gl.capabilities.maxTextureSize / pageSize;
+        
+        let n = cacheSize/ pageSize;
 
-        for (var x = 0; x < n; x++) {
-          for (var y = 0; y < n; y++) {
-            renderPage(n, x, y);
-            const px = x * -pageSize;
-            const py = (y + 1 - n) * pageSize;
-            gl.copyFramebufferToTexture(new Vector2(px, py), cache, 0);
-            i++;
-          }
-        }
+				// initialize page table to a row scan
+				for (let i = 0; i < n*n; i++) {
+					const x = i % n;
+					const y = Math.floor(i / n);
 
-				// test pageTable update
-				updatePageTable(1,3, [255,0,0,255]);
+					renderPage(n, x, y);
+					virtualTexture.setPage(i);
+				}
 
         initialized = true;
       }
@@ -240,8 +320,11 @@ export default function TerrainMesh({
         ref={(mesh) => {
           // r3f did not seem to pickup the texture update, so we do it manually
           if (mesh) {
-            mesh.material.map = pageTable;
+						// @ts-ignore
+            mesh.material.map = cache;
+						// @ts-ignore
 						mesh.material.uniforms.uPageTable.value = pageTable
+						// @ts-ignore
             mesh.material.needsUpdate = true;
           }
         }}
