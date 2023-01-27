@@ -1,6 +1,23 @@
 import { RepeatWrapping, NearestFilter, LinearMipmapNearestFilter, LinearEncoding, sRGBEncoding } from "three";
 import glsl from "glslify";
 
+export function cartesian(args) {
+	var r = [], max = args.length-1;
+	function helper(arr, i) {
+		for (var j=0, l=args[i].length; j<l; j++) {
+			var a = arr.slice(0); // clone arr
+			a.push(args[i][j]);
+			if (i==max)
+				r.push(a);
+			else
+				helper(a, i+1);
+		}
+	}
+	helper([], 0);
+	return r;
+  }
+  
+
 export function getDimensions(texture) {
     return {
       width: texture.source.data.width,
@@ -48,10 +65,10 @@ export const edgeBlend = glsl`
 	}
 
 	float edgeBlend(float v, float blur){
-	float amplitude = 1.0;
-	float wavelength = 1024.0*64.0;
-	float accuracy  = 2.0;
-	return edgeBlend(v, blur, amplitude, wavelength, accuracy);
+		float amplitude = 1.0;
+		float wavelength = 1024.0*64.0;
+		float accuracy  = 2.0;
+		return edgeBlend(v, blur, amplitude, wavelength, accuracy);
 	}
 `
 

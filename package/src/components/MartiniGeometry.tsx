@@ -51,6 +51,8 @@ export default function MartiniGeometry({ displacementMap, error, args=undefined
     const martini = new Martini(gridSize);
     const tile = martini.createTile(data);
 
+    console.log('regenerating til')
+
     return {
       tileSize, gridSize, tile, data
     }
@@ -60,7 +62,6 @@ export default function MartiniGeometry({ displacementMap, error, args=undefined
   let { vertices, uv, indices, v } = useMemo(() => {
     let size = args || [tileSize, tileSize];
 
-    console.time('gen')
     var mesh = tile.getMesh(error);
     var v = mesh.vertices.length;
     var mv = tile.getMesh(0).vertices.length;
@@ -79,8 +80,6 @@ export default function MartiniGeometry({ displacementMap, error, args=undefined
       uv[2 * i + 0] = x / tileSize;
       uv[2 * i + 1] = y / tileSize;
     }
-
-    console.timeEnd('gen')
 
     return {
       vertices,

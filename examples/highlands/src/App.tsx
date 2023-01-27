@@ -23,7 +23,7 @@ import { useControls } from "leva";
 import { Perf } from "r3f-perf";
 
 function Terrain() {
-  const { debugTextures, triplanar, gridless, noiseBlend, ao, meshError, wireframe, anisotropy } =
+  const { debugTextures, triplanar, gridless, noiseBlend, ao, meshError, smoothness, wireframe, surfaceLimit, anisotropy } =
     useControls({
       debugTextures: false,
       triplanar: false,
@@ -35,10 +35,16 @@ function Terrain() {
         max: 2.0,
       },
       meshError: {
-        value: 10,
+        value: 0,
         min: 0,
         max: 300,
         description: "mesh error"
+      },
+      smoothness: {
+        value: 0,
+        min: 0,
+        max: 20,
+        step: 0.1,
       },
       anisotropy: {
         value: 1,
@@ -46,6 +52,13 @@ function Terrain() {
         max: 16,
         step: 1.0,
       },
+      surfaceLimit: {
+        value: 2,
+        min: 1,
+        max: 8,
+        step: 1.0,
+      },
+
       wireframe: false
     });
 
@@ -75,7 +88,7 @@ function Terrain() {
       "/Mud_03/Ground_WetBumpyMud_col.jpg",
       "/Mud_03/Ground_WetBumpyMud_norm.jpg",
       "/Cliffs_02/Rock_DarkCrackyCliffs_col.jpg",
-      "/Cliffs_02/Rock_DarkCrackyCliffs_norm.png",
+      "/Cliffs_02/Rock_DarkCrackyCliffs_norm.jpg",
       "/Rock_04/Rock_sobermanRockWall_col.jpg",
       "/Rock_04/Rock_sobermanRockWall_norm.jpg",
       `/heightmap@0.5.png`,
@@ -113,8 +126,8 @@ function Terrain() {
   const grass2 = {
     diffuse: debugDiffuse ? t[13] : t[1],
     normal: debugNormal ? t[14] : t[2],
-    normalStrength: 0.2,
-    repeat: 200,
+    normalStrength: 0.3,
+    repeat: 300,
     gridless: gridless,
     saturation: 0.7,
     tint: new Vector4(0.8, 1.0, 0.8, 1),
@@ -123,8 +136,8 @@ function Terrain() {
   const grass1 = {
     diffuse: debugDiffuse ? t[13] : t[1],
     normal: debugNormal ? t[14] : t[2],
-    normalStrength: 0.2,
-    repeat: 200,
+    normalStrength: 0.3,
+    repeat: 300,
     saturation: 0.6,
     gridless: gridless,
     tint: new Vector4(0.8, 1.0, 0.8, 1),
@@ -147,29 +160,30 @@ function Terrain() {
     diffuse: debugDiffuse ? t[13] : t[3],
     normal: debugNormal ? t[14] : t[4],
     normalStrength: 0.5,
-    repeat: 200,
+    repeat: 300,
     saturation: 0.5,
   };
 
   const clif = {
     diffuse: debugDiffuse ? t[13] : t[7],
     normal: debugNormal ? t[14] : t[8],
-    normalStrength: 0.4,
+    normalStrength: 0.5,
+    normalY: -1,
     tint: new Vector4(1.5, 1.5, 1.5, 1),
     triplanar: triplanar,
     gridless: gridless,
-    repeat: 150,
+    repeat: 300,
     saturation: 0.5,
   };
 
   const rock = {
     diffuse: debugDiffuse ? t[13] : t[5],
     normal: debugNormal ? t[14] : t[6],
-    normalStrength: 0.5,
+    normalStrength: 0.4,
     tint: new Vector4(1.5, 1.5, 1.5, 1),
     triplanar: triplanar,
     gridless: gridless,
-    repeat: 150,
+    repeat: 300,
     saturation: 0.3,
   };
 
@@ -179,7 +193,7 @@ function Terrain() {
       position={[0, 0, 0]}
     >
       {/* Plan geometry works too: */}
-      {/* <planeBufferGeometry args={[1024, 1024, 1024 * 1.0, 1024 * 1.0]} ref={geometry => {
+      {/* <planeBufferGeometry args={[1024, 1024, 2**11, 2**11]} ref={geometry => {
         if(geometry){
           geometry.attributes.uv2 = geometry.attributes.uv.clone();
           geometry.needsUpdate = true;
@@ -199,11 +213,13 @@ function Terrain() {
         roughness={0.8}
       /> */}
       <TerrainMaterial
+        //@ts-ignore
         splats={[t[11], t[12]]}
         surfaces={[rock, clif, mud, grass1, grass2, mud, mud]}
         normalMap={t[10]}
         displacementMap={t[9]}
-        displacementScale={100.0}
+        displacementScale={120.0}
+        displacementBias={0.0}
         // normalScale={[1.5,1.5]}
         // orientation={[-1,1]}
         envMapIntensity={0.75}
@@ -213,6 +229,8 @@ function Terrain() {
         roughness={0.8}
         wireframe={wireframe}
         anisotropy={anisotropy}
+        surfaceLimit={surfaceLimit}
+        smoothness = {smoothness}
       />
     </mesh>
   ) : null;
@@ -221,13 +239,13 @@ function Terrain() {
 function App() {
   return (
     <Canvas
-      camera={{ fov: 30, far: 2000, near: 10.0, position: [0, 200, 200] }}
+      camera={{ fov: 30, far: 2000, near: 1.0, position: [0, 200, 200] }}
     >
       <Stats />
       {/* <Perf position="bottom-left" deepAnalyze={true} /> */}
       <OrbitControls />
       {/* <fog attach="fog" args={['#9fdced', 0, 2000]} /> */}
-      <fog attach="fog" args={["#6dd1ed", 0, 2000]} />
+      {/* <fog attach="fog" args={["#6dd1ed", 0, 2000]} /> */}
       {/* <ambientLight intensity={0.15} color="yellow" /> */}
       <ambientLight intensity={0.15} />
       <Suspense fallback={<Progress />}>
