@@ -1,12 +1,10 @@
-import React, { useMemo } from "react";
-import CustomShaderMaterial from "three-custom-shader-material";
-import { Material, MeshStandardMaterial, RepeatWrapping, Texture, sRGBEncoding } from "three";
+import { MeshStandardMaterialProps, useThree } from "@react-three/fiber";
 import glsl from "glslify";
+import { MeshStandardMaterial, sRGBEncoding, Texture, Vector4 } from "three";
+import CustomShaderMaterial from "three-custom-shader-material";
+import TextureMerger from '../textureMerger';
 import noise from "./noise";
-import { option, repeatTextures, srgbTextures, defined, colorFunctions, glslNoise, edgeBlend, luma, normalFunctions  } from './util.js'
-import { Vector4 } from 'three';
-import TextureMerger from '../textureMerger'
-import { useThree, MeshStandardMaterialProps } from "@react-three/fiber";
+import { colorFunctions, defined, edgeBlend, glslNoise, luma, normalFunctions, option, repeatTextures, srgbTextures } from './util.js';
 
 function cartesian(args) {
   var r = [], max = args.length-1;
@@ -63,7 +61,7 @@ export default function TerrainMaterial(props: MeshStandardMaterialProps & {
   map?: Texture;
   splats: Texture[];
   noise?: Texture;
-  displacementMap?: Texture;
+  displacementMap: Texture;
   normalMap?: Texture;
   normalScale?: [Number, Number];
   displacementScale: Number;
@@ -120,13 +118,12 @@ export default function TerrainMaterial(props: MeshStandardMaterialProps & {
   // const nids = (props.surfaces.map(surface => tid.indexOf())
   // apply repetition option to all textures
   repeatTextures(textures)
-  srgbTextures([props.displacementMap, ...surfaceTextures, props.normalMap])
+  srgbTextures([props.displacementMap, ...surfaceTextures, props.normalMap].filter(Boolean))
 
   const numSplats = props.splats.length;
   const numSplatChannels = props.splats.length * 4.0;
   const numSufaces = props.surfaces.length
   const displacementWidth = props.displacementMap.image.width;
-  
   
 
   // TODO: modify sampler to use the generated atlas
