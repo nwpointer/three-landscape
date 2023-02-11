@@ -162,10 +162,8 @@ Thought it might be fun to let people vote on new feature ideas! If you're inter
 ## Contributing:
 
 ### before publishing
-run build
-copy readme over so it shows up on gh & npm
-cd into package
-npm publish
+npm run build
+npm publish -w package
 
 ### testing npm packages
 npm link does not work due to the use of peer dependencies. Use pack & install instead

@@ -6,6 +6,10 @@
     "package",
     "examples/highlands"
   ],
+  "scripts": {
+    "dev":"npm run dev -w package & npm run dev -w highlands",
+    "build":"cp README.md ./package/README.md && npm run build --workspaces"
+  },
   "repository": {
     "type": "git",
     "url": "https://github.com/nwpointer/three-landscape"
