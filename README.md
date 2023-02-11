@@ -164,7 +164,6 @@ project is setup using npm workspaces. package includes the library code and exa
 
 for convenience the following commands are setup in the root of the directory if you're unfamilar with npm workspaces:
 ```
-npm run install
 npm run build
 npm run dev
 ```

@@ -7,7 +7,6 @@
     "examples/highlands"
   ],
   "scripts": {
-    "install": "npm i --workspaces",
     "dev":"npm run dev -w package & npm run dev -w highlands",
     "build":"cp README.md ./package/README.md && npm run build --workspaces"
   },
