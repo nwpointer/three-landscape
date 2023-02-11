@@ -1,6 +1,6 @@
 {
   "name": "three-landscape",
-  "description": "r3f custom terrain component for rendering high quality 3d landscapes ",
+  "description": "r3f custom terrain component for rendering high quality 3d landscapes",
   "license": "MIT",
   "workspaces": [
     "package",
