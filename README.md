@@ -160,6 +160,17 @@ Thought it might be fun to let people vote on new feature ideas! If you're inter
 
 
 ## Contributing:
+project is setup using npm workspaces. package includes the library code and examples folder can be used to manually test changes to the library before publishing.
+
+for convenience the following commands are setup in the root of the directory if you're unfamilar with npm workspaces:
+```
+npm run install
+npm run build
+npm run dev
+```
+
+npm run dev starts the library and highlands example in watch mode.
+the highlands example starts on localhost:5173
 
 ### before publishing
 ```

@@ -3,3 +3,4 @@ dist
 .tga
 .parcel-cache
 .DS_Store
+package/README.md
