@@ -159,7 +159,23 @@ Thought it might be fun to let people vote on new feature ideas! If you're inter
 [view issues sorted by most votes](https://github.com/nwpointer/three-landscape/issues?q=is%3Aissue+is%3Aopen+sort%3Areactions-%2B1-desc)
 
 
+## Contributing:
+
+### before publishing
+run build
+copy readme over so it shows up on gh & npm
+cd into package
+npm publish
+
+### testing npm packages
+~/workspace/package-name $ npm pack
+~/workspace/package-name $ cp package-name-0.0.0.tgz ~
+~/workspace/some-application $ npm install ~/package-name-0.0.0.tgz
+
 
 ## License
 
 MIT License does not apply to any of the image files in the examples directory
+
+
+

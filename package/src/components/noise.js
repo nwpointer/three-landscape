@@ -4,16 +4,20 @@ export default textureFromBase64("data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAA
 
 
 function textureFromBase64(src) {
-    // Create an image
-    const image = new Image(); // or document.createElement('img' );
-    // Create texture
-    var texture = new Texture(image);
-    // On image load, update texture
-    image.onload = () => {
-      texture.needsUpdate = true;
-    };
-    // Set image source
-    image.src = src;
-  
-    return texture;
+   if(typeof Image !== 'undefined'){
+     // Create an image
+     const image = new Image(); // or document.createElement('img' );
+     // Create texture
+     var texture = new Texture(image);
+     // On image load, update texture
+     image.onload = () => {
+       texture.needsUpdate = true;
+     };
+     // Set image source
+     image.src = src;
+   
+     return texture;
+   }
+
+   return new Texture();
   }

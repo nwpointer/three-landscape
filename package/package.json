@@ -1,13 +1,17 @@
 {
   "name": "three-landscape",
-  "version": "0.8.4",
+  "version": "0.8.5",
   "description": "",
-  "main": "dist/index",
-  "types": "dist/index",
+  "main": "common/index.js",
+  "module": "dist/index.js",
+  "types": "dist/index.d.ts",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "dev": "tsc -w --emitDeclarationOnly & swc -w ./src/ --out-dir ./dist",
-    "build": "tsc --emitDeclarationOnly & swc ./src/ --out-dir ./dist"
+    "dev": "tsc -w --emitDeclarationOnly & npm run module",
+    "build": "npm run types & npm run module & npm run common",
+    "types": "tsc --emitDeclarationOnly",
+    "module": "swc ./src/ --config-file .swcrc_es6 --out-dir ./dist",
+    "common": "swc ./src/ --config-file .swcrc_common  --out-dir ./common"
   },
   "repository": {
     "type": "git",

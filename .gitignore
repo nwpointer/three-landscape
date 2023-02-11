@@ -1,5 +1,6 @@
 node_modules
 dist
+common
 .tga
 .parcel-cache
 .DS_Store
