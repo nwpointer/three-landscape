@@ -11,6 +11,32 @@
     "types": "tsc --emitDeclarationOnly",
     "compile": "swc ./src/ --out-dir ./dist"
   },
+  "browserslist": {
+    "production": [
+      ">0.2%",
+      "not dead",
+      "not op_mini all"
+    ],
+    "development": [
+      "last 1 chrome version",
+      "last 1 firefox version",
+      "last 1 safari version"
+    ]
+  },
+  "eslintConfig": {
+    "env": {
+      "browser": true,
+      "node": true,
+      "es2020": true
+    },
+    "extends": [
+      "eslint:recommended",
+      "plugin:react/recommended"
+    ],
+    "parserOptions": {
+      "sourceType": "module"
+    }
+  },
   "repository": {
     "type": "git",
     "url": "git+https://github.com/nwpointer/three-landscape.git"

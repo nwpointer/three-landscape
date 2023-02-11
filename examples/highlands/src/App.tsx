@@ -1,4 +1,4 @@
-import { Canvas, useThree } from "@react-three/fiber";
+import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import {
   MartiniGeometry,
   TerrainMaterial,
@@ -17,13 +17,15 @@ import {
   Html,
 } from "@react-three/drei";
 import { Skybox } from "./Skybox";
-import { MeshStandardMaterial, Vector4, Texture } from "three";
-import { Suspense, useEffect } from "react";
+import { MeshStandardMaterial, Vector4, Vector3 } from "three";
+import { Suspense, useEffect, useState } from "react";
 import { useControls } from "leva";
 import { Perf } from "r3f-perf";
 
 function Terrain() {
-  const { debugTextures, triplanar, gridless, noiseBlend, ao, meshError, smoothness, wireframe, surfaceLimit, anisotropy } =
+  const {camera} = useThree();
+  const [cameraPosition, setCameraPosition] = useState(new Vector3(0,0,0));
+  const { debugTextures, triplanar, gridless, useMacro, noiseBlend, ao, meshError, smoothness, wireframe, surfaceLimit, anisotropy } =
     useControls({
       debugTextures: false,
       triplanar: false,
@@ -53,14 +55,24 @@ function Terrain() {
         step: 1.0,
       },
       surfaceLimit: {
-        value: 2,
+        value: 3,
         min: 1,
         max: 8,
         step: 1.0,
       },
+      useMacro: false,
 
       wireframe: false
     });
+
+    // req calc to be off the main thread
+    // useFrame(() => {
+    //   var v = camera.position.distanceTo(cameraPosition);
+    //   if(v > 400.0){
+    //     setCameraPosition(camera.position.clone());
+    //     console.log('frame geometry')
+    //   }
+    // });
 
   /*
   [
@@ -97,6 +109,7 @@ function Terrain() {
       `/splatmap_01.png`,
       "/DebugTexture/debug.jpg",
       "/DebugTexture/debug_norm.png",
+      "/T_MacroVariation_sm.png"
     ],
   ]);
 
@@ -129,8 +142,8 @@ function Terrain() {
     normalStrength: 0.3,
     repeat: 300,
     gridless: gridless,
-    saturation: 0.7,
-    tint: new Vector4(0.8, 1.0, 0.8, 1),
+    saturation: 0.55,
+    tint: new Vector4(0.9, 1.0, 0.9, 1),
   };
 
   const grass1 = {
@@ -138,9 +151,9 @@ function Terrain() {
     normal: debugNormal ? t[14] : t[2],
     normalStrength: 0.3,
     repeat: 300,
-    saturation: 0.6,
+    // saturation: 0.5,
     gridless: gridless,
-    tint: new Vector4(0.8, 1.0, 0.8, 1),
+    tint: new Vector4(0.9, 1.0, 0.9, 1),
   };
 
   if (noiseBlend) {
@@ -169,7 +182,7 @@ function Terrain() {
     normal: debugNormal ? t[14] : t[8],
     normalStrength: 0.5,
     normalY: -1,
-    tint: new Vector4(1.5, 1.5, 1.5, 1),
+    tint: new Vector4(1.2, 1.2, 1.2, 1),
     triplanar: triplanar,
     gridless: gridless,
     repeat: 300,
@@ -180,12 +193,14 @@ function Terrain() {
     diffuse: debugDiffuse ? t[13] : t[5],
     normal: debugNormal ? t[14] : t[6],
     normalStrength: 0.4,
-    tint: new Vector4(1.5, 1.5, 1.5, 1),
+    tint: new Vector4(1.2, 1.2, 1.2, 1),
     triplanar: triplanar,
     gridless: gridless,
     repeat: 300,
     saturation: 0.3,
   };
+
+  let cameraError = camera.position.distanceTo(new Vector3(0,0,0));
 
   return textures ? (
     <mesh
@@ -199,7 +214,8 @@ function Terrain() {
           geometry.needsUpdate = true;
         }
       }} /> */}
-      <MartiniGeometry displacementMap={t[9]} error={meshError} />
+      {/* determine based on platform */}
+      <MartiniGeometry displacementMap={t[9]} error={meshError+120} mobileError={meshError+200} />
 
       {/* Comparable standard material */}
       {/* <meshStandardMaterial
@@ -219,6 +235,7 @@ function Terrain() {
         normalMap={t[10]}
         displacementMap={t[9]}
         displacementScale={120.0}
+        // displacementScale={0.0}
         displacementBias={0.0}
         // normalScale={[1.5,1.5]}
         // orientation={[-1,1]}
@@ -231,21 +248,28 @@ function Terrain() {
         anisotropy={anisotropy}
         surfaceLimit={surfaceLimit}
         smoothness = {smoothness}
+        macroMap = {t[15]}
+        useMacro = {useMacro}
       />
     </mesh>
   ) : null;
 }
 
 function App() {
+  const { atmosphere } = useControls({
+    atmosphere: {
+      value: false
+    }
+  });
   return (
     <Canvas
-      camera={{ fov: 30, far: 2000, near: 1.0, position: [0, 200, 200] }}
+      camera={{ fov: 60, far: 50000000000, near: 1.0, position: [0, 200, 200] }}
     >
       <Stats />
       {/* <Perf position="bottom-left" deepAnalyze={true} /> */}
       <OrbitControls />
       {/* <fog attach="fog" args={['#9fdced', 0, 2000]} /> */}
-      {/* <fog attach="fog" args={["#6dd1ed", 0, 2000]} /> */}
+      {/* <fog attach="fog" args={["#6dd1ed", atmosphere ? 0 : 2500, 2500]} /> */}
       {/* <ambientLight intensity={0.15} color="yellow" /> */}
       <ambientLight intensity={0.15} />
       <Suspense fallback={<Progress />}>

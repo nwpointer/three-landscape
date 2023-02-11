@@ -1,13 +1,16 @@
 import CustomShaderMaterial, { iCSMUpdateParams } from "three-custom-shader-material/vanilla";
-import { Texture, Scene, Color, MeshBasicMaterial, LinearFilter, WebGLRenderer, Mesh, PlaneGeometry, OrthographicCamera, WebGLRenderTarget, MeshStandardMaterial, DataArrayTexture, RGBAFormat,UnsignedByteType, LinearMipMapLinearFilter,NearestFilter,RepeatWrapping, sRGBEncoding, LinearMipmapLinearFilter, LinearMipmapNearestFilter } from "three";
+import { Texture, Scene, Color, MeshBasicMaterial, LinearFilter, WebGLRenderer, Mesh, PlaneGeometry, OrthographicCamera, WebGLRenderTarget, MeshStandardMaterial, DataArrayTexture, RGBAFormat,UnsignedByteType, LinearMipMapLinearFilter,NearestFilter,RepeatWrapping, sRGBEncoding, LinearMipmapLinearFilter, LinearMipmapNearestFilter, Vector4 } from "three";
 import glsl from "glslify";
 import { MeshStandardMaterialProps } from "@react-three/fiber";
-import { normalFunctions, glslNoise } from "../util/util";
-import { triplanar, aperiodic, samplers } from "../util/samplers";
+import { normalFunctions, colorFunctions, glslNoise } from "../util/util";
+import { triplanar, biplanar, aperiodic, samplers } from "../util/samplers";
 import mixers from "../util/mixers";
 import sort from "../util/sort";
 import dynamicHeight from "../util/dynamicHeight";
 import { splatPreProcessMaterial } from "./splatPreProcessMaterial";
+import hexagon from "../util/hexagon";
+import noise from "../util/noise";
+import { ShaderMaterial } from "three";
 
 export type Surface = {
   diffuse: THREE.Texture;
@@ -18,6 +21,8 @@ export type Surface = {
   saturation?: Number;
   tint?: THREE.Vector4;
   splatId?: Number;
+  triplanar?: boolean;
+  gridless?: boolean;
 };
 
 export type TerrainMaterialOptions = MeshStandardMaterialProps & {
@@ -32,6 +37,8 @@ export type TerrainMaterialOptions = MeshStandardMaterialProps & {
   anisotropy: number | "max";
   smoothness: number;
   surfaceLimit: number;
+  macroMap?: Texture;
+  useMacro: boolean;
 };
 
 const textureCache = {};
@@ -42,6 +49,17 @@ class TerrainMaterial extends CustomShaderMaterial {
   diffuseArray: DataArrayTexture;
   normalArray: DataArrayTexture;
   renderer: WebGLRenderer;
+  // render texture resources:
+  macroMaterial: ShaderMaterial;
+  macroTarget: WebGLRenderTarget;
+  macroScene: Scene;
+  macroCamera: OrthographicCamera;
+  distanceMaterial: ShaderMaterial;
+  distanceDiffuseTarget: WebGLRenderTarget;
+  distanceNormalTarget: WebGLRenderTarget;
+  distanceScene: Scene;
+  distanceCamera: OrthographicCamera;
+
   
   constructor(props = {} as any, renderer: WebGLRenderer) {
     console.log('TerrainMaterial')
@@ -60,7 +78,9 @@ class TerrainMaterial extends CustomShaderMaterial {
 
     props.uniforms = {
       ...props.uniforms,
+      aoMapIntensity: { value: props.aoMapIntensity || 0 },
       diffuseArray: { value: diffuseArray },
+      uNoise: { value: props.noise || noise },
       normalArray: { value: normalArray },
       weights: { value: weights.texture },
       indexes: { value: indexes.texture },
@@ -72,6 +92,16 @@ class TerrainMaterial extends CustomShaderMaterial {
       surfaceNormalStrength: { value: props.surfaces.map(s => s.normalStrength || 1) },
       surfaceNormalY: { value: props.surfaces.map(s => s.normalY || 1 ) },
       surfaceRepeat: { value: props.surfaces.map(s => s.repeat || 1) },
+      surfaceGridless: { value: props.surfaces.map(s => s.gridless || false) },
+      surfaceTriplanar: { value: props.surfaces.map(s => s.triplanar || false) },
+      surfaceTint: { value: props.surfaces.map(s => s.tint || new Vector4(1, 1, 1, 1)) },
+      surfaceSaturation: { value: props.surfaces.map(s => s.saturation || 0.5) },
+      distanceDiffuseMap: { value: undefined },
+      distanceNormalMap: { value: undefined },
+      macroMap: { value: undefined },
+      diffuseMode: { value: false },
+      normalMode: { value: false },
+      useMacro: { value: false },
     };
 
     props.vertexShader = glsl`
@@ -98,109 +128,190 @@ class TerrainMaterial extends CustomShaderMaterial {
     `
 
     props.fragmentShader = glsl`
-      const int MAX_SURFACES = 8;
+      const int SURFACES = ${props.surfaces.length};
       precision highp sampler2DArray;
       uniform sampler2DArray diffuseArray;
       uniform sampler2DArray normalArray;
       uniform sampler2D weights;
       uniform sampler2D indexes;
       uniform sampler2D[2] splats;
+      uniform sampler2D uNoise;
       uniform sampler2D displacementMap;
       uniform vec2 displacementSize;
       uniform float displacementScale;
       uniform int surfaceLimit;
-      uniform float[MAX_SURFACES] surfaceNormalStrength;
-      uniform float[MAX_SURFACES] surfaceNormalY;
-      uniform float[MAX_SURFACES] surfaceRepeat;
+      uniform float[SURFACES] surfaceNormalStrength;
+      uniform float[SURFACES] surfaceNormalY;
+      uniform float[SURFACES] surfaceRepeat;
+      uniform bool[SURFACES] surfaceGridless;
+      uniform bool[SURFACES] surfaceTriplanar;
+      uniform vec4[SURFACES] surfaceTint;
+      uniform float[SURFACES] surfaceSaturation;
       varying float vZ;
-      varying vec3 vHeightNormal; 
-      // vec3 heightNormal;
+      varying vec3 vHeightNormal;
+      // renders diffuse or normal map to a texture
+      uniform bool diffuseMode;
+      uniform bool normalMode;
+      uniform sampler2D distanceDiffuseMap;
+      uniform sampler2D distanceNormalMap;
+      uniform sampler2D macroMap;
+      uniform bool useMacro;
       
       vec4 csm_NormalMap;
     
       ${normalFunctions}
+      ${colorFunctions}
       ${glslNoise}
       float sum( vec3 v ) { return v.x+v.y+v.z; }
 
       ${mixers}
+      // ${hexagon}
       ${samplers}
       ${aperiodic}
       ${triplanar}
+      ${biplanar}
       
       
       void main(){
-        // Index and weight texture version - this introduces small artifacts so should only be done if needed
-        // vec4 i = texture2D(indexes, vUv - mod(vUv, 1.0/(1024.0*16.0)) );
-        vec4 i = texture2D(indexes, vUv);
-        vec4 w = texture2D(weights, vUv);
+        // sorted version (interpolates and sorts)f
+        // 2 samples and some math to get the index and weight
+        vec4 t0 = texture2D(splats[0], vUv);
+        vec4 t1 = texture2D(splats[1], vUv);
+        vec2[8] surfaces = vec2[8](
+          ${Array(2)
+            .fill(0)
+            .map((v, i) => {
+              const index = i.toString();
+              return glsl`
+              vec2(${((i * 4 + 0) / 8.0).toString()}, t${index}.r),
+              vec2(${(i * 4 + 1)/ 8.0}, t${index}.g),
+              vec2(${(i * 4 + 2)/ 8.0}, t${index}.b),
+              vec2(${(i * 4 + 3)/ 8.0}, t${index}.a)`;
+            })
+            .join(",")}
+        );
+        ${sort("surfaces")}
 
-        // normalizes the weights
-        float surfaceSum = 0.0;
-        for(int n = 0; n < surfaceLimit; n++) surfaceSum += w[n];
-        for(int n = 0; n < surfaceLimit; n++) w[n] /= surfaceSum;
+        float weightSum = 0.0;
+        float[SURFACES] weights;
+        float Z = texture(displacementMap, vUv).r;
+        for(int i = 0; i < surfaceLimit; i++) weightSum += surfaces[i].y;
 
-        //Cached version (sorts and then tries to interpolate)
-        csm_DiffuseColor =
-          texture(diffuseArray, vec3(vUv*200.0, i.r * 8.0)) * w.r +
-          texture(diffuseArray, vec3(vUv*200.0, i.g * 8.0)) * w.g;
-          texture(diffuseArray, vec3(vUv*200.0, i.b * 8.0)) * w.b;
-          texture(diffuseArray, vec3(vUv*200.0, i.a * 8.0)) * w.a;
+        // float r =  noise() / 2.0;
 
-        // csm_DiffuseColor = ;
+        int index = int(surfaces[0].x * 8.0);
+        float R = surfaceRepeat[index];
+        float N = surfaceNormalY[index];
 
-
-        // // sorted version (interpolates and sorts)f
-        // // 2 samples and some math to get the index and weight
-        // vec4 t0 = texture2D(splats[0], vUv);
-        // vec4 t1 = texture2D(splats[1], vUv);
-        // vec2[8] surfaces = vec2[8](
-        //   ${Array(2)
-        //     .fill(0)
-        //     .map((v, i) => {
-        //       const index = i.toString();
-        //       return glsl`
-        //       vec2(${((i * 4 + 0) / 8.0).toString()}, t${index}.r),
-        //       vec2(${(i * 4 + 1)/ 8.0}, t${index}.g),
-        //       vec2(${(i * 4 + 2)/ 8.0}, t${index}.b),
-        //       vec2(${(i * 4 + 3)/ 8.0}, t${index}.a)`;
-        //     })
-        //     .join(",")}
-        // );
-        // ${sort("surfaces")}
-        // // float surfaceSum = 0.0;
-        // // for(int i = 0; i < surfaceLimit; i++) surfaceSum += surfaces[i].y;
-        // // for(int i = 0; i < surfaceLimit; i++) surfaces[i].y /= surfaceSum;
+        float depth = gl_FragCoord.z / gl_FragCoord.w;
         
-        // // csm_DiffuseColor = ${generateSamples(props.surfaceLimit)}; 
+        // vec2[6] hexData = hexagon(vUv, 4.0, vec2(1) * R);
+        // vec4 hexGrid = hexagonLinearSample(normalArray, vec3(vUv, 1.0), 8.0, 16.0 * vec2(1,N));
+        // vec4 hexGrid = hexagonLinearSample(normalArray, vec3(vUv * R * vec2(1,N), 1.0), 30.0, 16.0 * vec2(1,N));
+        // vec4 hexGrid = hexagon(normalArray, vUv * R * vec2(1,N), 30.0);
+        // csm_DiffuseColor =vec4(hexGrid);
+
+        csm_DiffuseColor = vec4(0,0,0,0);
+        // vec4 baseDiffuse = vec4(0,0,0,0);
+        vec4 baseNormal = texture(normalMap, vUv);
+        // change to distance normal
+        vec4 distantNormal = texture(distanceNormalMap, vUv);
+        vec4 distantDiffuse = texture(distanceDiffuseMap, vUv);
+
+        csm_NormalMap = baseNormal;
+
+        // todo: make this a uniform
+        float distant = 150.0;
+        
+        // sample variation pattern
+        // float k = texture( uNoise, 0.005*uv.xy ).x; // cheap (cache friendly) lookup
+        float k = noise(vec3(vUv.xy*200.0, vZ)); // slower but may need to do it if at texture limit
+
+        vec4 macro = texture(macroMap, vUv);
+        // csm_DiffuseColor = texture;
+
+        // sample a precomputed texture
+        if(depth > distant && !diffuseMode && !normalMode){
+          csm_DiffuseColor = distantDiffuse;
+          csm_NormalMap = distantNormal;
+        }
+        else {
+          for(int i = 0; i < surfaceLimit; i++){
+            int index = int(surfaces[i].x * 8.0);
+            float N = surfaceNormalY[index];
+            float R = surfaceRepeat[index];
+            float P = surfaceNormalStrength[index];
+            bool gridless = surfaceGridless[index];
+            // hackyway to reduce cost of triplanar on far away surfaces, helps maintain 60fps
+            bool triplanar = surfaceTriplanar[index];
+            
+            weights[i] = surfaces[i].y / weightSum;
 
 
-        // float weightSum = 0.0;
-        // float[MAX_SURFACES] weights;
-        // float Z = texture(displacementMap, vUv).r;
-        // for(int i = 0; i < surfaceLimit; i++) weightSum += surfaces[i].y;
+  
+            // becasue the branch is based on a static uniform instead of a dynamic value, the compiler can optimize it out
+            // precomputed hexagon requires additional args so it's not compatible with triplanar
+            vec4 diffuse;
+            vec4 normal;
+            if(gridless){
+              if(triplanar){
+                diffuse = TriplanarAperiodicLinearSample(diffuseArray, vec4(vUv, vZ, surfaces[i].x * 8.0), R * vec2(1,N), k);
+                normal = TriplanarAperiodicNormalSample(normalArray, vec4(vUv, vZ, surfaces[i].x * 8.0), R * vec2(1,N), k);
+              } else {
+                diffuse = AperiodicLinearSample(diffuseArray, vec3(vUv, surfaces[i].x * 8.0), R * vec2(1,N), k);
+                normal = AperiodicNormalSample(normalArray, vec3(vUv, surfaces[i].x * 8.0), R * vec2(1,N), k);
+              }
+            } else {
+              if(triplanar){
+                diffuse = TriplanarLinearSample(diffuseArray, vec4(vUv, vZ, surfaces[i].x * 8.0), R * vec2(1,N), k);
+                normal = TriplanarNormalSample(normalArray, vec4(vUv, vZ, surfaces[i].x * 8.0), R * vec2(1,N), k);
+              }else{
+                diffuse = LinearSample(diffuseArray, vec3(vUv, surfaces[i].x * 8.0), R * vec2(1,N), k);
+                normal = NormalSample(normalArray, vec3(vUv, surfaces[i].x * 8.0), R * vec2(1,N), k);
+              }
+            }
+  
+            diffuse = saturation(diffuse, surfaceSaturation[index]);
+            diffuse = diffuse * surfaceTint[index];
+            
+  
+            // vec4 diffuse = LinearSample(diffuseArray, vec3(vUv, surfaces[i].x * 8.0), R * vec2(1,N));
+            // vec4 diffuse = hexagonLinearSample(diffuseArray, vec3(vUv, surfaces[i].x * 8.0), 4.0, R * vec2(1,N));
+            // vec4 diffuse = preHexagonLinearSample(diffuseArray, vec3(vUv, surfaces[i].x * 8.0), 4.0, R * vec2(1,N), hexData);
+            // vec4 diffuse = AperiodicLinearSample(diffuseArray, vec3(vUv, surfaces[i].x * 8.0), R * vec2(1,N));
+            // vec4 diffuse = TriplanarAperiodicLinearSample(diffuseArray, vec4(vUv, vZ, surfaces[i].x * 8.0), R * vec2(1,N));
+            vec4 weightedDiffuse = diffuse * surfaces[i].y;
+            csm_DiffuseColor += weightedDiffuse;
+            
+            // vec4 normal = NormalSample(normalArray, vec3(vUv, surfaces[i].x * 8.0), R * vec2(1.0, N));
+            // vec4 normal = preHexagonNormalSample(normalArray, vec3(vUv, surfaces[i].x * 8.0), 30.0, R * vec2(1,N), hexData);
+            // vec4 normal = AperiodicNormalSample(normalArray, vec3(vUv, surfaces[i].x * 8.0), R * vec2(1,N));
+            // vec4 normal = TriplanarAperiodicNormalSample(normalArray, vec4(vUv, vZ, surfaces[i].x * 8.0), R * vec2(1,N));
+            vec4 weightedNormal = slerp(zeroN, normal, weights[i] * P);
+            csm_NormalMap = blend_rnm(csm_NormalMap, weightedNormal);
+          }
+
+
+          if(!diffuseMode && !normalMode){
+            float v = pow((depth) / distant, 15.0);
+            csm_DiffuseColor = mix(csm_DiffuseColor, distantDiffuse, v);
+            csm_NormalMap = mix(csm_NormalMap, distantNormal, v);
+          }
+        }
       
-        // csm_DiffuseColor = vec4(0,0,0,0);
-        // // csm_NormalMap = texture(normalMap, vUv);
-        // for(int i = 0; i < surfaceLimit; i++){
-        //   int index = int(surfaces[i].x * 8.0);
-        //   float N = surfaceNormalY[index];
-        //   float R = surfaceRepeat[index];
-        //   float P = surfaceNormalStrength[index];
-          
-        //   weights[i] = surfaces[i].y / weightSum;
+        // this only works if ao is disabled
+        if(diffuseMode) {
+          // csm_DiffuseColor = vec4(1,0,0,1);
+          csm_NormalMap = zeroN;
+        };
+        if(normalMode) {
+          csm_DiffuseColor = csm_NormalMap;
+          csm_NormalMap = zeroN;
+        }
 
-        //   // vec4 diffuse = texture(diffuseArray, vec3(vUv*R * vec2(1,N), surfaces[i].x * 8.0));
-        //   // vec4 diffuse = AperiodicLinearSample(diffuseArray, vec3(vUv, surfaces[i].x * 8.0), R * vec2(1,N));
-        //   vec4 diffuse = TriplanarAperiodicLinearSample(diffuseArray, vec4(vUv, vZ, surfaces[i].x * 8.0), R * vec2(1,N));
-        //   vec4 weightedDiffuse = diffuse * surfaces[i].y;
-        //   csm_DiffuseColor += weightedDiffuse;
-          
-        //   // vec4 normal = texture(normalArray, vec3(vUv*R * vec2(1.0, N), surfaces[i].x * 8.0));
-        //   // vec4 normal = AperiodicNormalSample(normalArray, vec3(vUv, surfaces[i].x * 8.0), R * vec2(1,N));
-        //   // vec4 normal = TriplanarAperiodicNormalSample(normalArray, vec4(vUv, vZ, surfaces[i].x * 8.0), R * vec2(1,N));
-        //   // vec4 weightedNormal = slerp(zeroN, normal, weights[i] * P);
-        //   // csm_NormalMap = blend_rnm(csm_NormalMap, weightedNormal);
-
+        if(useMacro){
+          csm_DiffuseColor = saturation(csm_DiffuseColor, macro.w);
+          csm_DiffuseColor = csm_DiffuseColor * vec4(macro.xyz, 1.0);
         }
       
       }
@@ -210,38 +321,41 @@ class TerrainMaterial extends CustomShaderMaterial {
     super({
       ...props,
       baseMaterial: MeshStandardMaterial,
-      // patchMap: {
-      //   csm_NormalMap: props.normalMap ? {
-      //     "#include <normal_fragment_maps>": glsl`
-      //       #ifdef OBJECTSPACE_NORMALMAP
-      //         normal = csm_NormalMap.xyz * 2.0 - 1.0; // overrides both flatShading and attribute normals
-      //         #ifdef FLIP_SIDED
-      //           normal = - normal;
-      //         #endif
-      //         #ifdef DOUBLE_SIDED
-      //           normal = normal * faceDirection;
-      //         #endif
-      //         normal = normalize( normalMatrix * normal );
-      //         #elif defined( TANGENTSPACE_NORMALMAP )
-      //           vec3 mapN = csm_NormalMap.xyz * 2.0 - 1.0;
-      //           mapN.xy *= normalScale;
-      //           #ifdef USE_TANGENT
-      //             normal = normalize( vTBN * mapN );
-      //           #else
-      //             normal = perturbNormal2Arb( - vViewPosition, normal, mapN, faceDirection );
-      //           #endif
-      //         #elif defined( USE_BUMPMAP )
-      //           normal = perturbNormalArb( - vViewPosition, normal, dHdxy_fwd(), faceDirection );
-      //         #endif
-      //     `,
-      //   } : {},
-      // }
+      patchMap: {
+        csm_NormalMap: props.normalMap ? {
+          "#include <normal_fragment_maps>": glsl`
+            #ifdef OBJECTSPACE_NORMALMAP
+              normal = csm_NormalMap.xyz * 2.0 - 1.0; // overrides both flatShading and attribute normals
+              #ifdef FLIP_SIDED
+                normal = - normal;
+              #endif
+              #ifdef DOUBLE_SIDED
+                normal = normal * faceDirection;
+              #endif
+              normal = normalize( normalMatrix * normal );
+              #elif defined( TANGENTSPACE_NORMALMAP )
+                vec3 mapN = csm_NormalMap.xyz * 2.0 - 1.0;
+                mapN.xy *= normalScale;
+                #ifdef USE_TANGENT
+                  normal = normalize( vTBN * mapN );
+                #else
+                  normal = perturbNormal2Arb( - vViewPosition, normal, mapN, faceDirection );
+                #endif
+              #elif defined( USE_BUMPMAP )
+                normal = perturbNormalArb( - vViewPosition, normal, dHdxy_fwd(), faceDirection );
+              #endif
+          `,
+        } : {},
+      }
     });
 
     this.props = props;
     this.diffuseArray = diffuseArray;
     this.normalArray = normalArray;
     this.renderer = renderer;
+
+    this.initializeDistanceMaps(props, renderer);
+    this.initializeMacroMaps(props, renderer);
   }
 
   // @ts-ignore
@@ -249,6 +363,14 @@ class TerrainMaterial extends CustomShaderMaterial {
     this.uniforms.surfaceNormalStrength.value = surfaces.map(s => s.normalStrength);
     this.uniforms.surfaceNormalY.value = surfaces.map(s => s.normalY || 1);
     this.uniforms.surfaceRepeat.value = surfaces.map(s => s.repeat || 1);
+    this.uniforms.surfaceGridless.value = surfaces.map(s => s.gridless || false);
+    this.uniforms.surfaceTriplanar.value = surfaces.map(s => s.triplanar || false);
+    this.uniforms.surfaceTint.value = surfaces.map(s => s.tint || new Vector4(1, 1, 1, 1))
+    this.uniforms.surfaceSaturation.value = surfaces.map(s => s.saturation || 0.5);  
+    
+    this.generateDistanceMaps(this.props, this.renderer);
+    this.generateMacroMap(this.props, this.renderer);
+
     this.needsUpdate = true;
   }
 
@@ -271,6 +393,12 @@ class TerrainMaterial extends CustomShaderMaterial {
     this.uniforms.smoothness.value = value || 0.1;
     this.needsUpdate = true;
 
+  }
+
+  // @ts-ignore
+  set useMacro(value: boolean){
+    this.uniforms.useMacro.value = value;
+    this.needsUpdate = true;
   }
 
   // @ts-ignore
@@ -301,6 +429,63 @@ class TerrainMaterial extends CustomShaderMaterial {
       t.needsUpdate = true;
     })
   }
+
+  renderTexture(renderer, target, scene, camera) {
+    target.texture.needsUpdate = true;
+    renderer.setRenderTarget(target);
+    renderer.render(scene, camera);
+    renderer.setRenderTarget(null);
+  }
+
+  initializeMacroMaps(props, renderer) {
+    this.macroMaterial = MacroMaterial(this);
+    const {camera, scene} = materialScene(this.macroMaterial);
+    this.macroCamera = camera;
+    this.macroScene = scene;
+    let {width, height} = {width:1024*8.0, height:1024*8.0};
+    this.macroTarget = new WebGLRenderTarget(width, height, {format: RGBAFormat,stencilBuffer: false, generateMipmaps: true});
+  }
+
+  initializeDistanceMaps(props, renderer) {
+    this.distanceMaterial = DistanceMaterial(this);
+    const {camera, scene} = materialScene(this.distanceMaterial);
+    this.distanceCamera = camera;
+    this.distanceScene = scene;
+    let {width, height} = {width:1024*16.0, height:1024*16.0};
+    this.distanceDiffuseTarget = new WebGLRenderTarget(width, height, {format: RGBAFormat,stencilBuffer: false, generateMipmaps: true});
+    this.distanceNormalTarget = new WebGLRenderTarget(width, height, {format: RGBAFormat,stencilBuffer: false, generateMipmaps: true});
+  }
+
+  generateMacroMap(props, renderer) {
+    // const mat = this.macroMaterial;
+    const camera = this.macroCamera;
+    const scene = this.macroScene;
+    const map = this.macroTarget;
+
+    this.renderTexture(renderer, map, scene, camera);
+    this.uniforms.macroMap = {value: map.texture};
+    this.needsUpdate = true;
+  }
+
+
+  generateDistanceMaps(props, renderer) {
+    const mat = this.distanceMaterial;
+    const camera = this.distanceCamera;
+    const scene = this.distanceScene;
+    const map  = this.distanceDiffuseTarget;
+    const normal = this.distanceNormalTarget;
+    
+    mat.uniforms.diffuseMode.value = 1;
+    this.renderTexture(renderer, map, scene, camera);
+
+    mat.uniforms.diffuseMode.value = 0;
+    this.renderTexture(renderer, normal, scene, camera);
+
+    this.uniforms.distanceDiffuseMap = {value: map.texture};
+    this.uniforms.distanceNormalMap = {value: normal.texture};
+    
+    this.needsUpdate = true;
+  }
    
   // todo: refactor to take a list of textures and an optional cache name?
   // todo: reuse preprocess material, and render targets
@@ -315,14 +500,14 @@ class TerrainMaterial extends CustomShaderMaterial {
     let {width, height} = props.splats[0].image;
     // console.log(width, height);
     
-    width *= 4.0;
-    height *= 4.0;
+    // width *= 4.0;
+    // height *= 4.0;
     if(props.weights || textureCache[ids] && textureCache[ids].weights){
       weights = props.weights || textureCache[ids].weights;
     } else {      
       weights = new WebGLRenderTarget(width, height, {format: RGBAFormat,stencilBuffer: false});
       // weights.texture.minFilter = NearestFilter;
-      weights.texture.magFilter = NearestFilter;
+      // weights.texture.magFilter = NearestFilter;
       weights.texture.needsUpdate = true;
       renderer.setRenderTarget(weights);
       mat.uniforms.uMode.value = 1; // weights
@@ -340,7 +525,7 @@ class TerrainMaterial extends CustomShaderMaterial {
     } else {
       indexes = new WebGLRenderTarget(width, height, {format: RGBAFormat,stencilBuffer: false});
       // indexes.texture.minFilter = NearestFilter;
-      indexes.texture.magFilter = NearestFilter;
+      // indexes.texture.magFilter = NearestFilter;
       indexes.texture.needsUpdate = true;
       renderer.setRenderTarget(indexes);
       mat.uniforms.uMode.value = 0; // indexes
@@ -380,6 +565,9 @@ class TerrainMaterial extends CustomShaderMaterial {
     }
   }
 }
+
+
+
 
 export default TerrainMaterial;
 
@@ -450,6 +638,173 @@ function generateSamples(sampleCount=4){
   }).join(" + \n")
 }
 
+function MacroMaterial(parent) {
+  parent.props.macroMap.wrapT = RepeatWrapping;
+  parent.props.macroMap.wrapS = RepeatWrapping;
+  parent.props.macroMap.needsUpdate = true;
+  return new ShaderMaterial({
+    uniforms: {
+      variationMap: { value: parent.props.macroMap },
+    },
+    vertexShader: glsl`
+      varying vec2 vUv;
+      void main() {
+        vUv = uv;
+        gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+      }
+    `,
+    fragmentShader: glsl`
+      precision highp float;
+      uniform sampler2D variationMap;
+      varying vec2 vUv;
+      void main() {
+        gl_FragColor = 
+        texture2D(variationMap, vUv/ 4.0) / 3.0 + 1.45 -
+        texture2D(variationMap, vUv*4.0);
+        
+        
+        gl_FragColor.w = 0.5;
+        gl_FragColor.w = max(0.5, (texture2D(variationMap, vUv*8.0).r / 1.5 + texture2D(variationMap, vUv).r / 1.5)/2.0);
+
+        // gl_FragColor = vec4(1.0, 1.0, 1.0, 0.5);
+      }
+    `
+  });
+}
+
+// simplified version of the shader that calculates the distant diffuse and normal maps
+function DistanceMaterial(parent) {
+  return new ShaderMaterial({
+    uniforms :{
+      ...parent.uniforms,
+      diffuseMode: { value: true },
+      normalMap: { value: parent.normalMap },
+    },
+    vertexShader: glsl`
+        precision highp float;
+        varying vec2 vUv;
+        
+        void main() {
+          vUv = uv;
+          gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+        }
+      `,
+    fragmentShader: glsl`
+        const int SURFACES = ${parent.props.surfaces.length};
+        uniform int surfaceLimit;
+        precision highp sampler2DArray;
+        uniform bool diffuseMode;
+        uniform sampler2D[2] splats;
+        uniform float displacementScale;
+        varying vec2 vUv;
+        varying vec3 vHeightNormal;
+
+        uniform float[SURFACES] surfaceNormalStrength;
+        uniform float[SURFACES] surfaceNormalY;
+        uniform float[SURFACES] surfaceRepeat;
+        uniform bool[SURFACES] surfaceGridless;
+        uniform bool[SURFACES] surfaceTriplanar;
+        uniform vec4[SURFACES] surfaceTint;
+        uniform float[SURFACES] surfaceSaturation;
+
+        uniform sampler2DArray diffuseArray;
+        uniform sampler2DArray normalArray;
+        uniform sampler2D normalMap;
+
+        ${normalFunctions}
+        ${colorFunctions}
+        ${glslNoise}
+        float sum( vec3 v ) { return v.x+v.y+v.z; }
+
+        ${mixers}
+        ${samplers}
+        ${aperiodic}
+        
+        void main() {
+          vec4 t0 = texture2D(splats[0], vUv);
+          vec4 t1 = texture2D(splats[1], vUv);
+          vec2[8] surfaces = vec2[8](
+            ${Array(2)
+              .fill(0)
+              .map((v, i) => {
+                const index = i.toString();
+                return glsl`
+                vec2(${((i * 4 + 0) / 8.0).toString()}, t${index}.r),
+                vec2(${(i * 4 + 1)/ 8.0}, t${index}.g),
+                vec2(${(i * 4 + 2)/ 8.0}, t${index}.b),
+                vec2(${(i * 4 + 3)/ 8.0}, t${index}.a)`;
+              })
+              .join(",")}
+          );
+          ${sort("surfaces")}
+
+          float[SURFACES] weights;
+          float Z = 0.0; // fix this
+          float weightSum = 0.0;
+          for(int i = 0; i < surfaceLimit; i++) weightSum += surfaces[i].y;
+
+          int index = int(surfaces[0].x * 8.0);
+          float R = surfaceRepeat[index];
+          float N = surfaceNormalY[index];
+
+          float k = noise(vec3(vUv.xy*200.0, 0.0)); // slower but may need to do it if at texture limit
+
+          if(diffuseMode){
+            gl_FragColor = vec4(0.0, 0.0, 0.0, 0.0);
+            for(int i = 0; i < surfaceLimit; i++){
+              int index = int(surfaces[i].x * 8.0);
+              float N = surfaceNormalY[index];
+              float R = surfaceRepeat[index];
+              float P = surfaceNormalStrength[index];
+              bool gridless = surfaceGridless[index];
+              
+              weights[i] = surfaces[i].y / weightSum;
+    
+              // we don't bother with triplanar if the surface is distant
+              vec4 diffuse;
+              if(gridless){
+                  diffuse = AperiodicLinearSample(diffuseArray, vec3(vUv, surfaces[i].x * 8.0), R * vec2(1,N), k);
+              } else {
+                  diffuse = LinearSample(diffuseArray, vec3(vUv, surfaces[i].x * 8.0), R * vec2(1,N), k);
+              }
+    
+              diffuse = saturation(diffuse, surfaceSaturation[index]);
+              diffuse = diffuse * surfaceTint[index];
+              
+              vec4 weightedDiffuse = diffuse * surfaces[i].y;
+              gl_FragColor += weightedDiffuse;
+            }
+          }
+          else {
+            gl_FragColor = texture(normalMap, vUv);
+            // gl_FragColor = zeroN;
+            for(int i = 0; i < surfaceLimit; i++){
+                int index = int(surfaces[i].x * 8.0);
+                float N = surfaceNormalY[index];
+                float R = surfaceRepeat[index];
+                float P = surfaceNormalStrength[index];
+                bool gridless = surfaceGridless[index];
+                
+                weights[i] = surfaces[i].y / weightSum;
+      
+                // we don't bother with triplanar if the surface is distant
+                vec4 normal;
+                if(gridless){
+                    normal = AperiodicNormalSample(normalArray, vec3(vUv, surfaces[i].x * 8.0), R * vec2(1,N), k);
+                } else {
+                    normal = NormalSample(normalArray, vec3(vUv, surfaces[i].x * 8.0), R * vec2(1,N), k);
+                }
+                              
+                vec4 weightedNormal = slerp(zeroN, normal, weights[i] * P);
+                gl_FragColor = blend_rnm(gl_FragColor, weightedNormal);
+            }
+          }
+        }
+      `,
+  });
+}
+
+
 
 
 // Brute force version
@@ -470,9 +825,21 @@ function generateSamples(sampleCount=4){
 // vec4 i = texture2D(indexes, vUv );
 // vec4 w = texture2D(weights, vUv);
 
-// Cached version (sorts and then tries to interpolate)
-// csm_DiffuseColor = 
-//   texture(diffuseArray, vec3(vUv*200.0, i.r * 8.0)) * w.r;
+// // Index and weight texture version - this introduces small artifacts so should only be done if needed
+// // vec4 i = texture2D(indexes, vUv - mod(vUv, p) );
+// vec4 i = texture2D(indexes, vUv);
+// vec4 w = texture2D(weights, vUv);
+
+// // normalizes the weights
+// // float surfaceSum = 0.0;
+// // for(int n = 0; n < surfaceLimit; n++) surfaceSum += w[n];
+// // for(int n = 0; n < surfaceLimit; n++) w[n] /= surfaceSum;
+
+// //Cached version (sorts and then tries to interpolate)
+// csm_DiffuseColor =
+//   texture(diffuseArray, vec3(vUv*200.0, i.r * 8.0)) * w.r +
 //   texture(diffuseArray, vec3(vUv*200.0, i.g * 8.0)) * w.g;
 //   texture(diffuseArray, vec3(vUv*200.0, i.b * 8.0)) * w.b;
 //   texture(diffuseArray, vec3(vUv*200.0, i.a * 8.0)) * w.a;
+
+          

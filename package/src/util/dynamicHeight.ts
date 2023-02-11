@@ -33,6 +33,7 @@ export default glsl`
     float h = dot(texture(displacementMap, guv),  vec4(1,0,0,1));
     float hx = dot(texture(displacementMap, guv + vec2( 1.0/displacementSize.x, 0.0 )), vec4(1,0,0,1));
     float hy = dot(texture(displacementMap, guv + vec2( 0.0, 1.0/displacementSize.y )),  vec4(1,0,0,1));
+    // todo: use dFXdy and dFXdx instead of 3 samples if run in fragment shader
     float dx = (hx - h) * displacementScale;
     float dy = (hy - h) * displacementScale;
     return (cross(vec3(1.0,0.0,dx), vec3(0.0,1.0,dy)));

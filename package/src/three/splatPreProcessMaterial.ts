@@ -3,6 +3,7 @@ import glsl from "glslify";
 import sort from "../util/sort";
 
 export function splatPreProcessMaterial(splats, surfaceLimit = 4.0, channelCount = 4.0) {
+  console.log({surfaceLimit})
   const uniforms = {
     uSplats: { value: splats },
     uMode: { value: 0 },
@@ -47,11 +48,18 @@ export function splatPreProcessMaterial(splats, surfaceLimit = 4.0, channelCount
               })
               .join(",")}
           );
+        
+          
+          
 
           ${sort("surfaces")}
+
           // float surfaceSum = 0.0;
           // for(int i = 0; i < surfaceLimit; i++) surfaceSum += surfaces[i].y;
           // for(int i = 0; i < surfaceLimit; i++) surfaces[i].y /= surfaceSum;
+
+
+
 
           // x is the index, y is the weight
           if(uMode == 0){
