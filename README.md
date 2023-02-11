@@ -168,6 +168,8 @@ cd into package
 npm publish
 
 ### testing npm packages
+npm link does not work due to the use of peer dependencies. Use pack & install instead
+
 ~/workspace/package-name $ npm pack
 ~/workspace/package-name $ cp package-name-0.0.0.tgz ~
 ~/workspace/some-application $ npm install ~/package-name-0.0.0.tgz
