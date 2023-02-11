@@ -134,7 +134,7 @@ export default function TerrainMaterial(props: MeshStandardMaterialProps & {
     const textureIndex = textureMap[i][map].id.toString();
     if(createAtlas){
       var map = `uAtlas[0]` // todo support multiple atlas
-      const [startU, endU, startV, endV] = ranges[textureIndex].map(v=>v.toFixed(8));
+      const [startU, endU, startV, endV] = ranges[textureIndex].map((v:number)=>v.toFixed(8));
       const coordX = `(vUv.x * (${endU} - ${startU}) + ${startU})`;
       const coordY = `(vUv.y * (${startV} - ${endV}) + ${endV})`;
       var uv = `vec2(${coordX}, ${coordY})`
