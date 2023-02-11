@@ -17,7 +17,7 @@ import {
   Html,
 } from "@react-three/drei";
 import { Skybox } from "./Skybox";
-import { MeshStandardMaterial, Vector4 } from "three";
+import { MeshStandardMaterial, Vector4, Texture } from "three";
 import { Suspense, useEffect } from "react";
 import { useControls } from "leva";
 import { Perf } from "r3f-perf";
@@ -87,7 +87,8 @@ function Terrain() {
     ],
   ]);
 
-  const t = textures[q];
+  // @ts-ignore
+  const t = textures[q]
 
   const octaves = [
     {
