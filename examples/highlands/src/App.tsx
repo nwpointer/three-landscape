@@ -199,20 +199,19 @@ function Terrain() {
       /> */}
       <TerrainMaterial
         splats={[t[11], t[12]]}
-        // surfaces={[rock, clif, mud, grass1, grass2, mud, mud]}
+        surfaces={[rock, clif, mud, grass1, grass2, mud, mud]}
         normalMap={t[10]}
         displacementMap={t[9]}
-        // displacementScale={100.0}
-        // envMapIntensity={0.75}
-        // metalness={0.125}
-        // aoMap={t[0]}
-        // aoMapIntensity={ao}
-        // roughness={0.8}
-        // wireframe={wireframe}
-        // anisotropy={anisotropy}
-
+        displacementScale={100.0}
         // normalScale={[1.5,1.5]}
         // orientation={[-1,1]}
+        envMapIntensity={0.75}
+        metalness={0.125}
+        aoMap={t[0]}
+        aoMapIntensity={ao}
+        roughness={0.8}
+        wireframe={wireframe}
+        anisotropy={anisotropy}
       />
     </mesh>
   ) : null;
