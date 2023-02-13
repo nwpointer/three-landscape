@@ -62,7 +62,6 @@ class TerrainMaterial extends CustomShaderMaterial {
 
   
   constructor(props = {} as any, renderer: WebGLRenderer) {
-    console.log('TerrainMaterial')
     props.uniforms = props.uniforms || {};
 
     // todo: remove duplicates
@@ -73,8 +72,6 @@ class TerrainMaterial extends CustomShaderMaterial {
     props.displacementMap.magFilter = LinearFilter;
     props.displacementMap.minFilter = LinearFilter;
     props.displacementMap.needsUpdate = true;
-    // console.log(props.displacementMap);
-    
 
     props.uniforms = {
       ...props.uniforms,
@@ -451,7 +448,7 @@ class TerrainMaterial extends CustomShaderMaterial {
     const {camera, scene} = materialScene(this.distanceMaterial);
     this.distanceCamera = camera;
     this.distanceScene = scene;
-    let {width, height} = {width:1024*16.0, height:1024*16.0};
+    let {width, height} = {width:1024*2.0, height:1024*2.0};
     this.distanceDiffuseTarget = new WebGLRenderTarget(width, height, {format: RGBAFormat,stencilBuffer: false, generateMipmaps: true});
     this.distanceNormalTarget = new WebGLRenderTarget(width, height, {format: RGBAFormat,stencilBuffer: false, generateMipmaps: true});
   }

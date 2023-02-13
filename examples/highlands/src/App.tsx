@@ -229,7 +229,6 @@ function Terrain() {
         roughness={0.8}
       /> */}
       <TerrainMaterial
-        //@ts-ignore
         splats={[t[11], t[12]]}
         surfaces={[rock, clif, mud, grass1, grass2, mud, mud]}
         normalMap={t[10]}
@@ -263,14 +262,12 @@ function App() {
   });
   return (
     <Canvas
-      camera={{ fov: 60, far: 50000000000, near: 1.0, position: [0, 200, 200] }}
+      camera={{ fov: 60, far: 2000, near: 1.0, position: [0, 200, 200] }}
     >
       <Stats />
       {/* <Perf position="bottom-left" deepAnalyze={true} /> */}
       <OrbitControls />
-      {/* <fog attach="fog" args={['#9fdced', 0, 2000]} /> */}
-      {/* <fog attach="fog" args={["#6dd1ed", atmosphere ? 0 : 2500, 2500]} /> */}
-      {/* <ambientLight intensity={0.15} color="yellow" /> */}
+      <fog attach="fog" args={["#6dd1ed", atmosphere ? 0 : 2500, 2500]} />
       <ambientLight intensity={0.15} />
       <Suspense fallback={<Progress />}>
         <Environment preset="park" background={false} />
