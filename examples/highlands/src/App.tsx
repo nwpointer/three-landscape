@@ -25,7 +25,7 @@ import { Perf } from "r3f-perf";
 function Terrain() {
   const {camera} = useThree();
   const [cameraPosition, setCameraPosition] = useState(new Vector3(0,0,0));
-  const { debugTextures, triplanar, gridless, useMacro, noiseBlend, ao, meshError, smoothness, wireframe, surfaceLimit, anisotropy } =
+  const { debugTextures, triplanar, gridless, useMacro, useDistanceOptimizedRendering, noiseBlend, ao, meshError, smoothness, wireframe, surfaceLimit, anisotropy } =
     useControls({
       debugTextures: false,
       triplanar: false,
@@ -60,6 +60,7 @@ function Terrain() {
         max: 8,
         step: 1.0,
       },
+      useDistanceOptimizedRendering: false,
       useMacro: false,
 
       wireframe: false
@@ -249,6 +250,7 @@ function Terrain() {
         smoothness = {smoothness}
         macroMap = {t[15]}
         useMacro = {useMacro}
+        useDistanceOptimizedRendering={useDistanceOptimizedRendering}
       />
     </mesh>
   ) : null;

@@ -20,8 +20,9 @@ export default function (props: TerrainMaterialOptions) {
     material.surfaceLimit = props.surfaceLimit;
     material.surfaces = props.surfaces;
     material.useMacro = props.useMacro;
+    material.useDistanceOptimizedRendering = props.useDistanceOptimizedRendering;
 
-  }, [props.anisotropy, props.smoothness, props.surfaceLimit, props.surfaces, props.useMacro]);
+  }, [props.anisotropy, props.smoothness, props.surfaceLimit, props.surfaces, props.useMacro, props.useDistanceOptimizedRendering]);
 
   return <primitive object={material} attach="material" />;
 }

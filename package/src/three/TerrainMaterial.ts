@@ -39,6 +39,7 @@ export type TerrainMaterialOptions = MeshStandardMaterialProps & {
   surfaceLimit: number;
   macroMap?: Texture;
   useMacro: boolean;
+  useDistanceOptimizedRendering: boolean;
 };
 
 const textureCache = {};
@@ -49,6 +50,7 @@ class TerrainMaterial extends CustomShaderMaterial {
   diffuseArray: DataArrayTexture;
   normalArray: DataArrayTexture;
   renderer: WebGLRenderer;
+  context: WebGLRenderingContext;
   // render texture resources:
   macroMaterial: ShaderMaterial;
   macroTarget: WebGLRenderTarget;
@@ -72,6 +74,9 @@ class TerrainMaterial extends CustomShaderMaterial {
     props.displacementMap.magFilter = LinearFilter;
     props.displacementMap.minFilter = LinearFilter;
     props.displacementMap.needsUpdate = true;
+
+    console.log({v:props.useDistanceOptimizedRendering});
+    
 
     props.uniforms = {
       ...props.uniforms,
@@ -99,6 +104,7 @@ class TerrainMaterial extends CustomShaderMaterial {
       diffuseMode: { value: false },
       normalMode: { value: false },
       useMacro: { value: false },
+      useDistanceOptimizedRendering: { value: props.useDistanceOptimizedRendering },
     };
 
     props.vertexShader = glsl`
@@ -153,6 +159,7 @@ class TerrainMaterial extends CustomShaderMaterial {
       uniform sampler2D distanceNormalMap;
       uniform sampler2D macroMap;
       uniform bool useMacro;
+      uniform bool useDistanceOptimizedRendering;
       
       vec4 csm_NormalMap;
     
@@ -228,7 +235,7 @@ class TerrainMaterial extends CustomShaderMaterial {
         // csm_DiffuseColor = texture;
 
         // sample a precomputed texture
-        if(depth > distant && !diffuseMode && !normalMode){
+        if(depth > distant && useDistanceOptimizedRendering){
           csm_DiffuseColor = distantDiffuse;
           csm_NormalMap = distantNormal;
         }
@@ -271,25 +278,15 @@ class TerrainMaterial extends CustomShaderMaterial {
             diffuse = saturation(diffuse, surfaceSaturation[index]);
             diffuse = diffuse * surfaceTint[index];
             
-  
-            // vec4 diffuse = LinearSample(diffuseArray, vec3(vUv, surfaces[i].x * 8.0), R * vec2(1,N));
-            // vec4 diffuse = hexagonLinearSample(diffuseArray, vec3(vUv, surfaces[i].x * 8.0), 4.0, R * vec2(1,N));
-            // vec4 diffuse = preHexagonLinearSample(diffuseArray, vec3(vUv, surfaces[i].x * 8.0), 4.0, R * vec2(1,N), hexData);
-            // vec4 diffuse = AperiodicLinearSample(diffuseArray, vec3(vUv, surfaces[i].x * 8.0), R * vec2(1,N));
-            // vec4 diffuse = TriplanarAperiodicLinearSample(diffuseArray, vec4(vUv, vZ, surfaces[i].x * 8.0), R * vec2(1,N));
             vec4 weightedDiffuse = diffuse * surfaces[i].y;
             csm_DiffuseColor += weightedDiffuse;
             
-            // vec4 normal = NormalSample(normalArray, vec3(vUv, surfaces[i].x * 8.0), R * vec2(1.0, N));
-            // vec4 normal = preHexagonNormalSample(normalArray, vec3(vUv, surfaces[i].x * 8.0), 30.0, R * vec2(1,N), hexData);
-            // vec4 normal = AperiodicNormalSample(normalArray, vec3(vUv, surfaces[i].x * 8.0), R * vec2(1,N));
-            // vec4 normal = TriplanarAperiodicNormalSample(normalArray, vec4(vUv, vZ, surfaces[i].x * 8.0), R * vec2(1,N));
             vec4 weightedNormal = slerp(zeroN, normal, weights[i] * P);
             csm_NormalMap = blend_rnm(csm_NormalMap, weightedNormal);
           }
 
 
-          if(!diffuseMode && !normalMode){
+          if(useDistanceOptimizedRendering){
             float v = pow((depth) / distant, 15.0);
             csm_DiffuseColor = mix(csm_DiffuseColor, distantDiffuse, v);
             csm_NormalMap = mix(csm_NormalMap, distantNormal, v);
@@ -350,6 +347,7 @@ class TerrainMaterial extends CustomShaderMaterial {
     this.diffuseArray = diffuseArray;
     this.normalArray = normalArray;
     this.renderer = renderer;
+    this.context = renderer.getContext();
 
     this.initializeDistanceMaps(props, renderer);
     this.initializeMacroMaps(props, renderer);
@@ -398,6 +396,13 @@ class TerrainMaterial extends CustomShaderMaterial {
     this.needsUpdate = true;
   }
 
+   // @ts-ignore
+  set useDistanceOptimizedRendering(value: boolean){
+    console.log('hia')
+    this.uniforms.useDistanceOptimizedRendering.value = value;
+    this.needsUpdate = true;
+  }
+
   // @ts-ignore
   set anisotropy(value: number | 'max') {
     // todo look up actual max value
@@ -439,7 +444,8 @@ class TerrainMaterial extends CustomShaderMaterial {
     const {camera, scene} = materialScene(this.macroMaterial);
     this.macroCamera = camera;
     this.macroScene = scene;
-    let {width, height} = {width:1024*8.0, height:1024*8.0};
+    const maxSize = this.getMaxTextureSize();
+    let {width, height} = {width:maxSize/ 4.0, height:maxSize/ 4.0};
     this.macroTarget = new WebGLRenderTarget(width, height, {format: RGBAFormat,stencilBuffer: false, generateMipmaps: true});
   }
 
@@ -448,10 +454,16 @@ class TerrainMaterial extends CustomShaderMaterial {
     const {camera, scene} = materialScene(this.distanceMaterial);
     this.distanceCamera = camera;
     this.distanceScene = scene;
-    let {width, height} = {width:1024*2.0, height:1024*2.0};
+    const maxSize = this.getMaxTextureSize();
+    let {width, height} = {width:maxSize / 4.0, height:maxSize / 4.0};
     this.distanceDiffuseTarget = new WebGLRenderTarget(width, height, {format: RGBAFormat,stencilBuffer: false, generateMipmaps: true});
     this.distanceNormalTarget = new WebGLRenderTarget(width, height, {format: RGBAFormat,stencilBuffer: false, generateMipmaps: true});
   }
+
+  getMaxTextureSize(){
+    return this.context.getParameter(this.context.MAX_TEXTURE_SIZE);
+  }
+
 
   generateMacroMap(props, renderer) {
     // const mat = this.macroMaterial;
