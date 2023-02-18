@@ -208,12 +208,6 @@ class TerrainMaterial extends CustomShaderMaterial {
         float N = surfaceNormalY[index];
 
         float depth = gl_FragCoord.z / gl_FragCoord.w;
-        
-        // vec2[6] hexData = hexagon(vUv, 4.0, vec2(1) * R);
-        // vec4 hexGrid = hexagonLinearSample(normalArray, vec3(vUv, 1.0), 8.0, 16.0 * vec2(1,N));
-        // vec4 hexGrid = hexagonLinearSample(normalArray, vec3(vUv * R * vec2(1,N), 1.0), 30.0, 16.0 * vec2(1,N));
-        // vec4 hexGrid = hexagon(normalArray, vUv * R * vec2(1,N), 30.0);
-        // csm_DiffuseColor =vec4(hexGrid);
 
         csm_DiffuseColor = vec4(0,0,0,0);
         // vec4 baseDiffuse = vec4(0,0,0,0);
@@ -291,16 +285,6 @@ class TerrainMaterial extends CustomShaderMaterial {
             csm_DiffuseColor = mix(csm_DiffuseColor, distantDiffuse, v);
             csm_NormalMap = mix(csm_NormalMap, distantNormal, v);
           }
-        }
-      
-        // this only works if ao is disabled
-        if(diffuseMode) {
-          // csm_DiffuseColor = vec4(1,0,0,1);
-          csm_NormalMap = zeroN;
-        };
-        if(normalMode) {
-          csm_DiffuseColor = csm_NormalMap;
-          csm_NormalMap = zeroN;
         }
 
         if(useMacro){
@@ -445,8 +429,8 @@ class TerrainMaterial extends CustomShaderMaterial {
     this.macroCamera = camera;
     this.macroScene = scene;
     const maxSize = this.getMaxTextureSize();
-    let {width, height} = {width:maxSize/ 4.0, height:maxSize/ 4.0};
-    this.macroTarget = new WebGLRenderTarget(width, height, {format: RGBAFormat,stencilBuffer: false, generateMipmaps: true});
+    let {width, height} = {width:maxSize/4.0/ 8.0, height:maxSize/ 8.0};
+    this.macroTarget = new WebGLRenderTarget(width, height, {depthBuffer: false, generateMipmaps: true});
   }
 
   initializeDistanceMaps(props, renderer) {
@@ -455,9 +439,9 @@ class TerrainMaterial extends CustomShaderMaterial {
     this.distanceCamera = camera;
     this.distanceScene = scene;
     const maxSize = this.getMaxTextureSize();
-    let {width, height} = {width:maxSize / 4.0, height:maxSize / 4.0};
-    this.distanceDiffuseTarget = new WebGLRenderTarget(width, height, {format: RGBAFormat,stencilBuffer: false, generateMipmaps: true});
-    this.distanceNormalTarget = new WebGLRenderTarget(width, height, {format: RGBAFormat,stencilBuffer: false, generateMipmaps: true});
+    let {width, height} = {width:maxSize/4.0 , height:maxSize/4.0 };
+    this.distanceDiffuseTarget = new WebGLRenderTarget(width, height, {depthBuffer: false, generateMipmaps: true, minFilter: LinearMipmapLinearFilter, magFilter: LinearFilter});
+    this.distanceNormalTarget = new WebGLRenderTarget(width, height, {depthBuffer: false, generateMipmaps: true, minFilter: LinearMipmapLinearFilter, magFilter: LinearFilter});
   }
 
   getMaxTextureSize(){
@@ -470,7 +454,6 @@ class TerrainMaterial extends CustomShaderMaterial {
     const camera = this.macroCamera;
     const scene = this.macroScene;
     const map = this.macroTarget;
-
     this.renderTexture(renderer, map, scene, camera);
     this.uniforms.macroMap = {value: map.texture};
     this.needsUpdate = true;
