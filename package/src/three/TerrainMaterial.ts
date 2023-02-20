@@ -343,11 +343,9 @@ class TerrainMaterial extends CustomShaderMaterial {
     this.generateMacroMap(this.props, this.renderer);
   
     // todo: figure out why i cant change textures after they are initialized
-    const {diffuseArray, normalArray} = TerrainMaterial.preprocessSurfaces(this.props.surfaces, false);
-    // console.log(this.uniforms.diffuseArray.value, diffuseArray);
-    this.uniforms.diffuseArray.value = diffuseArray;
-    this.uniforms.normalArray.value = normalArray;
-    // const {weights, indexes} = TerrainMaterial.preprocessSplats(this.props, this.renderer, false);
+    // const {diffuseArray, normalArray} = TerrainMaterial.preprocessSurfaces(this.props.surfaces, false);
+    // this.uniforms.diffuseArray.value = diffuseArray;
+    // this.uniforms.normalArray.value = normalArray;
 
     this.needsUpdate = true;
   }

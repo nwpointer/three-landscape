@@ -50,7 +50,7 @@ function Terrain() {
         step: 0.1,
       },
       anisotropy: {
-        value: 1,
+        value: 4,
         min: 1,
         max: 16,
         step: 1.0,
