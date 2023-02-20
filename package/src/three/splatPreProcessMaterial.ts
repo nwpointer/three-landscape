@@ -2,12 +2,12 @@ import { ShaderMaterial } from "three";
 import glsl from "glslify";
 import sort from "../util/sort";
 
-export function splatPreProcessMaterial(splats, activeSurfaces = 4.0, channelCount = 4.0) {
-  console.log({activeSurfaces})
+export function splatPreProcessMaterial(splats, surfaceSamples = 4.0, channelCount = 4.0) {
+  console.log({surfaceSamples})
   const uniforms = {
     uSplats: { value: splats },
     uMode: { value: 0 },
-    activeSurfaces: { value: activeSurfaces },
+    surfaceSamples: { value: surfaceSamples },
   };
   const splatCount = uniforms.uSplats.value.length;
   const n = splatCount * channelCount;
@@ -26,7 +26,7 @@ export function splatPreProcessMaterial(splats, activeSurfaces = 4.0, channelCou
         precision highp float;
         uniform sampler2D uSplats[${splatCount}];
         uniform int uMode;
-        uniform int activeSurfaces;
+        uniform int surfaceSamples;
         varying vec2 vUv;
         void main() {
           vec4 color = texture(uSplats[1], vUv);
@@ -55,8 +55,8 @@ export function splatPreProcessMaterial(splats, activeSurfaces = 4.0, channelCou
           ${sort("surfaces")}
 
           // float surfaceSum = 0.0;
-          // for(int i = 0; i < activeSurfaces; i++) surfaceSum += surfaces[i].y;
-          // for(int i = 0; i < activeSurfaces; i++) surfaces[i].y /= surfaceSum;
+          // for(int i = 0; i < surfaceSamples; i++) surfaceSum += surfaces[i].y;
+          // for(int i = 0; i < surfaceSamples; i++) surfaces[i].y /= surfaceSum;
 
 
 

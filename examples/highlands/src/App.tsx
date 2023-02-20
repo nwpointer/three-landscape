@@ -26,7 +26,7 @@ import { Perf } from "r3f-perf";
 function Terrain() {
   const {camera} = useThree();
   const [cameraPosition, setCameraPosition] = useState(new Vector3(0,0,0));
-  const { triplanar, gridless, useMacro, useDistanceOptimizedRendering, ao, meshError, smoothness, wireframe, activeSurfaces, anisotropy } =
+  const { triplanar, gridless, useMacro, useDistanceOptimizedRendering, ao, meshError, smoothness, wireframe, surfaceSamples, anisotropy } =
     useControls({
       // debugTextures: true,
       triplanar: false,
@@ -55,15 +55,14 @@ function Terrain() {
         max: 16,
         step: 1.0,
       },
-      activeSurfaces: {
+      surfaceSamples: {
         value: 3,
         min: 1,
         max: 4,
         step: 1.0,
       },
-      useDistanceOptimizedRendering: false,
+      useDistanceOptimizedRendering: true,
       useMacro: false,
-
       wireframe: false
     });
 
@@ -111,7 +110,11 @@ function Terrain() {
       `/splatmap_01.png`,
       "/DebugTexture/debug.jpg",
       "/DebugTexture/debug_norm.png",
-      "/T_MacroVariation_sm.png"
+      "/T_MacroVariation_sm.png",
+      "/Grass_02/ground_Grass1_dsp.png",
+      "/Mud_03/Ground_WetBumpyMud_dsp.png",
+      "/Cliffs_02/Rock_DarkCrackyCliffs_dsp.png",
+      "/Rock_04/Rock_sobermanRockWall_dsp.png"
     ],
   ]);
 
@@ -151,6 +154,7 @@ function Terrain() {
     gridless: gridless,
     saturation: 0.55,
     tint: new Vector4(0.7, 0.8, 0.7, 1),
+    displacement: t[16],
   };
 
   const grass1 = {
@@ -161,6 +165,7 @@ function Terrain() {
     // saturation: 0.5,
     gridless: gridless,
     tint: new Vector4(0.8, 0.9, 0.8, 1),
+    displacement: t[16],
   };
 
   const noiseBlend = false;
@@ -183,6 +188,7 @@ function Terrain() {
     normalStrength: 0.5,
     repeat: 300,
     saturation: 0.5,
+    displacement: t[17],
   };
 
   const clif = {
@@ -195,6 +201,7 @@ function Terrain() {
     gridless: gridless,
     repeat: 300,
     saturation: 0.5,
+    displacement: t[18],
   };
 
   const rock = {
@@ -206,6 +213,7 @@ function Terrain() {
     gridless: gridless,
     repeat: 300,
     saturation: 0.3,
+    displacement: t[19],
   };
 
   let cameraError = camera.position.distanceTo(new Vector3(0,0,0));
@@ -251,7 +259,7 @@ function Terrain() {
         roughness={0.8}
         wireframe={wireframe}
         anisotropy={anisotropy}
-        activeSurfaces={activeSurfaces}
+        surfaceSamples={surfaceSamples}
         smoothness = {smoothness}
         macroMap = {t[15]}
         useMacro = {useMacro}

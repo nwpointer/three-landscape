@@ -119,7 +119,7 @@ export default function TerrainMaterial(props: MeshStandardMaterialProps & {
   normalScale?: [Number, Number];
   displacementScale: Number;
   anisotropy:  Number | 'max';
-  activeSurfaces: undefined | 1 | 2 | 3 | 4;
+  surfaceSamples: undefined | 1 | 2 | 3 | 4;
 }) {
   const {gl} = useThree();
   const diffuse = option(props.surfaces, 'diffuse')
