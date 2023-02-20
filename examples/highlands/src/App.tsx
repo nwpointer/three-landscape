@@ -58,7 +58,7 @@ function Terrain() {
       activeSurfaces: {
         value: 3,
         min: 1,
-        max: 8,
+        max: 4,
         step: 1.0,
       },
       useDistanceOptimizedRendering: false,
@@ -240,13 +240,10 @@ function Terrain() {
         splats={[t[11], t[12]]}
         surfaces={[rock, clif, mud, grass1, grass2, mud, mud]}
         normalMap={t[10]}
-        // side={DoubleSide}
         displacementMap={t[9]}
-        displacementScale={120.0}
-        // displacementScale={0.0}
+        displacementScale={120}
+        // optional parameters -------------------
         displacementBias={0.0}
-        // normalScale={[1.5,1.5]}
-        // orientation={[-1,1]}
         envMapIntensity={0.75}
         metalness={0.125}
         aoMap={t[0]}
@@ -259,7 +256,7 @@ function Terrain() {
         macroMap = {t[15]}
         useMacro = {useMacro}
         useDistanceOptimizedRendering={useDistanceOptimizedRendering}
-        usePrecalculatedWeights={true}
+        usePrecalculatedWeights={false}
       />
     </mesh>
   ) : null;

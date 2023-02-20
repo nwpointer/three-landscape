@@ -26,20 +26,19 @@ export type Surface = {
 
 export type TerrainMaterialOptions = MeshStandardMaterialProps & {
   surfaces: Surface[];
-  map?: Texture;
   splats: Texture[];
   noise?: Texture;
-  displacementMap?: Texture;
-  normalMap?: Texture;
+  displacementMap: Texture;
+  normalMap: Texture;
   normalScale?: [number, number];
-  displacementScale: number;
-  anisotropy: number | "max";
-  smoothness: number;
-  activeSurfaces: number;
+  displacementScale?: number;
+  anisotropy?: number | "max";
+  smoothness?: number;
+  activeSurfaces?: number;
   macroMap?: Texture;
-  useMacro: boolean;
-  useDistanceOptimizedRendering: boolean;
-  usePrecalculatedWeights: boolean;
+  useMacro?: boolean;
+  useDistanceOptimizedRendering?: boolean;
+  usePrecalculatedWeights?: boolean;
   weights?: Texture;
   indexes?: Texture;
 };
@@ -63,10 +62,21 @@ class TerrainMaterial extends CustomShaderMaterial {
   distanceNormalTarget: WebGLRenderTarget;
   distanceScene: Scene;
   distanceCamera: OrthographicCamera;
-
   
   constructor(props = {} as any, renderer: WebGLRenderer) {
     props.uniforms = props.uniforms || {};
+
+    if(!props.surfaces || props.surfaces.length < 1) {
+      throw new Error("TerrainMaterial: surfaces must be an array with at least one surface");
+    }
+
+    if(!props.normalMap) {
+      throw new Error("TerrainMaterial: normalMap is currently required, this requirement will be relaxed in a future release");
+    }
+
+    if(!props.displacementMap) {
+      throw new Error("TerrainMaterial: displacementMap is currently required, this requirement will be relaxed in a future release");
+    }
 
     // todo: remove duplicates, would reduce memory usage
     const {diffuseArray, normalArray} = TerrainMaterial.preprocessSurfaces(props.surfaces, false);
@@ -82,9 +92,9 @@ class TerrainMaterial extends CustomShaderMaterial {
       indexes: { value: props.indexes ?? indexes?.texture },
       splats: { value: props.splats },
       displacementMap: { value: props.displacementMap },
-      displacementSize: { value: [props.displacementMap.image.width, props.displacementMap.image.height] },
+      displacementSize: { value: [props?.displacementMap?.image?.width, props?.displacementMap?.image?.height] },
       smoothness: { value: props.smoothness },
-      activeSurfaces: { value: props.activeSurfaces },
+      activeSurfaces: { value: props.activeSurfaces ?? 4.0 },
       surfaceNormalStrength: { value: props.surfaces.map(s => s.normalStrength || 1) },
       surfaceNormalY: { value: props.surfaces.map(s => s.normalY || 1 ) },
       surfaceRepeat: { value: props.surfaces.map(s => s.repeat || 1) },
@@ -99,7 +109,7 @@ class TerrainMaterial extends CustomShaderMaterial {
       normalMode: { value: false },
       useMacro: { value: false },
       useDistanceOptimizedRendering: { value: props.useDistanceOptimizedRendering },
-      distant: { value: 15000.0 },
+      distant: { value: 150.0 },
     };
 
     props.vertexShader = glsl`
@@ -206,9 +216,6 @@ class TerrainMaterial extends CustomShaderMaterial {
         float[SURFACES] weights;
         for(int i = 0; i < activeSurfaces; i++) weightSum += surfaces[i].y;
         
-        int index = int(surfaces[0].x * 8.0);
-        float R = surfaceRepeat[index];
-        float N = surfaceNormalY[index];
         float Z = texture(displacementMap, vUv).r;
         float depth = gl_FragCoord.z / gl_FragCoord.w;
         // sample variation pattern, used for Aperiodic tiling
@@ -325,8 +332,8 @@ class TerrainMaterial extends CustomShaderMaterial {
     this.renderer = renderer;
     this.context = renderer.getContext();
 
-    this.initializeDistanceMaps(props, renderer);
-    this.initializeMacroMaps(props, renderer);
+    if(props.useDistanceOptimizedRendering) this.initializeDistanceMaps();
+    if(props.useMacro && props.macroMap) this.initializeMacroMaps();
   }
 
   // @ts-ignore
@@ -337,10 +344,13 @@ class TerrainMaterial extends CustomShaderMaterial {
     this.uniforms.surfaceGridless.value = surfaces.map(s => s.gridless || false);
     this.uniforms.surfaceTriplanar.value = surfaces.map(s => s.triplanar || false);
     this.uniforms.surfaceTint.value = surfaces.map(s => s.tint || new Vector4(1, 1, 1, 1))
-    this.uniforms.surfaceSaturation.value = surfaces.map(s => s.saturation || 0.5);  
+    this.uniforms.surfaceSaturation.value = surfaces.map(s => s.saturation || 0.5);
+
+    if(this.props.useDistanceOptimizedRendering && !this.distanceMaterial) this.initializeDistanceMaps();
+    if(this.props.useMacro && this.props.macroMap && !this.macroMaterial) this.initializeMacroMaps();
     
-    this.generateDistanceMaps(this.props, this.renderer);
-    this.generateMacroMap(this.props, this.renderer);
+    if(this.props.useDistanceOptimizedRendering) this.generateDistanceMaps(this.props, this.renderer);    
+    if(this.props.useMacro && this.props.macroMap) this.generateMacroMap(this.props, this.renderer);
   
     // todo: figure out why i cant change textures after they are initialized
     // const {diffuseArray, normalArray} = TerrainMaterial.preprocessSurfaces(this.props.surfaces, false);
@@ -348,16 +358,18 @@ class TerrainMaterial extends CustomShaderMaterial {
     // this.uniforms.normalArray.value = normalArray;
 
     this.needsUpdate = true;
+    this.props.surfaces = surfaces;
   }
 
   // @ts-ignore
   set activeSurfaces(value: number){
-    this.uniforms.activeSurfaces.value = value;
+    this.uniforms.activeSurfaces.value = value ?? 4.0;
     // const {weights, indexes} = TerrainMaterial.preprocessSplats(this.props, this.renderer, false);
     // this.uniforms.weights = {value: weights};
     // this.uniforms.indexes = {value: indexes};
     // console.log('hey')
     this.needsUpdate = true;
+    this.props.activeSurfaces = value ?? 4.0;
   }
 
 
@@ -365,18 +377,21 @@ class TerrainMaterial extends CustomShaderMaterial {
   set smoothness(value : number){
     this.uniforms.smoothness.value = value || 0.1;
     this.needsUpdate = true;
+    this.props.smoothness = value;
   }
 
   // @ts-ignore
   set useMacro(value: boolean){
     this.uniforms.useMacro.value = value;
     this.needsUpdate = true;
+    this.props.useMacro = value;
   }
 
    // @ts-ignore
   set useDistanceOptimizedRendering(value: boolean){
     this.uniforms.useDistanceOptimizedRendering.value = value;
     this.needsUpdate = true;
+    this.props.useDistanceOptimizedRendering = value;
   }
 
   // @ts-ignore
@@ -388,6 +403,7 @@ class TerrainMaterial extends CustomShaderMaterial {
       t.needsUpdate = true;
     })
     this.needsUpdate = true;
+    this.props.anisotropy = value;
   }
 
   // @ts-ignore
@@ -414,17 +430,19 @@ class TerrainMaterial extends CustomShaderMaterial {
     renderer.setRenderTarget(null);
   }
 
-  initializeMacroMaps(props, renderer) {
+  initializeMacroMaps() {
+    console.log("init macro");
     this.macroMaterial = MacroMaterial(this);
     const {camera, scene} = materialScene(this.macroMaterial);
     this.macroCamera = camera;
     this.macroScene = scene;
     const maxSize = this.getMaxTextureSize();
-    let {width, height} = {width:maxSize/4.0/ 8.0, height:maxSize/ 8.0};
+    let {width, height} = {width:maxSize/4.0, height:maxSize/ 4.0};
     this.macroTarget = new WebGLRenderTarget(width, height, {depthBuffer: false, generateMipmaps: true});
   }
 
-  initializeDistanceMaps(props, renderer) {
+  initializeDistanceMaps() {
+    console.log("init distance");
     this.distanceMaterial = DistanceMaterial(this);
     const {camera, scene} = materialScene(this.distanceMaterial);
     this.distanceCamera = camera;
@@ -435,12 +453,13 @@ class TerrainMaterial extends CustomShaderMaterial {
     this.distanceNormalTarget = new WebGLRenderTarget(width, height, {depthBuffer: false, generateMipmaps: true, minFilter: LinearMipmapLinearFilter, magFilter: LinearFilter});
   }
 
-  getMaxTextureSize(){
-    return this.context.getParameter(this.context.MAX_TEXTURE_SIZE);
+  getMaxTextureSize(context){
+    const ctx = context ?? this.context;
+    return ctx.getParameter(ctx.MAX_TEXTURE_SIZE);
   }
 
-  getMaxAnisotropy(){
-    return this.renderer.capabilities.getMaxAnisotropy();
+  getMaxAnisotropy(renderer?){
+    return (renderer ?? this.renderer).capabilities.getMaxAnisotropy();
   }
 
 
@@ -482,12 +501,10 @@ class TerrainMaterial extends CustomShaderMaterial {
     const ids = props.splats.map((splat) => splat.uuid).join('-');
     
     let weights, indexes;
+    const ctx = renderer.getContext();
+    const maxSize = ctx.getParameter(ctx.MAX_TEXTURE_SIZE)
+    let {width, height} = {width:maxSize, height:maxSize};
 
-    let {width, height} = props.splats[0].image;
-    // console.log(width, height);
-    
-    width *= 4.0;
-    height *= 4.0;
     if(props.weights || textureCache[ids] && textureCache[ids].weights){
       weights = props.weights || textureCache[ids].weights;
     } else {      
@@ -643,7 +660,7 @@ function MacroMaterial(parent) {
       varying vec2 vUv;
       void main() {
         gl_FragColor = 
-        texture2D(variationMap, vUv/ 4.0) / 3.0 + 1.45 -
+        texture2D(variationMap, vUv/ 4.0) / 3.0 + 1.4 -
         texture2D(variationMap, vUv*4.0);
         
         gl_FragColor.w = 0.5;
