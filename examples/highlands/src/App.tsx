@@ -15,9 +15,10 @@ import {
   Stats,
   useProgress,
   Html,
+  useEnvironment,
 } from "@react-three/drei";
 import { Skybox } from "./Skybox";
-import { MeshStandardMaterial, Vector4, Vector3 } from "three";
+import { MeshStandardMaterial, Vector4, Vector3, DoubleSide, LinearEncoding, sRGBEncoding, LinearFilter } from "three";
 import { Suspense, useEffect, useState } from "react";
 import { useControls } from "leva";
 import { Perf } from "r3f-perf";
@@ -25,12 +26,12 @@ import { Perf } from "r3f-perf";
 function Terrain() {
   const {camera} = useThree();
   const [cameraPosition, setCameraPosition] = useState(new Vector3(0,0,0));
-  const { debugTextures, triplanar, gridless, useMacro, useDistanceOptimizedRendering, noiseBlend, ao, meshError, smoothness, wireframe, surfaceLimit, anisotropy } =
+  const { triplanar, gridless, useMacro, useDistanceOptimizedRendering, ao, meshError, smoothness, wireframe, activeSurfaces, anisotropy } =
     useControls({
-      debugTextures: false,
+      // debugTextures: true,
       triplanar: false,
       gridless: false,
-      noiseBlend: false,
+      // noiseBlend: false,
       ao: {
         value: 0.62,
         min: 0,
@@ -54,7 +55,7 @@ function Terrain() {
         max: 16,
         step: 1.0,
       },
-      surfaceLimit: {
+      activeSurfaces: {
         value: 3,
         min: 1,
         max: 8,
@@ -114,6 +115,13 @@ function Terrain() {
     ],
   ]);
 
+  const envMap = useEnvironment({files:'/sunflowers_puresky_4k.hdr', encoding: LinearEncoding});
+
+  // envMap.magFilter = LinearFilter;
+  // envMap.minFilter = LinearFilter;
+  // console.log('envMap', envMap);
+  
+
   // @ts-ignore
   const t = textures[q]
 
@@ -132,10 +140,8 @@ function Terrain() {
     },
   ];
 
-  // TODO: figure out why grass normal is whack
-
-  const debugDiffuse = debugTextures;
-  const debugNormal = debugTextures;
+  const debugDiffuse = false; // debugTextures
+  const debugNormal = false; // debugTextures
 
   const grass2 = {
     diffuse: debugDiffuse ? t[13] : t[1],
@@ -144,7 +150,7 @@ function Terrain() {
     repeat: 300,
     gridless: gridless,
     saturation: 0.55,
-    tint: new Vector4(0.9, 1.0, 0.9, 1),
+    tint: new Vector4(0.7, 0.8, 0.7, 1),
   };
 
   const grass1 = {
@@ -154,9 +160,10 @@ function Terrain() {
     repeat: 300,
     // saturation: 0.5,
     gridless: gridless,
-    tint: new Vector4(0.9, 1.0, 0.9, 1),
+    tint: new Vector4(0.8, 0.9, 0.8, 1),
   };
 
+  const noiseBlend = false;
   if (noiseBlend) {
     //@ts-ignore
     grass1.blend = {
@@ -233,6 +240,7 @@ function Terrain() {
         splats={[t[11], t[12]]}
         surfaces={[rock, clif, mud, grass1, grass2, mud, mud]}
         normalMap={t[10]}
+        // side={DoubleSide}
         displacementMap={t[9]}
         displacementScale={120.0}
         // displacementScale={0.0}
@@ -246,11 +254,12 @@ function Terrain() {
         roughness={0.8}
         wireframe={wireframe}
         anisotropy={anisotropy}
-        surfaceLimit={surfaceLimit}
+        activeSurfaces={activeSurfaces}
         smoothness = {smoothness}
         macroMap = {t[15]}
         useMacro = {useMacro}
         useDistanceOptimizedRendering={useDistanceOptimizedRendering}
+        usePrecalculatedWeights={true}
       />
     </mesh>
   ) : null;

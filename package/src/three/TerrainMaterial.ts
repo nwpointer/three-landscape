@@ -8,7 +8,6 @@ import mixers from "../util/mixers";
 import sort from "../util/sort";
 import dynamicHeight from "../util/dynamicHeight";
 import { splatPreProcessMaterial } from "./splatPreProcessMaterial";
-import hexagon from "../util/hexagon";
 import noise from "../util/noise";
 import { ShaderMaterial } from "three";
 
@@ -36,10 +35,13 @@ export type TerrainMaterialOptions = MeshStandardMaterialProps & {
   displacementScale: number;
   anisotropy: number | "max";
   smoothness: number;
-  surfaceLimit: number;
+  activeSurfaces: number;
   macroMap?: Texture;
   useMacro: boolean;
   useDistanceOptimizedRendering: boolean;
+  usePrecalculatedWeights: boolean;
+  weights?: Texture;
+  indexes?: Texture;
 };
 
 const textureCache = {};
@@ -66,31 +68,23 @@ class TerrainMaterial extends CustomShaderMaterial {
   constructor(props = {} as any, renderer: WebGLRenderer) {
     props.uniforms = props.uniforms || {};
 
-    // todo: remove duplicates
+    // todo: remove duplicates, would reduce memory usage
     const {diffuseArray, normalArray} = TerrainMaterial.preprocessSurfaces(props.surfaces, false);
-    const {weights, indexes} = TerrainMaterial.preprocessSplats(props, renderer, false);
-    const {width, height} = (props.splats[0] || weights.texture).image;
-
-    props.displacementMap.magFilter = LinearFilter;
-    props.displacementMap.minFilter = LinearFilter;
-    props.displacementMap.needsUpdate = true;
-
-    console.log({v:props.useDistanceOptimizedRendering});
+    const {weights, indexes} = props.usePrecalculatedWeights ? TerrainMaterial.preprocessSplats(props, renderer, false) : {weights: null, indexes: null};
     
-
     props.uniforms = {
       ...props.uniforms,
       aoMapIntensity: { value: props.aoMapIntensity || 0 },
       diffuseArray: { value: diffuseArray },
       uNoise: { value: props.noise || noise },
       normalArray: { value: normalArray },
-      weights: { value: weights.texture },
-      indexes: { value: indexes.texture },
+      weights: { value: props.weights ?? weights?.texture },
+      indexes: { value: props.indexes ?? indexes?.texture },
       splats: { value: props.splats },
       displacementMap: { value: props.displacementMap },
       displacementSize: { value: [props.displacementMap.image.width, props.displacementMap.image.height] },
       smoothness: { value: props.smoothness },
-      surfaceLimit: { value: props.surfaceLimit },
+      activeSurfaces: { value: props.activeSurfaces },
       surfaceNormalStrength: { value: props.surfaces.map(s => s.normalStrength || 1) },
       surfaceNormalY: { value: props.surfaces.map(s => s.normalY || 1 ) },
       surfaceRepeat: { value: props.surfaces.map(s => s.repeat || 1) },
@@ -105,6 +99,7 @@ class TerrainMaterial extends CustomShaderMaterial {
       normalMode: { value: false },
       useMacro: { value: false },
       useDistanceOptimizedRendering: { value: props.useDistanceOptimizedRendering },
+      distant: { value: 15000.0 },
     };
 
     props.vertexShader = glsl`
@@ -142,7 +137,7 @@ class TerrainMaterial extends CustomShaderMaterial {
       uniform sampler2D displacementMap;
       uniform vec2 displacementSize;
       uniform float displacementScale;
-      uniform int surfaceLimit;
+      uniform int activeSurfaces;
       uniform float[SURFACES] surfaceNormalStrength;
       uniform float[SURFACES] surfaceNormalY;
       uniform float[SURFACES] surfaceRepeat;
@@ -160,6 +155,7 @@ class TerrainMaterial extends CustomShaderMaterial {
       uniform sampler2D macroMap;
       uniform bool useMacro;
       uniform bool useDistanceOptimizedRendering;
+      uniform float distant;
       
       vec4 csm_NormalMap;
     
@@ -169,64 +165,62 @@ class TerrainMaterial extends CustomShaderMaterial {
       float sum( vec3 v ) { return v.x+v.y+v.z; }
 
       ${mixers}
-      // ${hexagon}
       ${samplers}
       ${aperiodic}
       ${triplanar}
       ${biplanar}
       
       
-      void main(){
-        // sorted version (interpolates and sorts)f
-        // 2 samples and some math to get the index and weight
-        vec4 t0 = texture2D(splats[0], vUv);
-        vec4 t1 = texture2D(splats[1], vUv);
-        vec2[8] surfaces = vec2[8](
-          ${Array(2)
-            .fill(0)
-            .map((v, i) => {
-              const index = i.toString();
-              return glsl`
-              vec2(${((i * 4 + 0) / 8.0).toString()}, t${index}.r),
-              vec2(${(i * 4 + 1)/ 8.0}, t${index}.g),
-              vec2(${(i * 4 + 2)/ 8.0}, t${index}.b),
-              vec2(${(i * 4 + 3)/ 8.0}, t${index}.a)`;
-            })
-            .join(",")}
-        );
-        ${sort("surfaces")}
-
+      void main(){        
+        ${ 
+          props.usePrecalculatedWeights ? glsl`
+            // can look pixelated when close to camera, may be able to achieve similar results with blur or interpolation.
+            vec2[4] surfaces = vec2[4](
+              vec2(texture(indexes, vUv).r, texture(weights, vUv).r),
+              vec2(texture(indexes, vUv).g, texture(weights, vUv).g),
+              vec2(texture(indexes, vUv).b, texture(weights, vUv).b),
+              vec2(texture(indexes, vUv).a, texture(weights, vUv).a)
+            );
+          ` : glsl`
+            // sorted splat version (interpolates and sorts)
+            // 2 samples and some math to get the index and weight
+            vec2[${props.splats.length * 4}] surfaces = vec2[${props.splats.length * 4}](
+              ${Array(props.splats.length)
+                .fill(0)
+                .map((v, i) => {
+                  const index = i.toString();
+                  return glsl`
+                  vec2(${((i * 4 + 0) / 8.0).toString()}, texture2D(splats[${index}], vUv).r),
+                  vec2(${(i * 4 + 1)/ 8.0}, texture2D(splats[${index}], vUv).g),
+                  vec2(${(i * 4 + 2)/ 8.0}, texture2D(splats[${index}], vUv).b),
+                  vec2(${(i * 4 + 3)/ 8.0}, texture2D(splats[${index}], vUv).a)`;
+                  })
+                .join(",")}
+            );
+            ${sort("surfaces")}
+          `
+        }
+        
+        // manually normalize weights
         float weightSum = 0.0;
         float[SURFACES] weights;
-        float Z = texture(displacementMap, vUv).r;
-        for(int i = 0; i < surfaceLimit; i++) weightSum += surfaces[i].y;
-
-        // float r =  noise() / 2.0;
-
+        for(int i = 0; i < activeSurfaces; i++) weightSum += surfaces[i].y;
+        
         int index = int(surfaces[0].x * 8.0);
         float R = surfaceRepeat[index];
         float N = surfaceNormalY[index];
-
+        float Z = texture(displacementMap, vUv).r;
         float depth = gl_FragCoord.z / gl_FragCoord.w;
-
-        csm_DiffuseColor = vec4(0,0,0,0);
-        // vec4 baseDiffuse = vec4(0,0,0,0);
-        vec4 baseNormal = texture(normalMap, vUv);
-        // change to distance normal
-        vec4 distantNormal = texture(distanceNormalMap, vUv);
-        vec4 distantDiffuse = texture(distanceDiffuseMap, vUv);
-
-        csm_NormalMap = baseNormal;
-
-        // todo: make this a uniform
-        float distant = 150.0;
-        
-        // sample variation pattern
+        // sample variation pattern, used for Aperiodic tiling
         // float k = texture( uNoise, 0.005*uv.xy ).x; // cheap (cache friendly) lookup
         float k = noise(vec3(vUv.xy*200.0, vZ)); // slower but may need to do it if at texture limit
 
+        csm_DiffuseColor = vec4(0,0,0,0);
+        csm_NormalMap = texture(normalMap, vUv);
+        // reference precalculated maps for distant texels
+        vec4 distantNormal = texture(distanceNormalMap, vUv);
+        vec4 distantDiffuse = texture(distanceDiffuseMap, vUv);
         vec4 macro = texture(macroMap, vUv);
-        // csm_DiffuseColor = texture;
 
         // sample a precomputed texture
         if(depth > distant && useDistanceOptimizedRendering){
@@ -234,23 +228,19 @@ class TerrainMaterial extends CustomShaderMaterial {
           csm_NormalMap = distantNormal;
         }
         else {
-          for(int i = 0; i < surfaceLimit; i++){
+          for(int i = 0; i < activeSurfaces; i++){
             int index = int(surfaces[i].x * 8.0);
             float N = surfaceNormalY[index];
             float R = surfaceRepeat[index];
             float P = surfaceNormalStrength[index];
             bool gridless = surfaceGridless[index];
-            // hackyway to reduce cost of triplanar on far away surfaces, helps maintain 60fps
             bool triplanar = surfaceTriplanar[index];
             
             weights[i] = surfaces[i].y / weightSum;
-
-
   
-            // becasue the branch is based on a static uniform instead of a dynamic value, the compiler can optimize it out
-            // precomputed hexagon requires additional args so it's not compatible with triplanar
             vec4 diffuse;
             vec4 normal;
+            // because the branch is based on a static uniform instead of a dynamic value, the compiler can optimize it out
             if(gridless){
               if(triplanar){
                 diffuse = TriplanarAperiodicLinearSample(diffuseArray, vec4(vUv, vZ, surfaces[i].x * 8.0), R * vec2(1,N), k);
@@ -269,6 +259,7 @@ class TerrainMaterial extends CustomShaderMaterial {
               }
             }
   
+            // apply saturation and tint
             diffuse = saturation(diffuse, surfaceSaturation[index]);
             diffuse = diffuse * surfaceTint[index];
             
@@ -293,6 +284,7 @@ class TerrainMaterial extends CustomShaderMaterial {
         }
       
       }
+      
     `;
 
     //@ts-ignore
@@ -349,13 +341,20 @@ class TerrainMaterial extends CustomShaderMaterial {
     
     this.generateDistanceMaps(this.props, this.renderer);
     this.generateMacroMap(this.props, this.renderer);
+  
+    // todo: figure out why i cant change textures after they are initialized
+    const {diffuseArray, normalArray} = TerrainMaterial.preprocessSurfaces(this.props.surfaces, false);
+    // console.log(this.uniforms.diffuseArray.value, diffuseArray);
+    this.uniforms.diffuseArray.value = diffuseArray;
+    this.uniforms.normalArray.value = normalArray;
+    // const {weights, indexes} = TerrainMaterial.preprocessSplats(this.props, this.renderer, false);
 
     this.needsUpdate = true;
   }
 
   // @ts-ignore
-  set surfaceLimit(value: number){
-    this.uniforms.surfaceLimit.value = value;
+  set activeSurfaces(value: number){
+    this.uniforms.activeSurfaces.value = value;
     // const {weights, indexes} = TerrainMaterial.preprocessSplats(this.props, this.renderer, false);
     // this.uniforms.weights = {value: weights};
     // this.uniforms.indexes = {value: indexes};
@@ -366,12 +365,8 @@ class TerrainMaterial extends CustomShaderMaterial {
 
   // @ts-ignore
   set smoothness(value : number){
-    // this.uniforms.displacementMap.value.minFilter = NearestFilter;
-    // this.uniforms.displacementMap.value.magFilter = NearestFilter;
-    // this.uniforms.displacementMap.value.needsUpdate = true;
     this.uniforms.smoothness.value = value || 0.1;
     this.needsUpdate = true;
-
   }
 
   // @ts-ignore
@@ -382,21 +377,19 @@ class TerrainMaterial extends CustomShaderMaterial {
 
    // @ts-ignore
   set useDistanceOptimizedRendering(value: boolean){
-    console.log('hia')
     this.uniforms.useDistanceOptimizedRendering.value = value;
     this.needsUpdate = true;
   }
 
   // @ts-ignore
   set anisotropy(value: number | 'max') {
-    // todo look up actual max value
-    let anisotropy = value === 'max' ?  16 : value || 1
-    
+    let anisotropy = value === 'max' ?  this.getMaxAnisotropy() : value || 1
     const textures = [this.normalArray, this.diffuseArray]
     textures.forEach(t => {
       t.anisotropy = anisotropy;
       t.needsUpdate = true;
     })
+    this.needsUpdate = true;
   }
 
   // @ts-ignore
@@ -448,9 +441,12 @@ class TerrainMaterial extends CustomShaderMaterial {
     return this.context.getParameter(this.context.MAX_TEXTURE_SIZE);
   }
 
+  getMaxAnisotropy(){
+    return this.renderer.capabilities.getMaxAnisotropy();
+  }
+
 
   generateMacroMap(props, renderer) {
-    // const mat = this.macroMaterial;
     const camera = this.macroCamera;
     const scene = this.macroScene;
     const map = this.macroTarget;
@@ -460,7 +456,7 @@ class TerrainMaterial extends CustomShaderMaterial {
   }
 
 
-  generateDistanceMaps(props, renderer) {
+  generateDistanceMaps(props, renderer) { 
     const mat = this.distanceMaterial;
     const camera = this.distanceCamera;
     const scene = this.distanceScene;
@@ -483,7 +479,7 @@ class TerrainMaterial extends CustomShaderMaterial {
   // todo: reuse preprocess material, and render targets
   // would be helpful for splats
   static preprocessSplats(props, renderer, useCache = true) {
-    const mat  = splatPreProcessMaterial(props.splats, props.surfaceLimit)
+    const mat  = splatPreProcessMaterial(props.splats, props.activeSurfaces)
     const {camera, scene} = materialScene(mat);
     const ids = props.splats.map((splat) => splat.uuid).join('-');
     
@@ -492,14 +488,14 @@ class TerrainMaterial extends CustomShaderMaterial {
     let {width, height} = props.splats[0].image;
     // console.log(width, height);
     
-    // width *= 4.0;
-    // height *= 4.0;
+    width *= 4.0;
+    height *= 4.0;
     if(props.weights || textureCache[ids] && textureCache[ids].weights){
       weights = props.weights || textureCache[ids].weights;
     } else {      
       weights = new WebGLRenderTarget(width, height, {format: RGBAFormat,stencilBuffer: false});
-      // weights.texture.minFilter = NearestFilter;
-      // weights.texture.magFilter = NearestFilter;
+      weights.texture.minFilter = NearestFilter;
+      weights.texture.magFilter = NearestFilter;
       weights.texture.needsUpdate = true;
       renderer.setRenderTarget(weights);
       mat.uniforms.uMode.value = 1; // weights
@@ -516,8 +512,8 @@ class TerrainMaterial extends CustomShaderMaterial {
       indexes = props.indexes || textureCache[ids].indexes;
     } else {
       indexes = new WebGLRenderTarget(width, height, {format: RGBAFormat,stencilBuffer: false});
-      // indexes.texture.minFilter = NearestFilter;
-      // indexes.texture.magFilter = NearestFilter;
+      indexes.texture.minFilter = NearestFilter;
+      indexes.texture.magFilter = NearestFilter;
       indexes.texture.needsUpdate = true;
       renderer.setRenderTarget(indexes);
       mat.uniforms.uMode.value = 0; // indexes
@@ -557,8 +553,6 @@ class TerrainMaterial extends CustomShaderMaterial {
     }
   }
 }
-
-
 
 
 export default TerrainMaterial;
@@ -654,11 +648,8 @@ function MacroMaterial(parent) {
         texture2D(variationMap, vUv/ 4.0) / 3.0 + 1.45 -
         texture2D(variationMap, vUv*4.0);
         
-        
         gl_FragColor.w = 0.5;
         gl_FragColor.w = max(0.5, (texture2D(variationMap, vUv*8.0).r / 1.5 + texture2D(variationMap, vUv).r / 1.5)/2.0);
-
-        // gl_FragColor = vec4(1.0, 1.0, 1.0, 0.5);
       }
     `
   });
@@ -683,7 +674,7 @@ function DistanceMaterial(parent) {
       `,
     fragmentShader: glsl`
         const int SURFACES = ${parent.props.surfaces.length};
-        uniform int surfaceLimit;
+        uniform int activeSurfaces;
         precision highp sampler2DArray;
         uniform bool diffuseMode;
         uniform sampler2D[2] splats;
@@ -733,7 +724,7 @@ function DistanceMaterial(parent) {
           float[SURFACES] weights;
           float Z = 0.0; // fix this
           float weightSum = 0.0;
-          for(int i = 0; i < surfaceLimit; i++) weightSum += surfaces[i].y;
+          for(int i = 0; i < activeSurfaces; i++) weightSum += surfaces[i].y;
 
           int index = int(surfaces[0].x * 8.0);
           float R = surfaceRepeat[index];
@@ -743,7 +734,7 @@ function DistanceMaterial(parent) {
 
           if(diffuseMode){
             gl_FragColor = vec4(0.0, 0.0, 0.0, 0.0);
-            for(int i = 0; i < surfaceLimit; i++){
+            for(int i = 0; i < activeSurfaces; i++){
               int index = int(surfaces[i].x * 8.0);
               float N = surfaceNormalY[index];
               float R = surfaceRepeat[index];
@@ -752,7 +743,7 @@ function DistanceMaterial(parent) {
               
               weights[i] = surfaces[i].y / weightSum;
     
-              // we don't bother with triplanar if the surface is distant
+              // we don't bother with triplanar if the surface is distant, but we probably should
               vec4 diffuse;
               if(gridless){
                   diffuse = AperiodicLinearSample(diffuseArray, vec3(vUv, surfaces[i].x * 8.0), R * vec2(1,N), k);
@@ -770,7 +761,7 @@ function DistanceMaterial(parent) {
           else {
             gl_FragColor = texture(normalMap, vUv);
             // gl_FragColor = zeroN;
-            for(int i = 0; i < surfaceLimit; i++){
+            for(int i = 0; i < activeSurfaces; i++){
                 int index = int(surfaces[i].x * 8.0);
                 float N = surfaceNormalY[index];
                 float R = surfaceRepeat[index];
@@ -795,43 +786,3 @@ function DistanceMaterial(parent) {
       `,
   });
 }
-
-
-
-
-// Brute force version
-// vec4 splat1 = texture2D(splats[0], vUv);
-// vec4 splat2 = texture2D(splats[1], vUv);
-// csm_DiffuseColor =
-//   texture(diffuseArray, vec3(vUv * 200.0, 0.0)) * splat1.r +
-//   texture(diffuseArray, vec3(vUv * 200.0, 1.0)) * splat1.g +
-//   texture(diffuseArray, vec3(vUv * 200.0, 2.0)) * splat1.b +
-//   texture(diffuseArray, vec3(vUv * 200.0, 3.0)) * splat1.a +
-//   texture(diffuseArray, vec3(vUv * 200.0, 4.0)) * splat2.r +
-//   texture(diffuseArray, vec3(vUv * 200.0, 5.0)) * splat2.g +
-//   texture(diffuseArray, vec3(vUv * 200.0, 6.0)) * splat2.b;
-
-
-// Index and weight texture version - this introduces small artifacts so should only be done if needed
-// vec4 i = texture2D(indexes, vUv - mod(vUv, 1.0/(1024.0*16.0)) );
-// vec4 i = texture2D(indexes, vUv );
-// vec4 w = texture2D(weights, vUv);
-
-// // Index and weight texture version - this introduces small artifacts so should only be done if needed
-// // vec4 i = texture2D(indexes, vUv - mod(vUv, p) );
-// vec4 i = texture2D(indexes, vUv);
-// vec4 w = texture2D(weights, vUv);
-
-// // normalizes the weights
-// // float surfaceSum = 0.0;
-// // for(int n = 0; n < surfaceLimit; n++) surfaceSum += w[n];
-// // for(int n = 0; n < surfaceLimit; n++) w[n] /= surfaceSum;
-
-// //Cached version (sorts and then tries to interpolate)
-// csm_DiffuseColor =
-//   texture(diffuseArray, vec3(vUv*200.0, i.r * 8.0)) * w.r +
-//   texture(diffuseArray, vec3(vUv*200.0, i.g * 8.0)) * w.g;
-//   texture(diffuseArray, vec3(vUv*200.0, i.b * 8.0)) * w.b;
-//   texture(diffuseArray, vec3(vUv*200.0, i.a * 8.0)) * w.a;
-
-          

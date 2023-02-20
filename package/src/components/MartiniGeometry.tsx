@@ -57,8 +57,6 @@ export default function MartiniGeometry({ displacementMap, error, mobileError, a
     const martini = new Martini(gridSize);
     const tile = martini.createTile(data);
 
-    console.log('regenerating til')
-
     return {
       tileSize, gridSize, tile, data
     }
@@ -69,11 +67,6 @@ export default function MartiniGeometry({ displacementMap, error, mobileError, a
     let size = args || [tileSize, tileSize];
     // @ts-expect-error
     const slowGPU = (GPUTier.tier === "0" || GPUTier.isMobile);
-    console.log(slowGPU);
-    
-
-    console.log('regenerating geometry');
-
     var mesh = tile.getMesh(slowGPU ? mobileError: error);
     var v = mesh.vertices.length;
     var mv = tile.getMesh(0).vertices.length;
@@ -111,7 +104,6 @@ export default function MartiniGeometry({ displacementMap, error, mobileError, a
           geo.index.needsUpdate = true;
           if(computedNormals.current) return;
           geo.computeVertexNormals();
-          console.log('hia');
           computedNormals.current = true;
         }
       }}

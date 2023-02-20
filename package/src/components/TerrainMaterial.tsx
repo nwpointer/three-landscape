@@ -17,12 +17,13 @@ export default function (props: TerrainMaterialOptions) {
   useEffect(() => {
     material.anisotropy = props.anisotropy;
     material.smoothness = props.smoothness;
-    material.surfaceLimit = props.surfaceLimit;
+    material.activeSurfaces = props.activeSurfaces;
     material.surfaces = props.surfaces;
     material.useMacro = props.useMacro;
     material.useDistanceOptimizedRendering = props.useDistanceOptimizedRendering;
+    material.surfaces = props.surfaces;
 
-  }, [props.anisotropy, props.smoothness, props.surfaceLimit, props.surfaces, props.useMacro, props.useDistanceOptimizedRendering]);
+  }, [props.anisotropy, props.smoothness, props.activeSurfaces, props.surfaces, props.useMacro, props.useDistanceOptimizedRendering, props.surfaces]);
 
   return <primitive object={material} attach="material" />;
 }
