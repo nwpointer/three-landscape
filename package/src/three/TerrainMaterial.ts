@@ -43,7 +43,7 @@ export type TerrainMaterialOptions = MeshStandardMaterialProps & {
   surfaceSamples?: number;
   macroMap?: Texture;
   useMacro?: boolean;
-  useDistanceOptimizedRendering?: boolean;
+  distanceOptimizedRendering?: boolean;
   usePrecalculatedWeights?: boolean;
   weights?: Texture;
   indexes?: Texture;
@@ -88,7 +88,7 @@ class TerrainMaterial extends CustomShaderMaterial {
     const {diffuseArray, normalArray} = TerrainMaterial.preprocessSurfaces(props.surfaces, false);
     const {weights, indexes} = props.usePrecalculatedWeights ? TerrainMaterial.preprocessSplats(props, renderer, false) : {weights: null, indexes: null};
 
-    props.useDistanceOptimizedRendering = props.useDistanceOptimizedRendering ?? true;
+    props.distanceOptimizedRendering = props.distanceOptimizedRendering ?? true;
     
     props.uniforms = {
       ...props.uniforms,
@@ -116,7 +116,7 @@ class TerrainMaterial extends CustomShaderMaterial {
       diffuseMode: { value: false },
       normalMode: { value: false },
       useMacro: { value: false },
-      useDistanceOptimizedRendering: { value: props.useDistanceOptimizedRendering },
+      distanceOptimizedRendering: { value: props.distanceOptimizedRendering },
       distant: { value: 150.0 },
     };
 
@@ -172,7 +172,7 @@ class TerrainMaterial extends CustomShaderMaterial {
       uniform sampler2D distanceNormalMap;
       uniform sampler2D macroMap;
       uniform bool useMacro;
-      uniform bool useDistanceOptimizedRendering;
+      uniform bool distanceOptimizedRendering;
       uniform float distant;
       
       vec4 csm_NormalMap;
@@ -238,7 +238,7 @@ class TerrainMaterial extends CustomShaderMaterial {
         vec4 macro = texture(macroMap, vUv);
 
         // sample a precomputed texture
-        if(depth > distant && useDistanceOptimizedRendering){
+        if(depth > distant && distanceOptimizedRendering){
           csm_DiffuseColor = distantDiffuse;
           csm_NormalMap = distantNormal;
         }
@@ -286,7 +286,7 @@ class TerrainMaterial extends CustomShaderMaterial {
           }
 
 
-          if(useDistanceOptimizedRendering){
+          if(distanceOptimizedRendering){
             float v = pow((depth) / distant, 15.0);
             csm_DiffuseColor = mix(csm_DiffuseColor, distantDiffuse, v);
             csm_NormalMap = mix(csm_NormalMap, distantNormal, v);
@@ -340,7 +340,7 @@ class TerrainMaterial extends CustomShaderMaterial {
     this.renderer = renderer;
     this.context = renderer.getContext();
 
-    if(props.useDistanceOptimizedRendering) this.initializeDistanceMaps();
+    if(props.distanceOptimizedRendering) this.initializeDistanceMaps();
     if(props.useMacro && props.macroMap) this.initializeMacroMaps();
   }
 
@@ -354,10 +354,10 @@ class TerrainMaterial extends CustomShaderMaterial {
     this.uniforms.surfaceTint.value = surfaces.map(s => s.tint || new Vector4(1, 1, 1, 1))
     this.uniforms.surfaceSaturation.value = surfaces.map(s => s.saturation || 0.5);
 
-    if(this.props.useDistanceOptimizedRendering && !this.distanceMaterial) this.initializeDistanceMaps();
+    if(this.props.distanceOptimizedRendering && !this.distanceMaterial) this.initializeDistanceMaps();
     if(this.props.useMacro && this.props.macroMap && !this.macroMaterial) this.initializeMacroMaps();
     
-    if(this.props.useDistanceOptimizedRendering) this.generateDistanceMaps(this.props, this.renderer);    
+    if(this.props.distanceOptimizedRendering) this.generateDistanceMaps(this.props, this.renderer);    
     if(this.props.useMacro && this.props.macroMap) this.generateMacroMap(this.props, this.renderer);
   
     // todo: figure out why i cant change textures after they are initialized
@@ -396,10 +396,10 @@ class TerrainMaterial extends CustomShaderMaterial {
   }
 
    // @ts-ignore
-  set useDistanceOptimizedRendering(value: boolean){
-    this.uniforms.useDistanceOptimizedRendering.value = value;
+  set distanceOptimizedRendering(value: boolean){
+    this.uniforms.distanceOptimizedRendering.value = value;
     this.needsUpdate = true;
-    this.props.useDistanceOptimizedRendering = value;
+    this.props.distanceOptimizedRendering = value;
   }
 
   // @ts-ignore
