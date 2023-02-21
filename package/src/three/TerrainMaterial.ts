@@ -44,7 +44,7 @@ export type TerrainMaterialOptions = MeshStandardMaterialProps & {
   macroMap?: Texture;
   useMacro?: boolean;
   distanceOptimizedRendering?: boolean;
-  usePrecalculatedWeights?: boolean;
+  precalculateWeights?: boolean;
   weights?: Texture;
   indexes?: Texture;
 };
@@ -86,7 +86,7 @@ class TerrainMaterial extends CustomShaderMaterial {
 
     // todo: remove duplicates, would reduce memory usage
     const {diffuseArray, normalArray} = TerrainMaterial.preprocessSurfaces(props.surfaces, false);
-    const {weights, indexes} = props.usePrecalculatedWeights ? TerrainMaterial.preprocessSplats(props, renderer, false) : {weights: null, indexes: null};
+    const {weights, indexes} = props.precalculateWeights ? TerrainMaterial.preprocessSplats(props, renderer, false) : {weights: null, indexes: null};
 
     props.distanceOptimizedRendering = props.distanceOptimizedRendering ?? true;
     
@@ -145,6 +145,7 @@ class TerrainMaterial extends CustomShaderMaterial {
 
     props.fragmentShader = glsl`
       const int SURFACES = ${props.surfaces.length};
+
       precision highp sampler2DArray;
       uniform sampler2DArray diffuseArray;
       uniform sampler2DArray normalArray;
@@ -191,7 +192,7 @@ class TerrainMaterial extends CustomShaderMaterial {
       
       void main(){        
         ${ 
-          props.usePrecalculatedWeights ? glsl`
+          props.precalculateWeights ? glsl`
             // can look pixelated when close to camera, may be able to achieve similar results with blur or interpolation.
             vec2[4] surfaces = vec2[4](
               vec2(texture(indexes, vUv).r, texture(weights, vUv).r),
@@ -297,6 +298,10 @@ class TerrainMaterial extends CustomShaderMaterial {
           csm_DiffuseColor = saturation(csm_DiffuseColor, macro.w);
           csm_DiffuseColor = csm_DiffuseColor * vec4(macro.xyz, 1.0);
         }
+
+        #ifdef USE_TEST
+          csm_DiffuseColor = vec4(1,0,0,1);
+        #endif
       
       }
       
@@ -342,6 +347,10 @@ class TerrainMaterial extends CustomShaderMaterial {
 
     if(props.distanceOptimizedRendering) this.initializeDistanceMaps();
     if(props.useMacro && props.macroMap) this.initializeMacroMaps();
+
+    this.defines = {
+      "USE_TEST": props.useMacro,
+    }
   }
 
   // @ts-ignore
@@ -393,6 +402,11 @@ class TerrainMaterial extends CustomShaderMaterial {
     this.uniforms.useMacro.value = value;
     this.needsUpdate = true;
     this.props.useMacro = value;
+    if(value){
+      this.defines.USE_TEST = "";
+    } else {
+      delete this.defines.USE_TEST;
+    }
   }
 
    // @ts-ignore

@@ -61,8 +61,11 @@ function MySuperCoolTerrain() {
 ### New props:
 
 - splats: Texture[] (expects 4 channel splat data in rgba)
-- noise: Texture; used for stochastic sampling
-- Surfaces: Surface[];
+- surfaceSamples: Number, defaults to 4. 
+- surfaces: Surface[];
+- smoothness: Number > 0
+- distanceOptimizedRendering: Boolean, defaults to true
+
 
 Most of the new features are configured by modifying surface properties.
 

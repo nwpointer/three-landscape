@@ -264,7 +264,7 @@ function Terrain() {
         macroMap = {t[15]}
         useMacro = {useMacro}
         distanceOptimizedRendering={distanceOptimizedRendering}
-        usePrecalculatedWeights={false}
+        precalculateWeights={false}
       />
     </mesh>
   ) : null;
