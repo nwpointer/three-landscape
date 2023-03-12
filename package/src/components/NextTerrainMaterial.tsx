@@ -14,7 +14,7 @@ import { dynamicHeightUtils } from "../util/dynamicHeight";
 import noise from "../util/noise";
 import { generateTextureArray, memGenerateTextureArray } from "../three/generateTextureArray";
 import { useThree } from "@react-three/fiber";
-import { MacroMaterial } from "../three/MacroMaterial";
+import { farMaterial } from "../three/farMaterial";
 import { materialScene } from "./../three/materialScene";
 
 const STANDARD_MODE = 0;
@@ -23,16 +23,16 @@ const DISTANCE_NORMAL_MODE = 2;
 
 /* ----------------------------
 TODO:
+[+] No more setters for everything
 [+] Constructor perf issues
-[] FIX FLASH when switching to distance mode
-swap out 'macro' verbiage in initializer
+[+] FIX FLASH when switching to distance mode
+[+] swap out 'macro' verbiage in initializer
 [+] make renderMode parameter optional
-blend the near into the distance value
+[+] blend the near into the distance value
 complete calculate distance and normal functions
 see if we can get rid of props being passed to constructor
 idea: to avoid creating two materials, could we reuse the parent and hotswap the the uniforms without causing a flash of distance texture in the near?
 ----------------------------- */
-
 
 export type Surface = {
   diffuse?: THREE.Texture;
@@ -70,16 +70,21 @@ export default function(props: TerrainMaterialOptions){
     const temp ={} as {[key: string]: string}
     if(props.normalMap) temp.USE_NORMAL = 'true';
     if(props.smoothness) temp.USE_SMOOTHNESS = 'true';
-    if(props.distanceOptimized) temp.USE_DISTANCE_TEXTURE = 'true';
+    if(props.distanceOptimized) temp.USE_FARMAPS = 'true';
     if(props.macroMap) temp.USE_MACRO = 'true';
     if(props.weights && props.indexes) temp.USE_WEIGHTS_AND_INDEXES = 'true';
     return temp;
   }, [props.normalMap, props.smoothness, props.distanceOptimized, props.macroMap])
 
+  // prevents constructor from running on prop changes, key is used to trigger reconstruction
+  const args = useMemo(()=>{
+    return [{...props}]
+  }, [])
+
   //@ts-ignore
   return <terrainMaterial
     {...props}
-    args={[{...props},true]}
+    args={args}
     defines={defines}
     key={JSON.stringify({
       distanceOptimized: props.distanceOptimized,
@@ -90,17 +95,18 @@ export default function(props: TerrainMaterialOptions){
 class TerrainMaterial extends CustomShaderMaterial{
   distantInstance: TerrainMaterial
   key: string
-  macroScene: THREE.Scene
-  macroCamera: THREE.OrthographicCamera
-  macroTarget: THREE.WebGLRenderTarget
-  macroMaterial: any
+  farScene: THREE.Scene
+  farCamera: THREE.OrthographicCamera
+  farTargetDiffuse: THREE.WebGLRenderTarget
+  farTargetNormal: THREE.WebGLRenderTarget
+  farMaterial: any
   renderer: THREE.WebGLRenderer
   context: WebGLRenderingContext
   macroMap: THREE.Texture
   props: TerrainMaterialOptions
 
   constructor(props){
-    console.time('constructor')
+    console.time('Terrain constructor')
 
     const [dw, dh] = [
       props?.displacementMap?.source?.data?.width ?? 0.0,
@@ -122,7 +128,7 @@ class TerrainMaterial extends CustomShaderMaterial{
         uniform sampler2D[${props.splats.length || 1}] splats;
         
         #ifdef USE_DISPLACEMENTMAP
-        ${dynamicHeightUtils}
+          ${dynamicHeightUtils}
         #endif
         
         void main(){
@@ -130,6 +136,8 @@ class TerrainMaterial extends CustomShaderMaterial{
             float z = texture(displacementMap, uv).r;
             csm_Position = vec3(position.xy, z*-displacementScale);
             csm_Position.z += z * displacementScale;
+
+            // if smoothnes...
 
             heightNormal = calculateNormalsFromHeightMap(displacementMap, uv);
             heightNormal = normalize(heightNormal.rgb) * 4.0;
@@ -161,11 +169,14 @@ class TerrainMaterial extends CustomShaderMaterial{
         uniform sampler2D macroMap;
         uniform sampler2D[${props.splats.length || 1}] splats;
         uniform float far;
+        uniform bool farComputed;
+        uniform float farRenderMode;
 
         ${normalFunctions}
 
-        uniform sampler2D distanceTexture;  
-        #ifdef USE_DISTANCE_TEXTURE
+        uniform sampler2D farDiffuseMap;
+        uniform sampler2D farNormalMap;  
+        #ifdef USE_FARMAPS
           bool distanceOptimized = true;
         #else
           bool distanceOptimized = false;
@@ -185,37 +196,40 @@ class TerrainMaterial extends CustomShaderMaterial{
 
           // need to use a js switch because CustomShaderMaterial does not know how to handle shaders with both csm_DiffuseColor and csm_FragColor
           ${!props.parent ? glsl`
-            if(distanceOptimized && depth > far){
-              csm_DiffuseColor = texture(macroMap, uvz.xy);
+            if(distanceOptimized && farComputed){
+              vec4 farDiffuse = texture(farDiffuseMap, uvz.xy);
+              if(depth > far){
+                csm_DiffuseColor = farDiffuse;
+              } else {
+                vec4 nearDiffuse = calculateDiffuse();
+                float v = pow((depth / far), 10.0);
+                csm_DiffuseColor = mix(nearDiffuse, farDiffuse, v);
+              }
             } else {
               csm_DiffuseColor = calculateDiffuse();
             }
           ` : glsl`
-            // need to bypass lighting as it will be applied when sampled from the texture
-            csm_FragColor = vec4(1,0,0,1);
+              // need to bypass lighting as it will be applied when sampled from the texture
+              if(farRenderMode == 0.0){
+                csm_FragColor = calculateDiffuse();
+              } else {
+                csm_FragColor = calculateNormal();
+              }
           ` }
         }
       `
     });
 
-    // // keep uniforms of distanceInstance in sync
-    // (Object.keys(this.uniforms)).forEach(name =>Object.defineProperty(this, name, {
-    //   get: () =>  this.uniforms[name] !== undefined ? this.uniforms[name].value : undefined,
-    //   set: (v) => {
-    //     // console.log(name, v)
-    //     if(this.uniforms[name]){
-    //       this.uniforms[name].value = v
-    //       if(this.distantInstance) this.distantInstance[name] = v
-    //     }
-    //   },
-    // }))
+    this.uniforms = this.uniforms ?? {};
+    this.uniforms.farRenderMode = {value: 0.0};
 
-    console.timeEnd('constructor')
+    console.timeEnd('Terrain constructor')
 
     const onBeforeCompile = this.onBeforeCompile;
 
     this.onBeforeCompile = (shader, renderer)=>{
       this.context = renderer.getContext();
+      
       const uniforms = {
         'splats': {value: props.splats },
         'noise': {value: props.noise ?? noise},
@@ -236,7 +250,10 @@ class TerrainMaterial extends CustomShaderMaterial{
         'surfaceSamples': {value: props.surfaceSamples ?? 4.0},
         'diffuseArray': { value: diffuseArray},
         'normalArray': { value: normalArray},
-        'distanceTexture': {value: props.distanceTexture},
+        'farDiffuseMap': {value: props.farDiffuseMap},
+        'farNormalMap': {value: props.farDiffuseMap},
+        'farComputed': {value: props.farComputed ?? false},
+        'farRenderMode': {value:0},
         'far': {value: props.far ?? 100.0},
         // vec4 requires default
         'surfaces': {value:props.surfaces.map(surface => {
@@ -246,39 +263,63 @@ class TerrainMaterial extends CustomShaderMaterial{
       shader.uniforms = { ...shader.uniforms,
         ...uniforms
       };
+
+      // keep uniforms of distanceInstance in sync
+      // (Object.keys(shader.uniforms)).forEach(name =>Object.defineProperty(this, name, {
+      //   get: () =>  shader.uniforms[name] !== undefined ? shader.uniforms[name].value : undefined,
+      //   set: (v) => {
+      //     // console.log(name, v)
+      //     if(shader.uniforms[name]){
+      //       shader.uniforms[name].value = v
+      //       if(this.distantInstance) this.distantInstance[name] = v
+      //     }
+      //   },
+      // }))
+      
       onBeforeCompile(shader, renderer);
-        if(props.distanceOptimized && !props.parent){
+      if(props.distanceOptimized && !props.parent){
         // asynchronously create the distance optimized instance so it doesn't block initial render
         setTimeout(() => {
-          // console.log('heya')
-          this.initializeMacroMaps(props, renderer);
-          this.generateMacroMap(renderer);
+          this.initializeFarMaps(props, renderer);
+          this.generateFarMaps(renderer);
         }, 17);
-      }
-
+      } else {
+        if(props.parent && props.parent.uniforms.farComputed){
+          props.parent.uniforms.farComputed.value = true;
+        }
+      } 
     }
+      
 
   }
 
-  initializeMacroMaps(props, renderer) {
-    if(this.macroMaterial) return; // already initialized
-    this.macroMaterial = new TerrainMaterial({...props, parent: this})
-    const {camera, scene} = materialScene(this.macroMaterial);
-    this.macroCamera = camera;
-    this.macroScene = scene;
+  initializeFarMaps(props, renderer) {
+    if(this.farMaterial) return; // already initialized
+    this.farMaterial = new TerrainMaterial({...props, parent: this})
+    const {camera, scene} = materialScene(this.farMaterial);
+    this.farCamera = camera;
+    this.farScene = scene;
     const maxSize = this.getMaxTextureSize();
     let {width, height} = {width:maxSize/4.0, height:maxSize/ 4.0};
-    this.macroTarget = new THREE.WebGLRenderTarget(width, height, {depthBuffer: false, generateMipmaps: true});
+    this.farTargetDiffuse = new THREE.WebGLRenderTarget(width, height, {depthBuffer: false, generateMipmaps: true});
+    this.farTargetNormal = new THREE.WebGLRenderTarget(width, height, {depthBuffer: false, generateMipmaps: true});
   }
 
-  generateMacroMap(renderer) {
-    const camera = this.macroCamera;
-    const scene = this.macroScene;
-    const target = this.macroTarget;
-    this.renderTexture(renderer, target, scene, camera);
-    this.macroMap = target.texture;
-    this.uniforms = this.uniforms ?? {};
-    this.uniforms.macroMap = {value: this.macroMap};
+  generateFarMaps(renderer) {
+    const camera = this.farCamera;
+    const scene = this.farScene;
+    const diffuse = this.farTargetDiffuse;
+    const normal = this.farTargetNormal;
+    const material = this.farMaterial;
+
+    material.uniforms.farRenderMode.value = 0;
+    this.renderTexture(renderer, diffuse, scene, camera);
+    this.uniforms.farDiffuseMap = {value: diffuse.texture};
+
+    material.uniforms.farRenderMode.value = 1;
+    this.renderTexture(renderer, normal, scene, camera);
+    this.uniforms.farNormalMap = {value: normal.texture};
+
     this.needsUpdate = true;
   }
 
