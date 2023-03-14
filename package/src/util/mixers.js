@@ -1,6 +1,8 @@
 import glsl from "glslify";
 
 export default glsl`
+  float sum( vec3 v ) { return v.x+v.y+v.z; }
+  
   vec3 LinearMix(vec3 c0, vec3 c1, float weight){
     return mix(c0, c1, weight);
   }

@@ -3,6 +3,7 @@ import {
   MartiniGeometry,
   TerrainMaterial,
   useProgressiveTextures,
+  NextTerrainMaterial
 } from "three-landscape";
 import {
   OrbitControls,
@@ -26,7 +27,7 @@ import { Perf } from "r3f-perf";
 function Terrain() {
   const {camera} = useThree();
   const [cameraPosition, setCameraPosition] = useState(new Vector3(0,0,0));
-  const { triplanar, gridless, useMacro, distanceOptimizedRendering, ao, meshError, smoothness, wireframe, surfaceSamples, anisotropy } =
+  const { triplanar, gridless, far, useMacro, distanceOptimizedRendering, ao, meshError, smoothness, wireframe, surfaceSamples, anisotropy } =
     useControls({
       // debugTextures: true,
       triplanar: false,
@@ -62,6 +63,11 @@ function Terrain() {
         step: 1.0,
       },
       distanceOptimizedRendering: true,
+      far: {
+        value: 100,
+        min: 0,
+        max: 1000,
+      },
       useMacro: false,
       wireframe: false
     });
@@ -118,7 +124,7 @@ function Terrain() {
     ],
   ]);
 
-  const envMap = useEnvironment({files:'/sunflowers_puresky_4k.hdr', encoding: LinearEncoding});
+  // const envMap = useEnvironment({files:'/sunflowers_puresky_4k.hdr', encoding: LinearEncoding});
 
   // envMap.magFilter = LinearFilter;
   // envMap.minFilter = LinearFilter;
@@ -152,6 +158,7 @@ function Terrain() {
     normalStrength: 0.3,
     repeat: 300,
     gridless: gridless,
+    aperiodic: gridless,
     saturation: 0.55,
     tint: new Vector4(0.7, 0.8, 0.7, 1),
     displacement: t[16],
@@ -164,6 +171,7 @@ function Terrain() {
     repeat: 300,
     // saturation: 0.5,
     gridless: gridless,
+    aperiodic: gridless,
     tint: new Vector4(0.8, 0.9, 0.8, 1),
     displacement: t[16],
   };
@@ -199,6 +207,7 @@ function Terrain() {
     tint: new Vector4(1.2, 1.2, 1.2, 1),
     triplanar: triplanar,
     gridless: gridless,
+    aperiodic: gridless,
     repeat: 300,
     saturation: 0.5,
     displacement: t[18],
@@ -211,14 +220,15 @@ function Terrain() {
     tint: new Vector4(1.2, 1.2, 1.2, 1),
     triplanar: triplanar,
     gridless: gridless,
+    aperiodic: gridless,
     repeat: 300,
     saturation: 0.3,
     displacement: t[19],
   };
 
-  let cameraError = camera.position.distanceTo(new Vector3(0,0,0));
+  // let cameraError = camera.position.distanceTo(new Vector3(0,0,0));
 
-  return textures ? (
+  return (
     <mesh
       rotation={[(-1 * Math.PI) / 2, 0, (-3.35 * Math.PI) / 2]}
       position={[0, 0, 0]}
@@ -234,15 +244,28 @@ function Terrain() {
       <MartiniGeometry displacementMap={t[9]} error={meshError+120} mobileError={meshError+200} />
 
       {/* Comparable standard material */}
-      {/* <meshStandardMaterial
+      {/* <NextTerrainMaterial
+        splats={[t[11], t[12]]}
+        surfaces={[rock, clif, mud, grass1, grass2, mud, mud]}
+        // optional parameters -------------------
         normalMap={t[10]}
         displacementMap={t[9]}
-        displacementScale={100.0 }
-        envMapIntensity={0.35}
+        displacementScale={120.0}
+        displacementBias={0.0}
+        envMapIntensity={0.75}
         metalness={0.125}
-        aoMap = {t[0]}
+        aoMap={t[0]}
         aoMapIntensity={ao}
         roughness={0.8}
+        wireframe={wireframe}
+        anisotropy={anisotropy}
+        surfaceSamples={2}
+        smoothness = {smoothness}
+        macroMap = {t[15]}
+        far={far}
+        distanceOptimized={false} 
+        // useMacro = {useMacro}
+        // precalculateWeights={false}
       /> */}
       <TerrainMaterial
         splats={[t[11], t[12]]}
@@ -259,15 +282,15 @@ function Terrain() {
         roughness={0.8}
         wireframe={wireframe}
         anisotropy={anisotropy}
-        surfaceSamples={surfaceSamples}
+        surfaceSamples={2}
         smoothness = {smoothness}
-        macroMap = {t[15]}
-        useMacro = {useMacro}
-        distanceOptimizedRendering={distanceOptimizedRendering}
+        // macroMap = {t[15]}
+        // useMacro = {useMacro}
+        distanceOptimizedRendering={false}
         precalculateWeights={false}
       />
     </mesh>
-  ) : null;
+  )
 }
 
 function App() {
@@ -278,7 +301,8 @@ function App() {
   });
   return (
     <Canvas
-      camera={{ fov: 60, far: 2000, near: 1.0, position: [0, 200, 200] }}
+      camera={{ fov: 60, far: 1000, near: 1.0, position: [0, 50, 200] }}
+
     >
       <Stats />
       {/* <Perf position="bottom-left" deepAnalyze={true} /> */}

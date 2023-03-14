@@ -1,10 +1,11 @@
-import { DataArrayTexture, RGBAFormat, UnsignedByteType, LinearMipMapLinearFilter, NearestFilter, RepeatWrapping, sRGBEncoding } from "three";
+import { DataArrayTexture, RGBAFormat, UnsignedByteType, LinearMipMapLinearFilter, LinearFilter, NearestFilter, RepeatWrapping, sRGBEncoding } from "three";
 import { getImageData } from "./getImageData";
 
 // assumes textures are loaded and ready to go.
 // would be better to generate as the textures load
 export function generateTextureArray(textures) {
-  const { width, height } = textures[0].image;
+  console.log('generating texture array...')
+  const { width, height } = textures[0].image; // assume all textures are the same size
   const texturesData = new Uint8Array(width * height * 4 * textures.length);
 
   // for each texture in the textures array
@@ -39,3 +40,22 @@ export function generateTextureArray(textures) {
 
   return textureArray;
 }
+
+const TextureIds = textures => textures.map((d) => d.uuid).join('-');
+
+const memory = (function TexMem(){
+  let cache = {};
+  return {
+    get: (textures) => cache[TextureIds(textures)],
+    set: (textures, value) => cache[TextureIds(textures)] = value,
+    clear: () => cache = {},
+    "delete": (textures) => delete cache[TextureIds(textures)]
+  }
+})();
+
+export function memGenerateTextureArray(textures){
+  if(memory.get(textures)) return memory.get(textures);
+  const textureArray = generateTextureArray(textures);
+  memory.set(textures, textureArray);
+  return textureArray;
+};

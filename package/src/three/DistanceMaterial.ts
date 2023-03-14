@@ -48,8 +48,7 @@ export function DistanceMaterial(parent) {
         ${normalFunctions}
         ${colorFunctions}
         ${glslNoise}
-        float sum( vec3 v ) { return v.x+v.y+v.z; }
-
+        
         ${mixers}
         ${samplers}
         ${aperiodic}

@@ -6,7 +6,7 @@ import { normalFunctions, colorFunctions, glslNoise } from "../util/util";
 import { triplanar, biplanar, aperiodic, samplers } from "../util/samplers";
 import mixers from "../util/mixers";
 import sort from "../util/sort";
-import dynamicHeight from "../util/dynamicHeight";
+import { dynamicHeightUtils } from "../util/dynamicHeight";
 import { splatPreProcessMaterial } from "./splatPreProcessMaterial";
 import noise from "../util/noise";
 import { ShaderMaterial } from "three";
@@ -90,7 +90,7 @@ class TerrainMaterial extends CustomShaderMaterial {
 
     props.distanceOptimizedRendering = props.distanceOptimizedRendering ?? true;
     
-    props.uniforms = {
+    const uniforms = {
       ...props.uniforms,
       aoMapIntensity: { value: props.aoMapIntensity || 0 },
       diffuseArray: { value: diffuseArray },
@@ -103,13 +103,6 @@ class TerrainMaterial extends CustomShaderMaterial {
       displacementSize: { value: [props?.displacementMap?.image?.width, props?.displacementMap?.image?.height] },
       smoothness: { value: props.smoothness },
       surfaceSamples: { value: props.surfaceSamples ?? 4.0 },
-      surfaceNormalStrength: { value: props.surfaces.map(s => s.normalStrength || 1) },
-      surfaceNormalY: { value: props.surfaces.map(s => s.normalY || 1 ) },
-      surfaceRepeat: { value: props.surfaces.map(s => s.repeat || 1) },
-      surfaceGridless: { value: props.surfaces.map(s => s.gridless || false) },
-      surfaceTriplanar: { value: props.surfaces.map(s => s.triplanar || false) },
-      surfaceTint: { value: props.surfaces.map(s => s.tint || new Vector4(1, 1, 1, 1)) },
-      surfaceSaturation: { value: props.surfaces.map(s => s.saturation || 0.5) },
       distanceDiffuseMap: { value: undefined },
       distanceNormalMap: { value: undefined },
       macroMap: { value: undefined },
@@ -118,15 +111,24 @@ class TerrainMaterial extends CustomShaderMaterial {
       useMacro: { value: false },
       distanceOptimizedRendering: { value: props.distanceOptimizedRendering },
       distant: { value: 150.0 },
+
+      // surface props
+      surfaceNormalStrength: { value: props.surfaces.map(s => s.normalStrength || 1) },
+      surfaceNormalY: { value: props.surfaces.map(s => s.normalY || 1 ) },
+      surfaceRepeat: { value: props.surfaces.map(s => s.repeat || 1) },
+      surfaceGridless: { value: props.surfaces.map(s => s.gridless || false) },
+      surfaceTriplanar: { value: props.surfaces.map(s => s.triplanar || false) },
+      surfaceTint: { value: props.surfaces.map(s => s.tint || new Vector4(1, 1, 1, 1)) },
+      surfaceSaturation: { value: props.surfaces.map(s => s.saturation || 0.5) }
     };
 
-    props.vertexShader = glsl`
+    const vertexShader = glsl`
       uniform float smoothness;
       uniform vec2 displacementSize;
       varying float vZ;
       varying vec3 vHeightNormal;
 
-      ${dynamicHeight}
+      ${dynamicHeightUtils}
 
       void main(){
 
@@ -143,7 +145,7 @@ class TerrainMaterial extends CustomShaderMaterial {
       }
     `
 
-    props.fragmentShader = glsl`
+    const fragmentShader = glsl`
       const int SURFACES = ${props.surfaces.length};
 
       precision highp sampler2DArray;
@@ -181,7 +183,7 @@ class TerrainMaterial extends CustomShaderMaterial {
       ${normalFunctions}
       ${colorFunctions}
       ${glslNoise}
-      float sum( vec3 v ) { return v.x+v.y+v.z; }
+      // float sum( vec3 v ) { return v.x+v.y+v.z; }
 
       ${mixers}
       ${samplers}
@@ -311,6 +313,9 @@ class TerrainMaterial extends CustomShaderMaterial {
     super({
       ...props,
       baseMaterial: MeshStandardMaterial,
+      uniforms,
+      vertexShader,
+      fragmentShader,
       patchMap: {
         csm_NormalMap: props.normalMap ? {
           "#include <normal_fragment_maps>": glsl`
@@ -379,15 +384,15 @@ class TerrainMaterial extends CustomShaderMaterial {
   }
 
   // @ts-ignore
-  set surfaceSamples(value: number){
-    this.uniforms.surfaceSamples.value = value ?? 4.0;
-    // const {weights, indexes} = TerrainMaterial.preprocessSplats(this.props, this.renderer, false);
-    // this.uniforms.weights = {value: weights};
-    // this.uniforms.indexes = {value: indexes};
-    // console.log('hey')
-    this.needsUpdate = true;
-    this.props.surfaceSamples = value ?? 4.0;
-  }
+  // set surfaceSamples(value: number){
+  //   this.uniforms.surfaceSamples.value = value ?? 4.0;
+  //   // const {weights, indexes} = TerrainMaterial.preprocessSplats(this.props, this.renderer, false);
+  //   // this.uniforms.weights = {value: weights};
+  //   // this.uniforms.indexes = {value: indexes};
+  //   // console.log('hey')
+  //   this.needsUpdate = true;
+  //   this.props.surfaceSamples = value ?? 4.0;
+  // }
 
 
   // @ts-ignore

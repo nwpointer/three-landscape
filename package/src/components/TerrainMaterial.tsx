@@ -17,6 +17,7 @@ export default function (props: TerrainMaterialOptions) {
   useEffect(() => {
     material.anisotropy = props.anisotropy;
     material.smoothness = props.smoothness;
+    // @ts-ignore
     material.surfaceSamples = props.surfaceSamples;
     material.surfaces = props.surfaces;
     material.useMacro = props.useMacro;

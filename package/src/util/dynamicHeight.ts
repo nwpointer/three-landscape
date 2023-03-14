@@ -2,7 +2,7 @@ import glsl from "glslify";
 import catmullRom from "./catmullRom";
 
 
-export default glsl`
+export const dynamicHeightUtils = glsl`
 
   ${catmullRom}
   
