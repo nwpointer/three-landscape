@@ -256,18 +256,18 @@ function Terrain() {
         metalness={0.125}
         aoMap={t[0]}
         aoMapIntensity={ao}
-        roughness={0.8}
+        roughness={0.85}
         wireframe={wireframe}
         anisotropy={anisotropy}
         surfaceSamples={2}
         smoothness = {smoothness}
         macroMap = {t[15]}
         far={far}
-        distanceOptimized={false} 
+        distanceOptimized={distanceOptimizedRendering} 
         // useMacro = {useMacro}
         // precalculateWeights={false}
       /> */}
-      <TerrainMaterial
+      <NextTerrainMaterial
         splats={[t[11], t[12]]}
         surfaces={[rock, clif, mud, grass1, grass2, mud, mud]}
         normalMap={t[10]}
@@ -284,11 +284,32 @@ function Terrain() {
         anisotropy={anisotropy}
         surfaceSamples={2}
         smoothness = {smoothness}
-        // macroMap = {t[15]}
-        // useMacro = {useMacro}
-        distanceOptimizedRendering={false}
-        precalculateWeights={false}
+        macroMap = {t[15]}
+        distanceOptimized={distanceOptimizedRendering}
+        far={1000}
       />
+      {/* <TerrainMaterial
+        splats={[t[11], t[12]]}
+        surfaces={[rock, clif, mud, grass1, grass2, mud, mud]}
+        normalMap={t[10]}
+        displacementMap={t[9]}
+        displacementScale={120}
+        // optional parameters -------------------
+        displacementBias={0.0}
+        envMapIntensity={0.75}
+        metalness={0.125}
+        aoMap={t[0]}
+        aoMapIntensity={ao}
+        roughness={0.8}
+        wireframe={wireframe}
+        anisotropy={anisotropy}
+        surfaceSamples={2}
+        smoothness = {smoothness}
+        macroMap = {t[15]}
+        useMacro = {useMacro}
+        distanceOptimizedRendering={distanceOptimizedRendering}
+        precalculateWeights={false}
+      /> */}
     </mesh>
   )
 }

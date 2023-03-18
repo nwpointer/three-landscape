@@ -13,6 +13,7 @@ import noise from "../util/noise";
 import { generateTextureArray, memGenerateTextureArray } from "../three/generateTextureArray";
 import { materialScene } from "./../three/materialScene";
 
+
 /* ----------------------------
 TODO:
 [+] No more setters for everything
@@ -109,17 +110,17 @@ class TerrainMaterial extends CustomShaderMaterial{
     ]
 
     const diffuseArray = memGenerateTextureArray(props.surfaces.map((surface) => surface.diffuse));
-    const normalArray = memGenerateTextureArray(props.surfaces.map((surface) => surface.normal));
+    const normalArray = memGenerateTextureArray(props.surfaces.map((surface) => surface.normal), THREE.LinearEncoding);
+
+    // console.log({srgb: normalArray?.texture?.encoding === THREE.sRGBEncoding})
 
     super({
       baseMaterial: THREE.MeshStandardMaterial,
-      uniforms: {
-        'surfaceTint': {value: props.surfaces.map(s => s.tint || new THREE.Vector4(1, 1, 1, 1))}
-      },
       vertexShader: glsl`
         varying float z;
         varying vec3 uvz;
         varying vec3 heightNormal;
+        // varying vec2 vUv;
 
         uniform float smoothness;
         uniform vec2 displacementSize;
@@ -147,11 +148,28 @@ class TerrainMaterial extends CustomShaderMaterial{
       `,
       fragmentShader: glsl`
         precision mediump sampler2DArray;
-        const int SURFACES = ${props.surfaces.length};
 
         varying vec3 heightNormal;
         varying vec3 uvz;
+        float K; // random number
 
+        uniform sampler2DArray diffuseArray;
+        uniform sampler2DArray normalArray;
+        uniform sampler2D macroMap;
+        uniform sampler2D[${props.splats.length || 1}] splats;
+        uniform float far;
+        uniform bool farComputed;
+        uniform float farRenderMode;
+
+        uniform sampler2D farDiffuseMap;
+        uniform sampler2D farNormalMap;  
+        #ifdef USE_FARMAPS
+          bool distanceOptimized = true;
+        #else
+          bool distanceOptimized = false;
+        #endif
+
+        const int SURFACES = ${props.surfaces.length};
         struct Surface {
           float normalStrength;
           float flipNormals;
@@ -162,50 +180,28 @@ class TerrainMaterial extends CustomShaderMaterial{
           bool aperiodic;
           float displacementScale;
         };
-
-        uniform Surface[${props.surfaces.length}] surfaces;
+        uniform Surface[${props.surfaces.length}] surfaceData;
         uniform int surfaceSamples;
-        uniform sampler2DArray diffuseArray;
-        uniform sampler2DArray normalArray;
-        uniform sampler2D macroMap;
-        uniform sampler2D[${props.splats.length || 1}] splats;
-        uniform float far;
-        uniform bool farComputed;
-        uniform float farRenderMode;
         uniform float[SURFACES] surfaceSaturation;
         uniform vec4[SURFACES] surfaceTint;
+        uniform float[SURFACES] surfaceNormalY;
 
         // not sure why but the child material is missing this uniform
-        ${props.parent && glsl`
-          uniform sampler2D normalMap;
-        `}
+        ${props.parent && glsl` uniform sampler2D normalMap;`}
 
-        // patch maps
+        // patch maps allow overriding of normalMaps
         vec4 csm_NormalColor;
 
         ${normalFunctions}
         ${colorFunctions}
         ${glslNoise}
-
         ${mixers}
         ${samplers}
         ${aperiodic}
-        
-        uniform sampler2D farDiffuseMap;
-        uniform sampler2D farNormalMap;  
-        #ifdef USE_FARMAPS
-          bool distanceOptimized = true;
-        #else
-          bool distanceOptimized = false;
-        #endif
 
-        float k;
-
-        float weightSum = 0.0;
-        vec2[${props.splats.length * 4}] sortedSurfaces;
-
-        vec2[${props.splats.length * 4}] sortSurfaces (vec2 uv){
-          vec2[${props.splats.length * 4}] surfaces = vec2[${props.splats.length * 4}](
+        vec2[${props.splats.length * 4}] surfaces;
+        void calculateSurfaces(vec2 uv){
+          surfaces = vec2[${props.splats.length * 4}](
             ${Array(props.splats.length)
               .fill(0)
               .map((v, i) => {
@@ -221,69 +217,61 @@ class TerrainMaterial extends CustomShaderMaterial{
           ${sort("surfaces")}
 
           // normalize weights
-          weightSum = 0.0;
+          float weightSum = 0.0;
           for(int i = 0; i < surfaceSamples; i++) weightSum += surfaces[i].y;
-          return surfaces;
+          for(int i = 0; i < surfaceSamples; i++) surfaces[i].y /= weightSum;
         }
-
-        vec4 calculateDiffuse(){
-          vec4 diffuse;
+        
+        vec4 calculateDiffuse(vec2 uv){
+          vec4 color = vec4(0,0,0,0);
           for(int i = 0; i < surfaceSamples; i++){
-            int index = int(sortedSurfaces[i].x * 8.0);
-            float R = surfaces[index].repeat;
-            float W = sortedSurfaces[i].y / weightSum;
-            bool aperiodic = surfaces[index].aperiodic;
-            bool triplanar = surfaces[index].triplanar;
-
-            vec3 uvi = vec3(uvz.xy*R, float(index));
-
-            // return texture(normalMap, uvz.xy)
-            vec4 D = texture(diffuseArray, uvi);
-            // vec4 D = vec4(surfaces[index].saturation, 0,0,1);
-            diffuse += D * W;
-
-            // tint and saturation
-            // diffuse = saturation(diffuse, surfaces[index].saturation);
-            // diffuse = diffuse * surfaces[index].tint;
-            // diffuse = diffuse * surfaceTint[index];
-
-            // return LinearSample(diffuseArray, uvi, R * vec2(1,N), k);
+            int index = int(surfaces[i].x * 8.0);
+            vec3 uvi = vec3(uv, index);
+            float R = surfaceData[index].repeat;
+            float F = surfaceNormalY[index];
+            float W = surfaces[i].y;
+            // todo: do we need K or R?
+            vec4 diffuse = LinearSample(diffuseArray, uvi,  R * vec2(1,F), K);
+            diffuse = saturation(diffuse, surfaceData[index].saturation);
+            diffuse = diffuse * surfaceData[index].tint;
+            // weight
+            vec4 weightedDiffuse = diffuse * W;
+            color += weightedDiffuse;
           }
-          return diffuse;
-          // return texture(splats[0], uvz.xy);
-        }
-        vec4 calculateNormal(){
-          vec4 normal = texture(normalMap, uvz.xy);
-          // for(int i = 0; i < surfaceSamples; i++){
-          //   int index = int(sortedSurfaces[i].x * 8.0);
-          //   float J = surfaces[0].normalStrength;
-          //   float F = surfaces[index].flipNormals;
-          //   float R = surfaces[index].repeat;
-          //   float S = surfaces[index].saturation;
-          //   vec4 T = surfaces[index].tint;
-          //   float W = sortedSurfaces[i].y / weightSum;
-          //   bool aperiodic = surfaces[index].aperiodic;
-          //   bool triplanar = surfaces[index].triplanar;
-
-          //   vec3 uvi = vec3(uvz.xy*R * vec2(1, F), float(index));
-
-          //   // return texture(normalMap, uvz.xy)
-          //   vec4 N = slerp(zeroN, texture(normalArray, uvi), W * J);
-          //   normal = blend_rnm(normal, N);
-
-          //   // return LinearSample(NormalArray, uvi, R * vec2(1,N), k);
-          // }
-          return normal;
+          return color;
         }
 
-        // problem: far texture wants to only calculate the normal or diffuse, not both
-        // the near texture wants to calculate both inside one loop
+        vec4 calculateNormal(vec2 uv){
+          vec4 color = texture(normalMap, uv);
+          for(int i = 0; i < surfaceSamples; i++){
+            int index = int(surfaces[i].x * 8.0);
+            vec3 uvi = vec3(uv, index);
+            float R = surfaceData[index].repeat;
+            float F = surfaceNormalY[index];
+            float N = surfaceData[index].normalStrength;
+            float W = surfaces[i].y;
+            // todo: do we need K or R?
+            vec4 normal = NormalSample(normalArray, uvi, R * vec2(1,-F), K);
+            // weight
+            vec4 weightedNormal = slerp(zeroN, normal, W * N);
+            color = blend_rnm(color, weightedNormal);
+          }
+          return color;
+        }
         
         void main(){
           float depth = gl_FragCoord.z / gl_FragCoord.w;
-          sortedSurfaces = sortSurfaces(uvz.xy);
-          k = noise(vec3(uvz.xy*200.0, uvz.z));
+          K = noise(vec3(uvz.xy*200.0, uvz.z));
+          vec2 uv = uvz.xy;
+
+          calculateSurfaces(uv);
+
+          csm_DiffuseColor = calculateDiffuse(uv);
+
+          // csm_DiffuseColor = vec4(1,0,0,0);
+          csm_NormalColor = calculateNormal(uv);
           
+          /*
           // need to use a js switch because CustomShaderMaterial does not know how to handle shaders with both csm_DiffuseColor and csm_FragColor
           ${!props.parent ? glsl`
             if(distanceOptimized && farComputed){
@@ -300,8 +288,7 @@ class TerrainMaterial extends CustomShaderMaterial{
               }
             } else {
               csm_NormalColor = calculateNormal();
-              // csm_DiffuseColor = calculateDiffuse();
-              csm_DiffuseColor = texture(splats[1], uvz.xy);
+              csm_DiffuseColor = calculateDiffuse();
             }
           ` : glsl`
               // need to bypass lighting as it will be applied when sampled from the texture in the parent material instance
@@ -311,10 +298,12 @@ class TerrainMaterial extends CustomShaderMaterial{
                 csm_FragColor = calculateNormal();
               }
           ` }
+
+          */
         }
       `,
       patchMap: {
-        csm_NormalColor: !props.normalMap ? {} : {
+        csm_NormalColor: props.normalMap ? {
           "#include <normal_fragment_maps>": glsl`
             #ifdef OBJECTSPACE_NORMALMAP
               normal = csm_NormalColor.xyz * 2.0 - 1.0; // overrides both flatShading and attribute normals
@@ -337,7 +326,7 @@ class TerrainMaterial extends CustomShaderMaterial{
                 normal = perturbNormalArb( - vViewPosition, normal, dHdxy_fwd(), faceDirection );
               #endif
           `,
-        },
+        } : {},
       }
     });
 
@@ -380,12 +369,13 @@ class TerrainMaterial extends CustomShaderMaterial{
         'farRenderMode': {value:0},
         'far': {value: props.far ?? 100.0},
         // vec4 requires default
-        'surfaces': {value:props.surfaces.map(surface => {
+        'surfaceData': {value:props.surfaces.map(surface => {
           surface.tint = surface.tint ?? new THREE.Vector4(1,1,1,1)
           surface.flipNormals = surface.flipNormals ? -1 : 1;
           surface.saturation = surface.saturation ?? 0.5;
           return surface
         })},
+        'surfaceNormalY': {value: props.surfaces.map(s => s.normal.y || 1)},
         // 'surfaceTint': {value: props.surfaces.map(s => new THREE.Vector4(1, 1, 1, 1))}
       }
       shader.uniforms = { ...shader.uniforms,
@@ -461,8 +451,8 @@ class TerrainMaterial extends CustomShaderMaterial{
     this.farScene = scene;
     const maxSize = this.getMaxTextureSize();
     let {width, height} = {width:maxSize, height:maxSize};
-    this.farTargetDiffuse = new THREE.WebGLRenderTarget(width, height, {depthBuffer: false, format: THREE.RGBAFormat, generateMipmaps: true, minFilter: THREE.LinearMipmapLinearFilter, magFilter: THREE.LinearFilter});
-    this.farTargetNormal = new THREE.WebGLRenderTarget(width, height, {depthBuffer: false, format: THREE.RGBAFormat, generateMipmaps: true, minFilter: THREE.LinearMipmapLinearFilter, magFilter: THREE.LinearFilter});
+    this.farTargetDiffuse = new THREE.WebGLRenderTarget(width, height, {depthBuffer: false, format: THREE.RGBAFormat, generateMipmaps: true, minFilter: THREE.LinearMipmapLinearFilter, magFilter: THREE.LinearFilter, encoding: THREE.LinearEncoding});
+    this.farTargetNormal = new THREE.WebGLRenderTarget(width, height, {depthBuffer: false, format: THREE.RGBAFormat, generateMipmaps: true, minFilter: THREE.LinearMipmapLinearFilter, magFilter: THREE.LinearFilter, encoding: THREE.LinearEncoding});
   }
 
   generateFarMaps(renderer) {
@@ -472,7 +462,7 @@ class TerrainMaterial extends CustomShaderMaterial{
     const normal = this.farTargetNormal;
     const material = this.farMaterial;
 
-    material.uniforms.farRenderMode.value = 0;
+    material.uniforms.farRenderMode.value = 0;  
     this.renderTexture(renderer, diffuse, scene, camera);
     this.uniforms.farDiffuseMap = {value: diffuse.texture};
     

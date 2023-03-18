@@ -9,7 +9,7 @@ import sort from "../util/sort";
 import { dynamicHeightUtils } from "../util/dynamicHeight";
 import { splatPreProcessMaterial } from "./splatPreProcessMaterial";
 import noise from "../util/noise";
-import { ShaderMaterial } from "three";
+import { ShaderMaterial, sRGBEncoding } from "three";
 import { DistanceMaterial } from "./DistanceMaterial";
 import { MacroMaterial } from "./MacroMaterial";
 import { generateTextureArray } from "./generateTextureArray";
@@ -183,8 +183,7 @@ class TerrainMaterial extends CustomShaderMaterial {
       ${normalFunctions}
       ${colorFunctions}
       ${glslNoise}
-      // float sum( vec3 v ) { return v.x+v.y+v.z; }
-
+      
       ${mixers}
       ${samplers}
       ${aperiodic}

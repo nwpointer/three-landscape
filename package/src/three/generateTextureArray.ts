@@ -3,7 +3,7 @@ import { getImageData } from "./getImageData";
 
 // assumes textures are loaded and ready to go.
 // would be better to generate as the textures load
-export function generateTextureArray(textures) {
+export function generateTextureArray(textures, encoding = sRGBEncoding) {
   console.log('generating texture array...')
   const { width, height } = textures[0].image; // assume all textures are the same size
   const texturesData = new Uint8Array(width * height * 4 * textures.length);
@@ -30,7 +30,7 @@ export function generateTextureArray(textures) {
   // set the mips and such
   textureArray.needsUpdate = true;
   textureArray.format = RGBAFormat;
-  textureArray.encoding = sRGBEncoding;
+  textureArray.encoding = encoding;
   textureArray.type = UnsignedByteType;
   textureArray.minFilter = LinearMipMapLinearFilter;
   textureArray.magFilter = NearestFilter;
@@ -53,9 +53,9 @@ const memory = (function TexMem(){
   }
 })();
 
-export function memGenerateTextureArray(textures){
+export function memGenerateTextureArray(textures, encoding?){
   if(memory.get(textures)) return memory.get(textures);
-  const textureArray = generateTextureArray(textures);
+  const textureArray = generateTextureArray(textures, encoding);
   memory.set(textures, textureArray);
   return textureArray;
 };
