@@ -323,12 +323,12 @@ function App() {
   });
   return (
     <Canvas
-      camera={{ fov: 60, far: 1000, near: 1.0, position: [0, 50, 200] }}
+      camera={{ fov: 60, far: 5000, near: 1.0, position: [0, 50, 200] }}
     >
       <Stats />
       {/* <Perf position="bottom-left" deepAnalyze={true} /> */}
       <OrbitControls />
-      <fog attach="fog" args={["#6dd1ed", atmosphere ? 0 : 2500, 2500]} />
+      <fog attach="fog" args={["#6dd1ed", atmosphere ? 0 : 2500, 4000]} />
       <ambientLight intensity={0.15} />
       <Suspense fallback={<Progress />}>
         <Environment preset="park" background={false} />

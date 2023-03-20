@@ -17,7 +17,7 @@ export function Skybox({ fog=false, path = '/DayInTheClouds4k.jpg', rotation = [
   return (
     // @ts-expect-error
     <mesh rotation={rotation} ref={mesh}>
-      <sphereBufferGeometry args={[1000, 300, 300]} />
+      <sphereBufferGeometry args={[5000, 300, 300]} />
       <meshBasicMaterial fog={fog} map={map} side={BackSide} />
     </mesh>
   )

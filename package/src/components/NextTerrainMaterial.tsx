@@ -26,11 +26,21 @@ TODO:
 [+] Make distance size configurable
 [+] apply smoothing to mesh
 [+] Fix Triplanar
-[ ] Make scale a vec3 so that triplanar is not super wrong, also make it not reliant on /1024.0?
+[+] fix crashing phone when using distance optimized rendering -> was a memory issue
 [ ] Use generic loop to generate setters for simple custom props
 [ ] Rename samplers to basic samplers
-[ ] still confused about why correcting near far textures required so much abs
-[ ] 1px dydx error between surfaces
+[ ] 1px dydx error between surfaces (most visible with debug textures)
+[ ] fix bug where texture encoding is not correct unless distance optimized rendering is enabled
+[ ] pass mesh size to material as a parameter
+
+FUN:
+[ ] experiment with height based blending
+[ ] efficient terrain scale parallax
+[ ] experiment with alts to triplanar
+[ ] productionalize hexagonal grid
+[ ] productionalize macro map
+[ ] clean up for launch!
+[ ] figure out how to optimally update all parameters
 ----------------------------- */
 
 export type Surface = {
@@ -85,6 +95,8 @@ export default function(props: TerrainMaterialOptions){
     ...(props.surfaces.map(s=>s.triplanar)),
   ])
 
+  // TODO: grab a ref to the mesh and pass its size to the material
+
   //@ts-ignore
   return <terrainMaterial
     {...props}
@@ -117,8 +129,6 @@ class TerrainMaterial extends CustomShaderMaterial{
     const [dw, dh] = [
       props?.displacementMap?.source?.data?.width ?? 0.0,
       props?.displacementMap?.source?.data?.height ?? 0.0
-      // 1.0,
-      // 1.0
     ]
 
     // ensure information textures are interpreted linearly
@@ -145,8 +155,6 @@ class TerrainMaterial extends CustomShaderMaterial{
         uniform vec2 displacementSize;
         uniform sampler2D[${props.splats.length || 1}] splats;
 
-
-        
         #ifdef USE_DISPLACEMENTMAP
           ${dynamicHeightUtils}
         #endif
@@ -178,7 +186,6 @@ class TerrainMaterial extends CustomShaderMaterial{
         varying vec3 heightNormal;
         varying vec3 uvz;
         float K; // random number
-        float zScale = 24.0 * 1.5;
 
         uniform sampler2DArray diffuseArray;
         uniform sampler2DArray normalArray;
@@ -187,6 +194,7 @@ class TerrainMaterial extends CustomShaderMaterial{
         uniform float far;
         uniform bool farComputed;
         uniform float farRenderMode;
+        uniform float displacementScale;
 
         uniform sampler2D farDiffuseMap;
         uniform sampler2D farNormalMap;  
@@ -259,11 +267,8 @@ class TerrainMaterial extends CustomShaderMaterial{
             bool aperiodic = surfaceData[index].aperiodic;
             bool triplanar = surfaceData[index].triplanar;
             vec2 repeat = R * vec2(1,F);
-            vec3 scale = vec3(repeat, zScale);
+            vec3 scale = vec3(repeat, (displacementScale * R)/1024.0); // 1024 is the size of mesh
             // because the branch is based on a static uniform instead of a dynamic value, the compiler can optimize it out
-            // vec4 diffuse = LinearSample(diffuseArray, uvi,  R * vec2(1,F), K);
-            // vec4 diffuse = AperiodicLinearSample(diffuseArray, uvi,  R * vec2(1,F), K);
-            // vec4 diffuse = TriplanarLinearSample(diffuseArray, uvzi, scale, heightNormal, K);
             vec4 diffuse;
             if(aperiodic){
               if(triplanar){
@@ -278,16 +283,14 @@ class TerrainMaterial extends CustomShaderMaterial{
                 diffuse = LinearSample(diffuseArray, uvi,  R * vec2(1,F), K);
               }
             }
-            
             // saturation & tint
             diffuse = saturation(diffuse, surfaceData[index].saturation);
             diffuse = diffuse * surfaceData[index].tint;
+            
             // weight
             vec4 weightedDiffuse = diffuse * W;
             color += weightedDiffuse;
           }
-          // return vec4(heightNormal, 1);
-          // return TriplanarLinearSample(diffuseArray, vec4(uvz, 0.0), vec3(200.0,200, 30.0), heightNormal, K);
           return color;
         }
 
@@ -298,21 +301,14 @@ class TerrainMaterial extends CustomShaderMaterial{
             vec3 uvi = vec3(uvz.xy, index);
             vec4 uvzi = vec4(uvz, index);
             float R = surfaceData[index].repeat;
-            // float F = surfaceNormalY[index];
-            // float F = 1.0;
             float F = surfaceData[index].flipNormals;
             float N = surfaceData[index].normalStrength;
             float W = surfaces[i].y;
             bool aperiodic = surfaceData[index].aperiodic;
             bool triplanar = surfaceData[index].triplanar;
-            // bool aperiodic = true;
-            // bool triplanar = true;
             vec2 repeat = R * vec2(1,F);
-            vec3 scale = vec3(repeat, zScale);
+            vec3 scale = vec3(repeat, (displacementScale * R)/1024.0); // 1024 is the size of mesh
             // because the branch is based on a static uniform instead of a dynamic value, the compiler can optimize it out
-            // vec4 normal = NormalSample(normalArray, uvi, repeat, K);
-            // vec4 normal = AperiodicNormalSample(normalArray, uvi,  R * vec2(1,F), K);
-            // vec4 normal = TriplanarLinearSample(normalArray, uvzi, scale, heightNormal, K);
             vec4 normal;
             if(aperiodic){
               if(triplanar){
@@ -327,7 +323,6 @@ class TerrainMaterial extends CustomShaderMaterial{
                 normal = NormalSample(normalArray, uvi,  R * vec2(1,F), K);
               }
             }
-            
             // weight
             vec4 weightedNormal = slerp(zeroN, normal, W * N);
             color = blend_rnm(color, weightedNormal);
@@ -549,7 +544,7 @@ class TerrainMaterial extends CustomShaderMaterial{
     this.farCamera = camera;
     this.farScene = scene;
     const maxSize = this.getMaxTextureSize();
-    let {width, height} = {width:maxSize, height:maxSize};
+    let {width, height} = {width:maxSize/8, height:maxSize/8};
     this.farTargetDiffuse = new THREE.WebGLRenderTarget(width, height, {depthBuffer: false, format: THREE.RGBAFormat, generateMipmaps: true, minFilter: THREE.LinearMipmapLinearFilter, magFilter: THREE.LinearFilter, encoding: THREE.LinearEncoding});
     this.farTargetNormal = new THREE.WebGLRenderTarget(width, height, {depthBuffer: false, format: THREE.RGBAFormat, generateMipmaps: true, minFilter: THREE.LinearMipmapLinearFilter, magFilter: THREE.LinearFilter, encoding: THREE.LinearEncoding});
   }
