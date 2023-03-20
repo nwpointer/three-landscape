@@ -7,8 +7,8 @@ import mixers from "../util/mixers";
 import sort from "../util/sort";
 import { dynamicHeightUtils } from "../util/dynamicHeight";
 import noise from "../util/noise";
-import { memGenerateTextureArray } from "./generateTextureArray";
-import { materialScene } from "./materialScene";
+import { memGenerateTextureArray } from "../util/generateTextureArray";
+import { createMaterialScene } from "./createMaterialScene";
 import { TerrainMaterialOptions } from "../components/TerrainMaterial";
 
 export default class TerrainMaterial extends CustomShaderMaterial {
@@ -454,7 +454,7 @@ export default class TerrainMaterial extends CustomShaderMaterial {
     if (this.farMaterial)
       return; // already initialized
     this.farMaterial = new TerrainMaterial({ ...props, parent: this });
-    const { camera, scene } = materialScene(this.farMaterial);
+    const { camera, scene } = createMaterialScene(this.farMaterial);
     this.farCamera = camera;
     this.farScene = scene;
     const maxSize = this.getMaxTextureSize();

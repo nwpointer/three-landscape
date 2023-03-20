@@ -1,6 +1,6 @@
 import { ShaderMaterial } from "three";
 import glsl from "glslify";
-import sort from "../util/sort";
+import sort from "./sort";
 
 export function splatPreProcessMaterial(splats, surfaceSamples = 4.0, channelCount = 4.0) {
   console.log({surfaceSamples})

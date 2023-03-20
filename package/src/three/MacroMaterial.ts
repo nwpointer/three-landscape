@@ -2,6 +2,7 @@ import { RepeatWrapping } from "three";
 import glsl from "glslify";
 import { ShaderMaterial } from "three";
 
+// used to help generate macro level details that break up terrain similarities when zoomed out
 export function MacroMaterial(parent) {
   parent.props.macroMap.wrapT = RepeatWrapping;
   parent.props.macroMap.wrapS = RepeatWrapping;
