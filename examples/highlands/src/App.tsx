@@ -235,14 +235,14 @@ function Terrain() {
       position={[0, 0, 0]}
     >
       {/* Plan geometry works too: */}
-      <planeBufferGeometry args={[1024, 1024, 2**9, 2**9]} ref={geometry => {
+      {/* <planeBufferGeometry args={[1024, 1024, 2**9, 2**9]} ref={geometry => {
         if(geometry){
           geometry.attributes.uv2 = geometry.attributes.uv.clone();
           geometry.needsUpdate = true;
         }
-      }} />
+      }} /> */}
       {/* determine based on platform */}
-      {/* <MartiniGeometry displacementMap={t[9]} error={meshError} mobileError={meshError+200} /> */}
+      <MartiniGeometry displacementMap={t[9]} error={meshError} mobileError={meshError+200} />
 
       {/* Comparable standard material */}
       {/* <NextTerrainMaterial

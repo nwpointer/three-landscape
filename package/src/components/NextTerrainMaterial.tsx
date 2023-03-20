@@ -35,6 +35,7 @@ TODO:
 
 FUN:
 [ ] experiment with height based blending
+[ ] make smoothness a surface property
 [ ] efficient terrain scale parallax
 [ ] experiment with alts to triplanar
 [ ] productionalize hexagonal grid
