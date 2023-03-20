@@ -3,7 +3,6 @@ import {
   MartiniGeometry,
   TerrainMaterial,
   useProgressiveTextures,
-  NextTerrainMaterial
 } from "three-landscape";
 import {
   OrbitControls,
@@ -249,30 +248,7 @@ function Terrain() {
       <MartiniGeometry displacementMap={t[9]} error={meshError} mobileError={meshError+200} />
 
       {/* Comparable standard material */}
-      {/* <NextTerrainMaterial
-        splats={[t[11], t[12]]}
-        surfaces={[rock, clif, mud, grass1, grass2, mud, mud]}
-        // optional parameters -------------------
-        normalMap={t[10]}
-        displacementMap={t[9]}
-        displacementScale={120.0}
-        displacementBias={0.0}
-        envMapIntensity={0.75}
-        metalness={0.125}
-        aoMap={t[0]}
-        aoMapIntensity={ao}
-        roughness={0.85}
-        wireframe={wireframe}
-        anisotropy={anisotropy}
-        surfaceSamples={2}
-        smoothness = {smoothness}
-        macroMap = {t[15]}
-        far={far}
-        distanceOptimized={distanceOptimizedRendering} 
-        // useMacro = {useMacro}
-        // precalculateWeights={false}
-      /> */}
-      <NextTerrainMaterial
+      <TerrainMaterial
         splats={[t[11], t[12]]}
         surfaces={[rock, {...clif, normalStrength:0.5}, mud, grass1, grass2, mud, mud]}
         normalMap={t[10]}
@@ -295,28 +271,6 @@ function Terrain() {
         far={far}
 
       />
-      {/* <TerrainMaterial
-        splats={[t[11], t[12]]}
-        surfaces={[rock, clif, mud, grass1, grass2, mud, mud]}
-        normalMap={t[10]}
-        displacementMap={t[9]}
-        displacementScale={120}
-        // optional parameters -------------------
-        displacementBias={0.0}
-        envMapIntensity={0.75}
-        metalness={0.125}
-        aoMap={t[0]}
-        aoMapIntensity={ao}
-        roughness={0.8}
-        wireframe={wireframe}
-        anisotropy={anisotropy}
-        surfaceSamples={surfaceSamples}
-        smoothness = {smoothness}
-        macroMap = {t[15]}
-        useMacro = {useMacro}
-        distanceOptimizedRendering={distanceOptimizedRendering}
-        precalculateWeights={false}
-      /> */}
     </mesh>
   )
 }
