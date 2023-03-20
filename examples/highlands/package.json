@@ -3,21 +3,25 @@
   "private": true,
   "version": "0.0.0",
   "type": "module",
-
   "scripts": {
-    "dev": "vite",
+    "dev": "vite --host",
     "build": "tsc && vite build",
     "preview": "vite preview"
   },
   "dependencies": {
     "@react-three/drei": "^9.34.4",
     "@react-three/fiber": "^8.3.1",
+    "@tensorflow/tfjs": "^4.2.0",
+    "@upscalerjs/esrgan-thick": "^1.0.0-beta.11",
+    "install": "^0.13.0",
+    "leva": "^0.9.34",
+    "npm": "^9.6.1",
+    "r3f-perf": "^6.6.0",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "three": "^0.143.0",
     "three-landscape": "*",
-    "leva": "^0.9.34",
-    "r3f-perf": "^6.6.0"
+    "upscaler": "^1.0.0-beta.16"
   },
   "devDependencies": {
     "@types/react": "^18.0.17",

@@ -61,8 +61,11 @@ function MySuperCoolTerrain() {
 ### New props:
 
 - splats: Texture[] (expects 4 channel splat data in rgba)
-- noise: Texture; used for stochastic sampling
-- Surfaces: Surface[];
+- surfaceSamples: Number, defaults to 4. 
+- surfaces: Surface[];
+- smoothness: Number > 0
+- distanceOptimizedRendering: Boolean, defaults to true
+
 
 Most of the new features are configured by modifying surface properties.
 
@@ -82,22 +85,6 @@ const grass = {
 };
 ```
 
-### Blend Modes:
-by default all surfaces will be alpha blended based on the weights defined in the provided splatmap(s). This generally looks fine from a distance but you may want to try a different blend mode if the camera is likely to be near the ground. blend mode are a surface specific setting.
-
-##### Noise blending:
-uses random noise and splat weights to create a detailed edge. To fully control the shape, you can optionally provide one or more octaves of noise.
-```
-grass.blend = {
-  mode: "noise",
-  octaves: {
-    blur:0.5,
-    amplitude: 1.25,
-    wavelength: 1024.0 * 16.0,
-    accuracy: 1.25
-  }
-}
-```
 To get a better understanding of how each noise parameter effects the edge check out this interactive demo: https://www.redblobgames.com/x/1730-terrain-shader-experiments/noisy-hex-rendering.html
 
 Please see the example directory for advanced usage and example textures.

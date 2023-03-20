@@ -7,7 +7,9 @@
     "declarationMap": true,
     "lib": ["es2017", "dom"],
     "outDir": "./dist",
-    "types": []
+    "types": [],
+    "target": "es5",
   },
+
   "include": ["./src"]
 }

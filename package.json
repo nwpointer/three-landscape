@@ -7,8 +7,9 @@
     "examples/highlands"
   ],
   "scripts": {
-    "dev":"npm run dev -w package & npm run dev -w highlands",
-    "build":"cp README.md ./package/README.md && npm run build --workspaces"
+    "dev": "npm run dev -w package & npm run dev -w highlands",
+    "build": "cp README.md ./package/README.md && npm run build --workspaces",
+    "server": "npx serve ./examples/highlands/dist"
   },
   "repository": {
     "type": "git",
@@ -22,5 +23,8 @@
     "terrain",
     "material",
     "shader"
-  ]
+  ],
+  "dependencies": {
+    "tst-reflect": "^0.12.0"
+  }
 }

@@ -1,5 +1,6 @@
-import React, { useMemo } from "react";
+import { useMemo, useRef } from "react";
 import Martini from "@mapbox/martini";
+import { useDetectGPU } from "@react-three/drei";
 
 function parseRGBHeightField(image, format = GRAYSCALE) {
   const tileSize = image.width;
@@ -42,12 +43,15 @@ function GRAYSCALE(r, g, b) {
   return r * 256;
 }
 
-export default function MartiniGeometry({ displacementMap, error, args=undefined }) {
+export default function MartiniGeometry({ displacementMap, error, mobileError, args=undefined }) {
+  let computedNormals = useRef(false);
+  const GPUTier = useDetectGPU();
+
   const {tileSize, gridSize, tile, data} = useMemo(()=>{
     const tileSize = displacementMap.image.width;
     const gridSize = tileSize + 1;
     const data = parseRGBHeightField(displacementMap.image);
-
+  
     const martini = new Martini(gridSize);
     const tile = martini.createTile(data);
 
@@ -59,9 +63,9 @@ export default function MartiniGeometry({ displacementMap, error, args=undefined
   // this does block the main thread potentially causing jank
   let { vertices, uv, indices, v } = useMemo(() => {
     let size = args || [tileSize, tileSize];
-
-    console.time('gen')
-    var mesh = tile.getMesh(error);
+    // @ts-expect-error
+    const slowGPU = (GPUTier.tier === "0" || GPUTier.isMobile);
+    var mesh = tile.getMesh(slowGPU ? mobileError: error);
     var v = mesh.vertices.length;
     var mv = tile.getMesh(0).vertices.length;
   
@@ -80,15 +84,13 @@ export default function MartiniGeometry({ displacementMap, error, args=undefined
       uv[2 * i + 1] = y / tileSize;
     }
 
-    console.timeEnd('gen')
-
     return {
       vertices,
       uv,
       v,
       indices: mesh.triangles.reverse(),
     };
-  }, [tile, data, error, args]);
+  }, [tile, data, error, mobileError, args]);
 
   return (
     <bufferGeometry
@@ -98,7 +100,9 @@ export default function MartiniGeometry({ displacementMap, error, args=undefined
           geo.attributes.uv.needsUpdate = true;
           geo.attributes.uv2 = geo.attributes.uv.clone();
           geo.index.needsUpdate = true;
+          if(computedNormals.current) return;
           geo.computeVertexNormals();
+          computedNormals.current = true;
         }
       }}
     >
