@@ -4,38 +4,34 @@ import glsl from "glslify";
 export const triplanar = cartesian([["Aperiodic", ""],["Linear", "Normal"]])
   .map(([sampler, mixer]) => {
     return glsl`
-    vec4 Triplanar${sampler}${mixer}Sample(sampler2DArray map, vec4 uv, vec2 scale, float k){
+    vec4 Triplanar${sampler}${mixer}Sample(sampler2DArray map, vec4 uvzi, vec3 scale, vec3 normal, float k){
       float sharpness = 30.0;
-      vec3 weights;
-      // vec3 normal = (texture(normalMap, vUv)).xyz * vec3(1.5,1,1);
-      // vec3 normal = heightNormal * vec3(1,1,0.05);
-      // this should increase with smoothness
-      vec3 normal = vHeightNormal * vec3(1,1,1);
-      weights.x = pow(normal.x, sharpness);
-      weights.y = pow(normal.y, sharpness);
-      weights.z = pow(normal.z, sharpness);
+      vec3 weights = normal;
+      // weights.b *= 0.9;
+      weights = normalize(weights);
+      weights.x = pow(weights.x, sharpness);
+      weights.y = pow(weights.y, sharpness);
+      weights.z = pow(weights.z, sharpness);
 
-      // normalize(weights);
-
-      float sZ = displacementScale/1024.0;
-
+      // weights= vec3(1,0,0);
+      
       // unsorted cheap 1 channel blend does not work well cause wavefront thrashing. 
       // if( weights.z > 86.73617){
-      //   return ${sampler}${mixer}Sample(map, vec3(uv.xy, uv.a), vec2(scale.x, scale.y));  
+      //   return ${sampler}${mixer}Sample(map, vec3(uvzi.xy, uvzi.a), scale.xy, k);  
       // }
-      
+        
       // expensive 3 channel blend, doing linear cause its cheaper than normal
-      vec3 xDiff = ${sampler}LinearSample(map, vec3(uv.zy, uv.a), vec2(scale.x * sZ, scale.y ), k).xyz;
-      vec3 yDiff = ${sampler}LinearSample(map, vec3(uv.xz, uv.a), vec2(scale.x, scale.x * sZ), k).xyz;
-      vec3 zDiff = ${sampler}LinearSample(map, vec3(uv.xy, uv.a), vec2(scale.x, scale.y), k).xyz;
-
+      vec3 xDiff = ${sampler}LinearSample(map, vec3(uvzi.zy, uvzi.a), scale.zy, k).xyz;
+      vec3 yDiff = ${sampler}LinearSample(map, vec3(uvzi.xz, uvzi.a), scale.xz, k).xyz;
+      vec3 zDiff = ${sampler}LinearSample(map, vec3(uvzi.xy, uvzi.a), scale.xy, k).xyz;
+      
       // debug
       // xDiff = vec3(1,0,0);
       // yDiff = vec3(0,1,0);
       // zDiff = vec3(0,0,1);
-
+      
+      // return vec4(0,0,0,1);
       vec3 color = ${mixer}Mix(xDiff,yDiff,zDiff, weights);
-      // color = ${mixer}Mix(zDiff,zDiff,zDiff, weights);
       return vec4(color,1.0);
     }
     `;
@@ -92,8 +88,8 @@ export const triplanar = cartesian([["Aperiodic", ""],["Linear", "Normal"]])
 export const aperiodic = ["Linear", "Normal"]
   .map(
     (mixer) => glsl`
-  vec4 Aperiodic${mixer}Sample(sampler2DArray map, vec3 uv, vec2 scale, float k){
-    uv = vec3(uv.xy * scale, uv.z);
+  vec4 Aperiodic${mixer}Sample(sampler2DArray map, vec3 uvi, vec2 scale, float k){
+    uvi = vec3(uvi.xy * scale, uvi.z);
     // sample variation pattern
     // float k = texture( uNoise, 0.005*uv.xy ).x; // cheap (cache friendly) lookup
     // float k2 = noise(uv * 1.0); // slower but may need to do it if at texture limit
@@ -111,10 +107,10 @@ export const aperiodic = ["Linear", "Normal"]
     
 
     // compute derivatives for mip-mapping, requires shader extension derivatives:true
-    vec2 dx = dFdx(uv.xy), dy = dFdy(uv.xy);
+    vec2 dx = dFdx(uvi.xy), dy = dFdy(uvi.xy);
     // sample the two closest virtual patterns
-    vec3 cola = textureGrad( map, vec3(uv.xy + offa, uv.z), dx, dy ).xyz;
-    vec3 colb = textureGrad( map, vec3(uv.xy + offb, uv.z), dx, dy ).xyz;
+    vec3 cola = textureGrad( map, vec3(uvi.xy + offa, uvi.z), dx, dy ).xyz;
+    vec3 colb = textureGrad( map, vec3(uvi.xy + offb, uvi.z), dx, dy ).xyz;
 
     // vec4 a = texture(map, vec3(uv.xy, uv.z));
     // vec4 b = texture(map, vec3(uv.xy+vec2(0.5, 0.5), uv.z));
@@ -136,8 +132,8 @@ export const samplers = cartesian([["Linear", "Normal"]])
   .map(([mixer]) => {
     return glsl`
     // single channel sample does not care about mixer but having both simplifies other code
-    vec4 ${mixer}Sample( sampler2DArray samp, vec3 uv, vec2 scale, float k){
-      return texture(samp, vec3(uv.xy * scale, uv.z));
+    vec4 ${mixer}Sample( sampler2DArray samp, vec3 uvi, vec2 scale, float k){
+      return texture(samp, vec3(uvi.xy * scale, uvi.z));
     }
   `;
   })

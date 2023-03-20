@@ -9,7 +9,7 @@ import sort from "../util/sort";
 import { dynamicHeightUtils } from "../util/dynamicHeight";
 import { splatPreProcessMaterial } from "./splatPreProcessMaterial";
 import noise from "../util/noise";
-import { ShaderMaterial, sRGBEncoding } from "three";
+import { ShaderMaterial } from "three";
 import { DistanceMaterial } from "./DistanceMaterial";
 import { MacroMaterial } from "./MacroMaterial";
 import { generateTextureArray } from "./generateTextureArray";
@@ -303,6 +303,9 @@ class TerrainMaterial extends CustomShaderMaterial {
         #ifdef USE_TEST
           csm_DiffuseColor = vec4(1,0,0,1);
         #endif
+
+        // csm_DiffuseColor = texture(normalMap, vUv); // base
+        // csm_DiffuseColor = csm_NormalMap;
       
       }
       

@@ -12,20 +12,25 @@ import { dynamicHeightUtils } from "../util/dynamicHeight";
 import noise from "../util/noise";
 import { generateTextureArray, memGenerateTextureArray } from "../three/generateTextureArray";
 import { materialScene } from "./../three/materialScene";
+// import useDeepMemo from "react-deep-memo";
 
 
 /* ----------------------------
 TODO:
-[+] No more setters for everything
+[+] No more setters for built in props in the material constructor
 [+] Constructor perf issues
-[+] FIX FLASH when switching to distance mode
-[+] swap out 'macro' verbiage in initializer
-[+] make renderMode parameter optional
+[+] Don't sample distance texture before its ready
+[+] remove macro map computation from base material
 [+] blend the near into the distance value
-[+] Fix anisotropic filtering
-[+] Fix normal map being unavailable in distance mode
-[ ] Make distance size configurable
-[ ] complete calculate distance and normal functions
+[+] Fix anisotropic filtering prop
+[+] Make distance size configurable
+[+] apply smoothing to mesh
+[+] Fix Triplanar
+[ ] Make scale a vec3 so that triplanar is not super wrong, also make it not reliant on /1024.0?
+[ ] Use generic loop to generate setters for simple custom props
+[ ] Rename samplers to basic samplers
+[ ] still confused about why correcting near far textures required so much abs
+[ ] 1px dydx error between surfaces
 ----------------------------- */
 
 export type Surface = {
@@ -38,6 +43,7 @@ export type Surface = {
   tint?: THREE.Vector4;
   triplanar?: boolean;
   gridless?: boolean;
+  aperiodic?: boolean;
   displacement?: THREE.Texture;
   displacementScale?: number;
 };
@@ -54,6 +60,7 @@ export type TerrainMaterialOptions = MeshStandardMaterialProps & {
   far: number;
   weights?: THREE.Texture;
   indexes?: THREE.Texture;
+  applyDefaultEncoding?: boolean;
 };
 
 export default function(props: TerrainMaterialOptions){
@@ -70,20 +77,23 @@ export default function(props: TerrainMaterialOptions){
     return temp;
   }, [props.normalMap, props.smoothness, props.distanceOptimized, props.macroMap])
 
-  // prevents constructor from running on prop changes, key is used to trigger reconstruction
-  // const args = useMemo(()=>{
-  //   return [{...props}]
-  // }, [])
+  //prevents constructor from running on prop changes, key is used to trigger reconstruction
+  const args = useMemo(()=>{
+    return [{...props}]
+  }, [
+    ...(props.surfaces.map(s=>s.aperiodic)),
+    ...(props.surfaces.map(s=>s.triplanar)),
+  ])
 
   //@ts-ignore
   return <terrainMaterial
     {...props}
-    args={[{...props}]}
+    args={args}
     defines={defines}
     key={JSON.stringify({
       distanceOptimized: props.distanceOptimized,
       displacementMap: props.displacementMap,
-
+      // surfaces: props.surfaces
     })} 
   />
 }
@@ -107,14 +117,23 @@ class TerrainMaterial extends CustomShaderMaterial{
     const [dw, dh] = [
       props?.displacementMap?.source?.data?.width ?? 0.0,
       props?.displacementMap?.source?.data?.height ?? 0.0
+      // 1.0,
+      // 1.0
     ]
 
-    const diffuseArray = memGenerateTextureArray(props.surfaces.map((surface) => surface.diffuse));
-    const normalArray = memGenerateTextureArray(props.surfaces.map((surface) => surface.normal), THREE.LinearEncoding);
+    // ensure information textures are interpreted linearly
+    const applyDefaultEncoding = props.applyDefaultEncoding ?? true;
+    if(props.displacementMap && applyDefaultEncoding) props.displacementMap.encoding = THREE.LinearEncoding;
+    if(props.normalMap && applyDefaultEncoding)props.normalMap.encoding = THREE.LinearEncoding;
 
-    // console.log({srgb: normalArray?.texture?.encoding === THREE.sRGBEncoding})
+    const diffuseArray = memGenerateTextureArray(props.surfaces.map((surface) => surface.diffuse));
+    const normalArray = memGenerateTextureArray(props.surfaces.map((surface) => surface.normal));
 
     super({
+      normalMap: props.normalMap,
+      displacementMap: props.displacementMap,
+      displacementScale: 120*2,
+      displacementBias: props.displacementBias,
       baseMaterial: THREE.MeshStandardMaterial,
       vertexShader: glsl`
         varying float z;
@@ -125,6 +144,8 @@ class TerrainMaterial extends CustomShaderMaterial{
         uniform float smoothness;
         uniform vec2 displacementSize;
         uniform sampler2D[${props.splats.length || 1}] splats;
+
+
         
         #ifdef USE_DISPLACEMENTMAP
           ${dynamicHeightUtils}
@@ -132,26 +153,32 @@ class TerrainMaterial extends CustomShaderMaterial{
         
         void main(){
           #ifdef USE_DISPLACEMENTMAP
-            float z = texture(displacementMap, uv).r;
+            z = texture(displacementMap, uv).r;
             csm_Position = vec3(position.xy, z*-displacementScale);
-            csm_Position.z += z * displacementScale;
-
-            // if smoothnes...
-
-            heightNormal = calculateNormalsFromHeightMap(displacementMap, uv);
-            heightNormal = normalize(heightNormal.rgb) * 4.0;
+            
+            if(smoothness > 0.0){
+              z = getSmoothHeight(uv);
+              heightNormal = calculateNormalsFromSmoothedHeightMap(displacementMap, uv);
+            } else{
+              heightNormal = calculateNormalsFromHeightMap(displacementMap, uv);
+            }
+            heightNormal = normalize(heightNormal);
+            ${!props.parent && glsl`csm_Position.z += z * displacementScale;`}
+          
           #else
             z = 0.0;
+            heightNormal = vec3(0.5, 0.5, 1.0);
           #endif
           uvz = vec3(uv, z);
         }
       `,
       fragmentShader: glsl`
-        precision mediump sampler2DArray;
+        precision highp sampler2DArray;
 
         varying vec3 heightNormal;
         varying vec3 uvz;
         float K; // random number
+        float zScale = 24.0 * 1.5;
 
         uniform sampler2DArray diffuseArray;
         uniform sampler2DArray normalArray;
@@ -186,9 +213,6 @@ class TerrainMaterial extends CustomShaderMaterial{
         uniform vec4[SURFACES] surfaceTint;
         uniform float[SURFACES] surfaceNormalY;
 
-        // not sure why but the child material is missing this uniform
-        ${props.parent && glsl` uniform sampler2D normalMap;`}
-
         // patch maps allow overriding of normalMaps
         vec4 csm_NormalColor;
 
@@ -198,6 +222,7 @@ class TerrainMaterial extends CustomShaderMaterial{
         ${mixers}
         ${samplers}
         ${aperiodic}
+        ${triplanar}
 
         vec2[${props.splats.length * 4}] surfaces;
         void calculateSurfaces(vec2 uv){
@@ -222,36 +247,87 @@ class TerrainMaterial extends CustomShaderMaterial{
           for(int i = 0; i < surfaceSamples; i++) surfaces[i].y /= weightSum;
         }
         
-        vec4 calculateDiffuse(vec2 uv){
+        vec4 calculateDiffuse(){
           vec4 color = vec4(0,0,0,0);
           for(int i = 0; i < surfaceSamples; i++){
             int index = int(surfaces[i].x * 8.0);
-            vec3 uvi = vec3(uv, index);
+            vec3 uvi = vec3(uvz.xy, index);
+            vec4 uvzi = vec4(uvz, index);
             float R = surfaceData[index].repeat;
-            float F = surfaceNormalY[index];
+            float F = surfaceData[index].flipNormals;
             float W = surfaces[i].y;
-            // todo: do we need K or R?
-            vec4 diffuse = LinearSample(diffuseArray, uvi,  R * vec2(1,F), K);
+            bool aperiodic = surfaceData[index].aperiodic;
+            bool triplanar = surfaceData[index].triplanar;
+            vec2 repeat = R * vec2(1,F);
+            vec3 scale = vec3(repeat, zScale);
+            // because the branch is based on a static uniform instead of a dynamic value, the compiler can optimize it out
+            // vec4 diffuse = LinearSample(diffuseArray, uvi,  R * vec2(1,F), K);
+            // vec4 diffuse = AperiodicLinearSample(diffuseArray, uvi,  R * vec2(1,F), K);
+            // vec4 diffuse = TriplanarLinearSample(diffuseArray, uvzi, scale, heightNormal, K);
+            vec4 diffuse;
+            if(aperiodic){
+              if(triplanar){
+                diffuse = TriplanarAperiodicLinearSample(diffuseArray, uvzi, scale, heightNormal, K);
+              }else {
+                diffuse = AperiodicLinearSample(diffuseArray, uvi,  R * vec2(1,F), K);
+              }
+            } else {
+              if(triplanar){
+                diffuse = TriplanarLinearSample(diffuseArray, uvzi, scale, heightNormal, K);
+              }else {
+                diffuse = LinearSample(diffuseArray, uvi,  R * vec2(1,F), K);
+              }
+            }
+            
+            // saturation & tint
             diffuse = saturation(diffuse, surfaceData[index].saturation);
             diffuse = diffuse * surfaceData[index].tint;
             // weight
             vec4 weightedDiffuse = diffuse * W;
             color += weightedDiffuse;
           }
+          // return vec4(heightNormal, 1);
+          // return TriplanarLinearSample(diffuseArray, vec4(uvz, 0.0), vec3(200.0,200, 30.0), heightNormal, K);
           return color;
         }
 
-        vec4 calculateNormal(vec2 uv){
-          vec4 color = texture(normalMap, uv);
+        vec4 calculateNormal(){
+          vec4 color = texture(normalMap, uvz.xy);
           for(int i = 0; i < surfaceSamples; i++){
             int index = int(surfaces[i].x * 8.0);
-            vec3 uvi = vec3(uv, index);
+            vec3 uvi = vec3(uvz.xy, index);
+            vec4 uvzi = vec4(uvz, index);
             float R = surfaceData[index].repeat;
-            float F = surfaceNormalY[index];
+            // float F = surfaceNormalY[index];
+            // float F = 1.0;
+            float F = surfaceData[index].flipNormals;
             float N = surfaceData[index].normalStrength;
             float W = surfaces[i].y;
-            // todo: do we need K or R?
-            vec4 normal = NormalSample(normalArray, uvi, R * vec2(1,-F), K);
+            bool aperiodic = surfaceData[index].aperiodic;
+            bool triplanar = surfaceData[index].triplanar;
+            // bool aperiodic = true;
+            // bool triplanar = true;
+            vec2 repeat = R * vec2(1,F);
+            vec3 scale = vec3(repeat, zScale);
+            // because the branch is based on a static uniform instead of a dynamic value, the compiler can optimize it out
+            // vec4 normal = NormalSample(normalArray, uvi, repeat, K);
+            // vec4 normal = AperiodicNormalSample(normalArray, uvi,  R * vec2(1,F), K);
+            // vec4 normal = TriplanarLinearSample(normalArray, uvzi, scale, heightNormal, K);
+            vec4 normal;
+            if(aperiodic){
+              if(triplanar){
+                normal = TriplanarAperiodicNormalSample(normalArray, uvzi, scale, heightNormal, K);
+              }else {
+                normal = AperiodicNormalSample(normalArray, uvi,  R * vec2(1,F), K);
+              }
+            } else {
+              if(triplanar){
+                normal = TriplanarNormalSample(normalArray, uvzi, scale, heightNormal, K);
+              }else {
+                normal = NormalSample(normalArray, uvi,  R * vec2(1,F), K);
+              }
+            }
+            
             // weight
             vec4 weightedNormal = slerp(zeroN, normal, W * N);
             color = blend_rnm(color, weightedNormal);
@@ -266,16 +342,11 @@ class TerrainMaterial extends CustomShaderMaterial{
 
           calculateSurfaces(uv);
 
-          csm_DiffuseColor = calculateDiffuse(uv);
-
-          // csm_DiffuseColor = vec4(1,0,0,0);
-          csm_NormalColor = calculateNormal(uv);
-          
-          /*
           // need to use a js switch because CustomShaderMaterial does not know how to handle shaders with both csm_DiffuseColor and csm_FragColor
           ${!props.parent ? glsl`
             if(distanceOptimized && farComputed){
               vec4 farDiffuse = texture(farDiffuseMap, uvz.xy);
+              // vec4 farDiffuse = vec4(1,0,0,1); // debug far distance
               vec4 farNormal = texture(farNormalMap, uvz.xy);
               csm_DiffuseColor = farDiffuse;
               csm_NormalColor = farNormal;
@@ -291,7 +362,8 @@ class TerrainMaterial extends CustomShaderMaterial{
               csm_DiffuseColor = calculateDiffuse();
             }
           ` : glsl`
-              // need to bypass lighting as it will be applied when sampled from the texture in the parent material instance
+              // simple, w/o distance optimization
+              // need to bypass lighting as it will be applied when sampled from the texture in the parent material instance so we directly set the frag color
               if(farRenderMode == 0.0){
                 csm_FragColor = calculateDiffuse();
               } else {
@@ -299,7 +371,11 @@ class TerrainMaterial extends CustomShaderMaterial{
               }
           ` }
 
-          */
+          float sharpness = 10.0;
+          // csm_NormalColor = vec4(0.5, 0.5, 1.0, 1.0);
+          // csm_DiffuseColor = vec4(0.5, 0.5, 1.0, 1.0);
+          // csm_DiffuseColor = vec4(heightNormal, 1.0);
+          
         }
       `,
       patchMap: {
@@ -369,9 +445,9 @@ class TerrainMaterial extends CustomShaderMaterial{
         'farRenderMode': {value:0},
         'far': {value: props.far ?? 100.0},
         // vec4 requires default
-        'surfaceData': {value:props.surfaces.map(surface => {
+        'surfaceData': {value:props.surfaces.map((surface, i) => {
           surface.tint = surface.tint ?? new THREE.Vector4(1,1,1,1)
-          surface.flipNormals = surface.flipNormals ? -1 : 1;
+          surface.flipNormals = surface.flipNormals === true || surface.flipNormals === -1  ? -1 : 1;
           surface.saturation = surface.saturation ?? 0.5;
           return surface
         })},
@@ -381,6 +457,8 @@ class TerrainMaterial extends CustomShaderMaterial{
       shader.uniforms = { ...shader.uniforms,
         ...uniforms
       };
+
+      console.log('---')
 
       // keep uniforms of distanceInstance in sync
       // (Object.keys(shader.uniforms)).forEach(name =>Object.defineProperty(this, name, {
@@ -434,12 +512,33 @@ class TerrainMaterial extends CustomShaderMaterial{
     }
   }
 
+  set smoothness(value){
+    if(this.uniforms.smoothness){
+      this.uniforms.smoothness.value = value;
+    }
+  }
+
   set surfaceSamples(value){
     if(this.uniforms.surfaceSamples){
       this.uniforms.surfaceSamples.value = value;
     }
     if(this.distantInstance && this.distantInstance.uniforms.surfaceSamples){
       this.distantInstance.uniforms.surfaceSamples.value = value;
+    }
+  }
+
+  set surfaces(value){
+    value = value.map((surface, i) => {
+      surface.tint = surface.tint ?? new THREE.Vector4(1,1,1,1)
+      surface.flipNormals = surface.flipNormals === true || surface.flipNormals === -1  ? -1 : 1;
+      surface.saturation = surface.saturation ?? 0.5;
+      return surface
+    })
+    if(this.uniforms.surfaceData){
+      this.uniforms.surfaceData.value = value;
+    }
+    if(this.distantInstance && this.distantInstance.uniforms.surfaceData){
+      this.distantInstance.uniforms.surfaceData.value = value;
     }
   }
 

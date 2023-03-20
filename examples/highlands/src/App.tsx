@@ -45,7 +45,7 @@ function Terrain() {
         description: "mesh error"
       },
       smoothness: {
-        value: 0,
+        value: 1.0,
         min: 0,
         max: 20,
         step: 0.1,
@@ -204,6 +204,7 @@ function Terrain() {
     normal: debugNormal ? t[14] : t[8],
     normalStrength: 0.5,
     normalY: -1,
+    flipNormals: true,
     tint: new Vector4(1.2, 1.2, 1.2, 1),
     triplanar: triplanar,
     gridless: gridless,
@@ -234,14 +235,14 @@ function Terrain() {
       position={[0, 0, 0]}
     >
       {/* Plan geometry works too: */}
-      {/* <planeBufferGeometry args={[1024, 1024, 2**11, 2**11]} ref={geometry => {
+      <planeBufferGeometry args={[1024, 1024, 2**9, 2**9]} ref={geometry => {
         if(geometry){
           geometry.attributes.uv2 = geometry.attributes.uv.clone();
           geometry.needsUpdate = true;
         }
-      }} /> */}
+      }} />
       {/* determine based on platform */}
-      <MartiniGeometry displacementMap={t[9]} error={meshError+120} mobileError={meshError+200} />
+      {/* <MartiniGeometry displacementMap={t[9]} error={meshError} mobileError={meshError+200} /> */}
 
       {/* Comparable standard material */}
       {/* <NextTerrainMaterial
@@ -269,7 +270,7 @@ function Terrain() {
       /> */}
       <NextTerrainMaterial
         splats={[t[11], t[12]]}
-        surfaces={[rock, clif, mud, grass1, grass2, mud, mud]}
+        surfaces={[rock, {...clif, normalStrength:0.5}, mud, grass1, grass2, mud, mud]}
         normalMap={t[10]}
         displacementMap={t[9]}
         displacementScale={120}
@@ -282,11 +283,11 @@ function Terrain() {
         roughness={0.8}
         wireframe={wireframe}
         anisotropy={anisotropy}
-        surfaceSamples={2}
+        surfaceSamples={surfaceSamples}
         smoothness = {smoothness}
         macroMap = {t[15]}
         distanceOptimized={distanceOptimizedRendering}
-        far={1000}
+        far={far}
       />
       {/* <TerrainMaterial
         splats={[t[11], t[12]]}
@@ -303,7 +304,7 @@ function Terrain() {
         roughness={0.8}
         wireframe={wireframe}
         anisotropy={anisotropy}
-        surfaceSamples={2}
+        surfaceSamples={surfaceSamples}
         smoothness = {smoothness}
         macroMap = {t[15]}
         useMacro = {useMacro}
@@ -323,7 +324,6 @@ function App() {
   return (
     <Canvas
       camera={{ fov: 60, far: 1000, near: 1.0, position: [0, 50, 200] }}
-
     >
       <Stats />
       {/* <Perf position="bottom-left" deepAnalyze={true} /> */}
