@@ -1,7 +1,7 @@
 import { Scene, Mesh, PlaneGeometry, OrthographicCamera, AmbientLight } from "three";
 
 // used to help render a material out to a texture
-export function materialScene(mat) {
+export function createMaterialScene(mat) {
   const camera = new OrthographicCamera(-0.5, 0.5, -0.5, 0.5, 1, 10);
   const scene = new Scene();
   // ideally we would use a copy of the original geometry here
