@@ -7,8 +7,8 @@ import mixers from "../util/mixers";
 import sort from "../util/sort";
 import { dynamicHeightUtils } from "../util/dynamicHeight";
 import noise from "../util/noise";
-import { memGenerateTextureArray } from "./generateTextureArray";
-import { materialScene } from "./materialScene";
+import { memGenerateTextureArray } from "../util/generateTextureArray";
+import { materialScene } from "./MaterialScene";
 import { TerrainMaterialOptions } from "../components/TerrainMaterial";
 
 export default class TerrainMaterial extends CustomShaderMaterial {
