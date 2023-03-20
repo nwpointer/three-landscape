@@ -15,6 +15,7 @@ import { materialScene } from "./../three/materialScene";
 // import useDeepMemo from "react-deep-memo";
 
 
+
 /* ----------------------------
 TODO:
 [+] No more setters for built in props in the material constructor
@@ -72,6 +73,7 @@ export type TerrainMaterialOptions = MeshStandardMaterialProps & {
   weights?: THREE.Texture;
   indexes?: THREE.Texture;
   applyDefaultEncoding?: boolean;
+  distanceTextureScale?: number;
 };
 
 export default function(props: TerrainMaterialOptions){
@@ -545,7 +547,8 @@ class TerrainMaterial extends CustomShaderMaterial{
     this.farCamera = camera;
     this.farScene = scene;
     const maxSize = this.getMaxTextureSize();
-    let {width, height} = {width:maxSize/8, height:maxSize/8};
+    const scale = props.distanceTextureScale ?? 1;
+    let {width, height} = {width:maxSize*scale, height:maxSize*scale};
     this.farTargetDiffuse = new THREE.WebGLRenderTarget(width, height, {depthBuffer: false, format: THREE.RGBAFormat, generateMipmaps: true, minFilter: THREE.LinearMipmapLinearFilter, magFilter: THREE.LinearFilter, encoding: THREE.LinearEncoding});
     this.farTargetNormal = new THREE.WebGLRenderTarget(width, height, {depthBuffer: false, format: THREE.RGBAFormat, generateMipmaps: true, minFilter: THREE.LinearMipmapLinearFilter, magFilter: THREE.LinearFilter, encoding: THREE.LinearEncoding});
   }

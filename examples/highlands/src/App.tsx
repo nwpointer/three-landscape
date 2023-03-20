@@ -23,8 +23,12 @@ import { MeshStandardMaterial, Vector4, Vector3, DoubleSide, LinearEncoding, sRG
 import { Suspense, useEffect, useState } from "react";
 import { useControls } from "leva";
 import { Perf } from "r3f-perf";
+import { useDetectGPU } from "@react-three/drei";
+
 
 function Terrain() {
+  const GPUTier = useDetectGPU();
+  const slowGPU = (GPUTier.tier === 0 || GPUTier.isMobile);
   const {camera} = useThree();
   const [cameraPosition, setCameraPosition] = useState(new Vector3(0,0,0));
   const { triplanar, gridless, far, useMacro, distanceOptimizedRendering, ao, meshError, smoothness, wireframe, surfaceSamples, anisotropy } =
@@ -287,7 +291,9 @@ function Terrain() {
         smoothness = {smoothness}
         macroMap = {t[15]}
         distanceOptimized={distanceOptimizedRendering}
+        distanceTextureScale={slowGPU ? 1/6 : 1/2}
         far={far}
+
       />
       {/* <TerrainMaterial
         splats={[t[11], t[12]]}
