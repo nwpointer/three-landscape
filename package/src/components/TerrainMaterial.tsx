@@ -1,41 +1,8 @@
 import { extend } from "@react-three/fiber";
 import * as THREE from "three";
-import { useMemo, useRef } from "react";
+import { useMemo } from "react";
 import { MeshStandardMaterialProps } from "@react-three/fiber";
-import { biplanar } from "../util/samplers";
-import { generateTextureArray } from "../three/generateTextureArray";
 import TerrainMaterial from "../three/TerrainMaterial";
-
-
-
-/* ----------------------------
-TODO:
-[+] No more setters for built in props in the material constructor
-[+] Constructor perf issues
-[+] Don't sample distance texture before its ready
-[+] remove macro map computation from base material
-[+] blend the near into the distance value
-[+] Fix anisotropic filtering prop
-[+] Make distance size configurable
-[+] apply smoothing to mesh
-[+] Fix Triplanar
-[+] fix crashing phone when using distance optimized rendering -> was a memory issue
-[ ] Use generic loop to generate setters for simple custom props
-[ ] Rename samplers to basic samplers
-[ ] 1px dydx error between surfaces (most visible with debug textures)
-[ ] fix bug where texture encoding is not correct unless distance optimized rendering is enabled
-[ ] pass mesh size to material as a parameter
-
-FUN:
-[ ] experiment with height based blending
-[ ] make smoothness a surface property
-[ ] efficient terrain scale parallax
-[ ] experiment with alts to triplanar
-[ ] productionalize hexagonal grid
-[ ] productionalize macro map
-[ ] clean up for launch!
-[ ] figure out how to optimally update all parameters
------------------------------ */
 
 export type Surface = {
   diffuse?: THREE.Texture;

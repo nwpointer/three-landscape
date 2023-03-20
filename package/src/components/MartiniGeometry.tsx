@@ -1,7 +1,5 @@
-import React, { useMemo, useRef, useState } from "react";
+import { useMemo, useRef } from "react";
 import Martini from "@mapbox/martini";
-import { useFrame, useThree } from "@react-three/fiber";
-import { Vector3 } from "three";
 import { useDetectGPU } from "@react-three/drei";
 
 function parseRGBHeightField(image, format = GRAYSCALE) {
