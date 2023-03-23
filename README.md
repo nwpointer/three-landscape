@@ -10,7 +10,7 @@ Note: this package is not capable of procedurally generating terrain. Height map
 
 https://three-landscape.vercel.app/
 
-Source code for example is available in the /examples/highland@latest directory
+Source code for example is available in the /examples/highlands directory
 
 ### Installation
 
@@ -31,11 +31,12 @@ Custom material that extends the meshStandardMaterial with additional properties
 - Stochastic sampling
 - Triplanar mapping
 - Multiple material blending options
+- Automatic texture 'atlasing' allows more that 16 textures(max on most hardware by default)
 
 ```js
 function MySuperCoolTerrain() {
   const textures = useTexture([
-    ... list of up to 16* textures
+    ... any number of textures
   ]);
 
   return (

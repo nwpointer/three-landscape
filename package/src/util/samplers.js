@@ -1,7 +1,7 @@
 import { cartesian } from "./util";
 import glsl from "glslify";
 
-export const triplanar = cartesian([["Aperiodic", ""],["Linear", "Normal"]])
+export const triplanarSamplers = cartesian([["Aperiodic", ""],["Linear", "Normal"]])
   .map(([sampler, mixer]) => {
     return glsl`
     vec4 Triplanar${sampler}${mixer}Sample(sampler2DArray map, vec4 uvzi, vec3 scale, vec3 normal, float k){
@@ -85,7 +85,7 @@ export const triplanar = cartesian([["Aperiodic", ""],["Linear", "Normal"]])
   })
   .join("\n");
 
-export const aperiodic = ["Linear", "Normal"]
+export const aperiodicSamplers = ["Linear", "Normal"]
   .map(
     (mixer) => glsl`
   vec4 Aperiodic${mixer}Sample(sampler2DArray map, vec3 uvi, vec2 scale, float k){
@@ -128,7 +128,7 @@ export const aperiodic = ["Linear", "Normal"]
   )
   .join("\n");
 
-export const samplers = cartesian([["Linear", "Normal"]])
+export const basicSamplers = cartesian([["Linear", "Normal"]])
   .map(([mixer]) => {
     return glsl`
     // single channel sample does not care about mixer but having both simplifies other code
