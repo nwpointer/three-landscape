@@ -1,12 +1,9 @@
 import { extend } from "@react-three/fiber";
-import * as THREE from "three";
-import { useLayoutEffect, useMemo, useRef, useState } from "react";
+import { useMemo} from "react";
 import TerrainMaterial, {TerrainMaterialOptions} from "../three/TerrainMaterial";
 
 export default function(props: TerrainMaterialOptions){
   extend({ TerrainMaterial })
-
-  const material = useRef<TerrainMaterial>(null)
   
   // defines are passed to shaders
   const defines = useMemo(()=>{
@@ -26,13 +23,10 @@ export default function(props: TerrainMaterialOptions){
     ...(props.surfaces.map(s=>s.triplanar)),
   ])
 
-  // TODO: grab a ref to the mesh and pass its size to the material
-
   //@ts-ignore
   return <terrainMaterial
     {...props}
     args={args}
-    ref={material}
     defines={defines}
     key={JSON.stringify({
       distanceOptimized: props.distanceOptimized,
