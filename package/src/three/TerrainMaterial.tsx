@@ -42,6 +42,10 @@ export type TerrainMaterialOptions = MeshStandardMaterialProps & {
   distanceTextureScale?: number;
   parent?: TerrainMaterial
   meshSize?: number
+  color?: THREE.Color,
+  farDiffuseMap?: THREE.Texture,
+  farNormalMap?: THREE.Texture,
+  farComputed?: boolean,
 };
 
 export default class TerrainMaterial extends CustomShaderMaterial {
@@ -61,12 +65,11 @@ export default class TerrainMaterial extends CustomShaderMaterial {
   meshSize: number;
 
   constructor(props: TerrainMaterialOptions) {
-    console.time('Terrain constructor');
-
-    const [dw, dh] = [
-      props?.displacementMap?.source?.data?.width ?? 0.0,
-      props?.displacementMap?.source?.data?.height ?? 0.0
-    ];
+  
+    const hasTripanar = !!props.surfaces.find(s=>s.triplanar)
+    if(hasTripanar && !props.meshSize){
+      throw new Error('Prop [meshSize] is required when using [triplanar mapping], but was not provided. It is used to calculate texture scale along the z axis.')
+    }
 
     // ensure information textures are interpreted linearly
     const applyDefaultEncoding = props.applyDefaultEncoding ?? true;
@@ -157,8 +160,6 @@ export default class TerrainMaterial extends CustomShaderMaterial {
         uniform Surface[${props.surfaces.length}] surfaceData;
         uniform int surfaceSamples;
         uniform float[SURFACES] surfaceSaturation;
-        uniform vec4[SURFACES] surfaceTint;
-        uniform float[SURFACES] surfaceNormalY;
 
         // patch maps allow overriding of normalMaps
         vec4 csm_NormalColor;
@@ -341,53 +342,45 @@ export default class TerrainMaterial extends CustomShaderMaterial {
       },
     });
 
-    console.timeEnd('Terrain constructor');
-
-    const onBeforeCompile = this.onBeforeCompile;
+    const superOnBeforeCompile = this.onBeforeCompile;
 
     this.onBeforeCompile = (shader, renderer) => {
       this.context = renderer.getContext();
 
-      const uniforms = {
-        'splats': { value: props.splats },
-        'noise': { value: props.noise ?? noise },
-        'smoothness': { value: props.smoothness ?? 0.0 },
-        'macroMap': { value: undefined },
-        'weights': { value: props.weights },
-        'indexes': { value: props.indexes },
-        'aoMapIntensity': { value: props.aoMapIntensity ?? 0.5 },
-        'roughness': { value: 0.0 },
-        'normalMap': { value: props.normalMap },
-        'displacementMap': { value: props.displacementMap },
-        'displacementScale': { value: props.displacementScale ?? 0.0 },
-        'envMapIntensity': { value: props.envMapIntensity ?? 0.0 },
-        'metalness': { value: props.metalness ?? 0.0 },
-        'aoMap ': { value: props.aoMap },
-        'color': { value: new THREE.Color(props.color) },
-        'displacementMapSize': { value: new THREE.Vector2(dw, dh) },
-        'surfaceSamples': { value: props.surfaceSamples ?? 4.0 },
-        'diffuseArray': { value: diffuseArray },
-        'normalArray': { value: normalArray },
-        'farDiffuseMap': { value: props.farDiffuseMap },
-        'farNormalMap': { value: props.farDiffuseMap },
-        'farComputed': { value: props.farComputed ?? false },
-        'farRenderMode': { value: 0 },
-        'far': { value: props.far ?? 100.0 },
-        // vec4 requires default
-        'surfaceData': {
-          value: props.surfaces.map((surface, i) => {
-            surface.tint = surface.tint ?? new THREE.Vector4(1, 1, 1, 1);
-            surface.flipNormals = surface.flipNormals === true || surface.flipNormals === -1 ? -1 : 1;
-            surface.saturation = surface.saturation ?? 0.5;
-            return surface;
-          }),
-        },
-        'surfaceNormalY': { value: props.surfaces.map(s => s.normal.y || 1) },
-        'meshSize': { value: props.meshSize },
-      };
+      // found it was much faster to set uniforms on onBeforeCompile than in the constructor especially when using a lot of textures
       shader.uniforms = {
         ...shader.uniforms,
-        ...uniforms
+        ...{
+          'splats': { value: props.splats },
+          'noise': { value: props.noise ?? noise },
+          'smoothness': { value: props.smoothness ?? 0.0 },
+          'macroMap': { value: undefined },
+          'weights': { value: props.weights },
+          'indexes': { value: props.indexes },
+          'aoMapIntensity': { value: props.aoMapIntensity ?? 0.5 },
+          'roughness': { value: 0.0 },
+          'normalMap': { value: props.normalMap },
+          'displacementMap': { value: props.displacementMap },
+          'displacementScale': { value: props.displacementScale ?? 0.0 },
+          'envMapIntensity': { value: props.envMapIntensity ?? 0.0 },
+          'metalness': { value: props.metalness ?? 0.0 },
+          'aoMap ': { value: props.aoMap },
+          'color': { value: new THREE.Color(props.color) },
+          'surfaceSamples': { value: props.surfaceSamples ?? 4.0 },
+          'diffuseArray': { value: diffuseArray },
+          'normalArray': { value: normalArray },
+          'farDiffuseMap': { value: props.farDiffuseMap },
+          'farNormalMap': { value: props.farDiffuseMap },
+          'farComputed': { value: props.farComputed ?? false },
+          'farRenderMode': { value: 0 },
+          'far': { value: props.far ?? 100.0 },
+          'surfaceData': {value: props.surfaces.map(this.parseSurfaceData)},
+          'meshSize': { value: props.meshSize },
+          'displacementMapSize': { value: new THREE.Vector2(
+            props?.displacementMap?.source?.data?.width ?? 0.0,
+            props?.displacementMap?.source?.data?.height ?? 0.0
+          )},
+        }
       };
 
       // keep custom props in sync
@@ -403,7 +396,11 @@ export default class TerrainMaterial extends CustomShaderMaterial {
           }
         },
       }))
-      onBeforeCompile(shader, renderer);
+
+      // run onBeforeCompile from base material
+      superOnBeforeCompile(shader, renderer);
+      
+      // Setup for distance optimized rendering
       if (props.distanceOptimized && !props.parent) {
         this.initializeFarMaps(props);
         this.generateFarMaps(renderer);
@@ -435,13 +432,15 @@ export default class TerrainMaterial extends CustomShaderMaterial {
     }
   }
 
+  parseSurfaceData = (surface, i) => {
+    surface.tint = surface.tint ?? new THREE.Vector4(1, 1, 1, 1);
+    surface.flipNormals = surface.flipNormals === true || surface.flipNormals === -1 ? -1 : 1;
+    surface.saturation = surface.saturation ?? 0.5;
+    return surface;
+  }
+
   set surfaces(value) {
-    value = value.map((surface, i) => {
-      surface.tint = surface.tint ?? new THREE.Vector4(1, 1, 1, 1);
-      surface.flipNormals = surface.flipNormals === true || surface.flipNormals === -1 ? -1 : 1;
-      surface.saturation = surface.saturation ?? 0.5;
-      return surface;
-    });
+    value = value.map(this.parseSurfaceData);
     if (this.uniforms.surfaceData) {
       this.uniforms.surfaceData.value = value;
     }
