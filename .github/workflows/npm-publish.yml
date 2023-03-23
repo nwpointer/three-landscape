@@ -27,7 +27,7 @@ jobs:
         with:
           node-version: 16
           registry-url: https://registry.npmjs.org/
-      - run: npm ci && npm run build
+      - run: npm ci && npm run build && cp README.md ./package/README.md
       - run: npm publish -w package
         env:
           NODE_AUTH_TOKEN: ${{secrets.npm_token}}

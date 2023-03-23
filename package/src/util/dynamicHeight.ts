@@ -6,9 +6,9 @@ export const dynamicHeightUtils = glsl`
 
   ${catmullRom}
   
-  float getSmoothHeight(vec2 uv){
+  float getSmoothHeight(vec2 uv, vec2 displacementMapSize){
     vec2 heightUv = uv;
-    vec2 tHeightSize = displacementSize;
+    vec2 tHeightSize = displacementMapSize;
     // make smoothness a surface property
     tHeightSize /= smoothness;
     vec2 texel = vec2( 1.0 / tHeightSize );
@@ -20,10 +20,10 @@ export const dynamicHeightUtils = glsl`
     // return 5.0;
   }
 
-  vec3 calculateNormalsFromSmoothedHeightMap(sampler2D displacementMap, vec2 uv){
-    float h = getSmoothHeight(uv);
-    float hx = getSmoothHeight(uv + vec2( 1.0/1024.0, 0.0 ));
-    float hy = getSmoothHeight(uv + vec2( 0.0, 1.0/1024.0 ));
+  vec3 calculateNormalsFromSmoothedHeightMap(sampler2D displacementMap, vec2 displacementMapSize,  vec2 uv){
+    float h = getSmoothHeight(uv, displacementMapSize);
+    float hx = getSmoothHeight(uv + vec2( 1.0/1024.0, 0.0 ), displacementMapSize);
+    float hy = getSmoothHeight(uv + vec2( 0.0, 1.0/1024.0 ), displacementMapSize);
     float dx = ((hx - h) * 120.0);
     float dy = ((hy - h) * 120.0);
     // return vec3(120.0,0,0);

@@ -269,7 +269,7 @@ function Terrain() {
         distanceOptimized={distanceOptimizedRendering}
         distanceTextureScale={slowGPU ? 1/6 : 1/2}
         far={far}
-
+        meshSize={1024}
       />
     </mesh>
   )
