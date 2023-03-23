@@ -346,6 +346,7 @@ export default class TerrainMaterial extends CustomShaderMaterial {
 
     this.onBeforeCompile = (shader, renderer) => {
       this.context = renderer.getContext();
+      this.renderer = renderer;
 
       // found it was much faster to set uniforms on onBeforeCompile than in the constructor especially when using a lot of textures
       shader.uniforms = {
@@ -377,15 +378,7 @@ export default class TerrainMaterial extends CustomShaderMaterial {
       // keep custom props in sync
       (['far', 'smoothness', 'surfaceSamples', 'meshSize']).forEach(name =>Object.defineProperty(this, name, {
         get: () =>  shader.uniforms[name] !== undefined ? shader.uniforms[name].value : undefined,
-        set: (v) => {
-          if(shader.uniforms[name]){
-            if(this.farMaterial) {
-              this.farMaterial[name] = v
-              this.generateFarMaps(renderer);
-            }
-            shader.uniforms[name].value = v
-          }
-        },
+        set: (v) => this.updateNestedUniform(name, v)
       }))
 
       // run onBeforeCompile from base material
@@ -423,21 +416,27 @@ export default class TerrainMaterial extends CustomShaderMaterial {
     }
   }
 
+  set surfaces(value) {
+    value = value.map(this.parseSurfaceData);
+    this.updateNestedUniform('surfaceData', value);
+  }
+
+  // update uniforms on both parent and child materials
+  updateNestedUniform(name, value) {
+    if(this.uniforms[name]){
+      if(this.farMaterial) {
+        this.farMaterial[name] = value
+        this.generateFarMaps(this.renderer);
+      }
+      this.uniforms[name].value = value
+    }
+  }
+
   parseSurfaceData = (surface, i) => {
     surface.tint = surface.tint ?? new THREE.Vector4(1, 1, 1, 1);
     surface.flipNormals = surface.flipNormals === true || surface.flipNormals === -1 ? -1 : 1;
     surface.saturation = surface.saturation ?? 0.5;
     return surface;
-  }
-
-  set surfaces(value) {
-    value = value.map(this.parseSurfaceData);
-    if (this.uniforms.surfaceData) {
-      this.uniforms.surfaceData.value = value;
-    }
-    if (this.distantInstance && this.distantInstance.uniforms.surfaceData) {
-      this.distantInstance.uniforms.surfaceData.value = value;
-    }
   }
 
   initializeFarMaps(props) {
