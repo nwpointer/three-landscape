@@ -1,4 +1,4 @@
-import { Canvas, useThree } from "@react-three/fiber";
+import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import {
   MartiniGeometry,
   TerrainMaterial,
@@ -15,39 +15,74 @@ import {
   Stats,
   useProgress,
   Html,
+  useEnvironment,
 } from "@react-three/drei";
 import { Skybox } from "./Skybox";
-import { MeshStandardMaterial, Vector4, Texture } from "three";
-import { Suspense, useEffect } from "react";
+import { MeshStandardMaterial, Vector4, Vector3, DoubleSide, LinearEncoding, sRGBEncoding, LinearFilter } from "three";
+import { Suspense, useEffect, useState } from "react";
 import { useControls } from "leva";
 import { Perf } from "r3f-perf";
+import { useDetectGPU } from "@react-three/drei";
+
 
 function Terrain() {
-  const { debugTextures, triplanar, gridless, noiseBlend, ao, meshError, wireframe, anisotropy } =
+  const GPUTier = useDetectGPU();
+  const slowGPU = (GPUTier.tier === 0 || GPUTier.isMobile);
+  const {camera} = useThree();
+  const [cameraPosition, setCameraPosition] = useState(new Vector3(0,0,0));
+  const { triplanar, gridless, far, useMacro, distanceOptimizedRendering, ao, meshError, smoothness, wireframe, surfaceSamples, anisotropy } =
     useControls({
-      debugTextures: false,
+      // debugTextures: true,
       triplanar: false,
       gridless: false,
-      noiseBlend: false,
+      // noiseBlend: false,
       ao: {
         value: 0.62,
         min: 0,
         max: 2.0,
       },
       meshError: {
-        value: 10,
+        value: 0,
         min: 0,
         max: 300,
         description: "mesh error"
       },
+      smoothness: {
+        value: 1.0,
+        min: 0,
+        max: 20,
+        step: 0.1,
+      },
       anisotropy: {
-        value: 1,
+        value: 4,
         min: 1,
         max: 16,
         step: 1.0,
       },
+      surfaceSamples: {
+        value: 3,
+        min: 1,
+        max: 4,
+        step: 1.0,
+      },
+      distanceOptimizedRendering: true,
+      far: {
+        value: 100,
+        min: 0,
+        max: 1000,
+      },
+      useMacro: false,
       wireframe: false
     });
+
+    // req calc to be off the main thread
+    // useFrame(() => {
+    //   var v = camera.position.distanceTo(cameraPosition);
+    //   if(v > 400.0){
+    //     setCameraPosition(camera.position.clone());
+    //     console.log('frame geometry')
+    //   }
+    // });
 
   /*
   [
@@ -75,7 +110,7 @@ function Terrain() {
       "/Mud_03/Ground_WetBumpyMud_col.jpg",
       "/Mud_03/Ground_WetBumpyMud_norm.jpg",
       "/Cliffs_02/Rock_DarkCrackyCliffs_col.jpg",
-      "/Cliffs_02/Rock_DarkCrackyCliffs_norm.png",
+      "/Cliffs_02/Rock_DarkCrackyCliffs_norm.jpg",
       "/Rock_04/Rock_sobermanRockWall_col.jpg",
       "/Rock_04/Rock_sobermanRockWall_norm.jpg",
       `/heightmap@0.5.png`,
@@ -84,8 +119,20 @@ function Terrain() {
       `/splatmap_01.png`,
       "/DebugTexture/debug.jpg",
       "/DebugTexture/debug_norm.png",
+      "/T_MacroVariation_sm.png",
+      "/Grass_02/ground_Grass1_dsp.png",
+      "/Mud_03/Ground_WetBumpyMud_dsp.png",
+      "/Cliffs_02/Rock_DarkCrackyCliffs_dsp.png",
+      "/Rock_04/Rock_sobermanRockWall_dsp.png"
     ],
   ]);
+
+  // const envMap = useEnvironment({files:'/sunflowers_puresky_4k.hdr', encoding: LinearEncoding});
+
+  // envMap.magFilter = LinearFilter;
+  // envMap.minFilter = LinearFilter;
+  // console.log('envMap', envMap);
+  
 
   // @ts-ignore
   const t = textures[q]
@@ -105,31 +152,34 @@ function Terrain() {
     },
   ];
 
-  // TODO: figure out why grass normal is whack
-
-  const debugDiffuse = debugTextures;
-  const debugNormal = debugTextures;
+  const debugDiffuse = false; // debugTextures
+  const debugNormal = false; // debugTextures
 
   const grass2 = {
     diffuse: debugDiffuse ? t[13] : t[1],
     normal: debugNormal ? t[14] : t[2],
-    normalStrength: 0.2,
-    repeat: 200,
+    normalStrength: 0.3,
+    repeat: 300,
     gridless: gridless,
-    saturation: 0.7,
-    tint: new Vector4(0.8, 1.0, 0.8, 1),
+    aperiodic: gridless,
+    saturation: 0.55,
+    tint: new Vector4(0.7, 0.8, 0.7, 1),
+    displacement: t[16],
   };
 
   const grass1 = {
     diffuse: debugDiffuse ? t[13] : t[1],
     normal: debugNormal ? t[14] : t[2],
-    normalStrength: 0.2,
-    repeat: 200,
-    saturation: 0.6,
+    normalStrength: 0.3,
+    repeat: 300,
+    // saturation: 0.5,
     gridless: gridless,
-    tint: new Vector4(0.8, 1.0, 0.8, 1),
+    aperiodic: gridless,
+    tint: new Vector4(0.8, 0.9, 0.8, 1),
+    displacement: t[16],
   };
 
+  const noiseBlend = false;
   if (noiseBlend) {
     //@ts-ignore
     grass1.blend = {
@@ -147,65 +197,65 @@ function Terrain() {
     diffuse: debugDiffuse ? t[13] : t[3],
     normal: debugNormal ? t[14] : t[4],
     normalStrength: 0.5,
-    repeat: 200,
+    repeat: 300,
     saturation: 0.5,
+    displacement: t[17],
   };
 
   const clif = {
     diffuse: debugDiffuse ? t[13] : t[7],
     normal: debugNormal ? t[14] : t[8],
-    normalStrength: 0.4,
-    tint: new Vector4(1.5, 1.5, 1.5, 1),
+    normalStrength: 0.5,
+    normalY: -1,
+    flipNormals: true,
+    tint: new Vector4(1.2, 1.2, 1.2, 1),
     triplanar: triplanar,
     gridless: gridless,
-    repeat: 150,
+    aperiodic: gridless,
+    repeat: 300,
     saturation: 0.5,
+    displacement: t[18],
   };
 
   const rock = {
     diffuse: debugDiffuse ? t[13] : t[5],
     normal: debugNormal ? t[14] : t[6],
-    normalStrength: 0.5,
-    tint: new Vector4(1.5, 1.5, 1.5, 1),
+    normalStrength: 0.4,
+    tint: new Vector4(1.2, 1.2, 1.2, 1),
     triplanar: triplanar,
     gridless: gridless,
-    repeat: 150,
+    aperiodic: gridless,
+    repeat: 300,
     saturation: 0.3,
+    displacement: t[19],
   };
 
-  return textures ? (
+  // let cameraError = camera.position.distanceTo(new Vector3(0,0,0));
+
+  return (
     <mesh
       rotation={[(-1 * Math.PI) / 2, 0, (-3.35 * Math.PI) / 2]}
       position={[0, 0, 0]}
     >
       {/* Plan geometry works too: */}
-      {/* <planeBufferGeometry args={[1024, 1024, 1024 * 1.0, 1024 * 1.0]} ref={geometry => {
+      {/* <planeBufferGeometry args={[1024, 1024, 2**9, 2**9]} ref={geometry => {
         if(geometry){
           geometry.attributes.uv2 = geometry.attributes.uv.clone();
           geometry.needsUpdate = true;
         }
       }} /> */}
-      <MartiniGeometry displacementMap={t[9]} error={meshError} />
+      {/* determine based on platform */}
+      <MartiniGeometry displacementMap={t[9]} error={meshError} mobileError={meshError+200} />
 
       {/* Comparable standard material */}
-      {/* <meshStandardMaterial
-        normalMap={t[10]}
-        displacementMap={t[9]}
-        displacementScale={100.0 }
-        envMapIntensity={0.35}
-        metalness={0.125}
-        aoMap = {t[0]}
-        aoMapIntensity={ao}
-        roughness={0.8}
-      /> */}
       <TerrainMaterial
         splats={[t[11], t[12]]}
-        surfaces={[rock, clif, mud, grass1, grass2, mud, mud]}
+        surfaces={[rock, {...clif, normalStrength:0.5}, mud, grass1, grass2, mud, mud]}
         normalMap={t[10]}
         displacementMap={t[9]}
-        displacementScale={100.0}
-        // normalScale={[1.5,1.5]}
-        // orientation={[-1,1]}
+        displacementScale={120}
+        // optional parameters -------------------
+        displacementBias={0.0}
         envMapIntensity={0.75}
         metalness={0.125}
         aoMap={t[0]}
@@ -213,22 +263,32 @@ function Terrain() {
         roughness={0.8}
         wireframe={wireframe}
         anisotropy={anisotropy}
+        surfaceSamples={surfaceSamples}
+        smoothness = {smoothness}
+        macroMap = {t[15]}
+        distanceOptimized={distanceOptimizedRendering}
+        distanceTextureScale={slowGPU ? 1/6 : 1/2}
+        far={far}
+        meshSize={1024}
       />
     </mesh>
-  ) : null;
+  )
 }
 
 function App() {
+  const { atmosphere } = useControls({
+    atmosphere: {
+      value: false
+    }
+  });
   return (
     <Canvas
-      camera={{ fov: 30, far: 2000, near: 10.0, position: [0, 200, 200] }}
+      camera={{ fov: 60, far: 5000, near: 1.0, position: [0, 50, 200] }}
     >
       <Stats />
       {/* <Perf position="bottom-left" deepAnalyze={true} /> */}
       <OrbitControls />
-      {/* <fog attach="fog" args={['#9fdced', 0, 2000]} /> */}
-      <fog attach="fog" args={["#6dd1ed", 0, 2000]} />
-      {/* <ambientLight intensity={0.15} color="yellow" /> */}
+      <fog attach="fog" args={["#6dd1ed", atmosphere ? 0 : 2500, 4000]} />
       <ambientLight intensity={0.15} />
       <Suspense fallback={<Progress />}>
         <Environment files="rooitou_park_4k.hdr" background={false} />
