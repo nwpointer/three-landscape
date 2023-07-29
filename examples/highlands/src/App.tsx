@@ -231,7 +231,7 @@ function App() {
       {/* <ambientLight intensity={0.15} color="yellow" /> */}
       <ambientLight intensity={0.15} />
       <Suspense fallback={<Progress />}>
-        <Environment preset="park" background={false} />
+        <Environment files="rooitou_park_4k.hdr" background={false} />
         <Skybox fog={false} />
         <Terrain />
       </Suspense>
